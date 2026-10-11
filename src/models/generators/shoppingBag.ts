@@ -102,5 +102,17 @@ export function shoppingBag(p: ShoppingBagParams): OrigamiModel {
   const flat: Record<number, number> = {};
   for (const e of model.edges) if (e.faces[1] >= 0) flat[e.id] = e.assignment === 'M' ? -Math.PI : Math.PI;
   model.edu.referenceStates = [{ name: 'Flat (collapsed) state', foldAngles: flat }];
+  // Folding order of a real paper bag: the side gussets tuck in first, then the walls and the
+  // bottom collapse. (Searched over 243 group orders: this one keeps the path free of
+  // self-intersection longest and needs the least facet strain.)
+  const gussetFirst = new Set([edgeKey(SR, MR), edgeKey(SL, ML), edgeKey(SR, c10), edgeKey(SR, c11), edgeKey(SL, c00), edgeKey(SL, c01)]);
+  const backHorizontal = edgeKey(EL, ER);
+  const schedule: Record<number, [number, number]> = {};
+  for (const e of model.edges) {
+    if (e.faces[1] < 0) continue;
+    const k = edgeKey(e.vertices[0], e.vertices[1]);
+    schedule[e.id] = gussetFirst.has(k) ? [0, 0.5] : k === backHorizontal ? [0, 1] : [0.5, 1];
+  }
+  model.edu.foldSchedule = schedule;
   return model;
 }

@@ -24,3 +24,29 @@ describe('shopping bag: open → flat with bending allowed', () => {
     expect(peak).toBeGreaterThan(0.01);
   });
 });
+
+describe('shopping bag: flat state and folding order', () => {
+  const m = buildFromRegistry('shoppingBag', { W: 2, D: 1, H: 2 });
+  const flat = m.edu.referenceStates![0].foldAngles;
+  const tris = m.faces.flatMap((f) => f.triangles);
+
+  it('the exact flat state is a valid stack: flat and without crossing facets', async () => {
+    const { RigidKinematicSolver } = await import('../core/solver/rigid/RigidKinematicSolver');
+    const { detectCollisions } = await import('../core/solver/collision/collision');
+    const s = new RigidKinematicSolver(m, undefined, {});
+    const rho = Float64Array.from(m.edges, (e) => flat[e.id] ?? e.referenceFoldAngle);
+    const x = s.positions(rho);
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 2; i < x.length; i += 3) { lo = Math.min(lo, x[i]); hi = Math.max(hi, x[i]); }
+    expect(hi - lo).toBeLessThan(1e-9);
+    expect(detectCollisions(x, tris).count).toBe(0);
+  });
+
+  it('folding the gussets first keeps the path free of self-intersection up to 85 %', async () => {
+    const { detectCollisions } = await import('../core/solver/collision/collision');
+    const out = runFoldToSweep(m, { targets: flat, schedule: m.edu.foldSchedule, fixed: m.faces[m.edu.baseFace!].vertices, steps: 40, params: ENERGY_PRESETS.paperLike });
+    for (const q of out) if (q.u <= 0.85) expect(detectCollisions(q.positions!, tris).count).toBe(0);
+    expect(detectCollisions(out[out.length - 1].positions!, tris).count).toBe(0);
+    expect(Math.max(...out.map((q) => q.maxStrain))).toBeLessThan(0.05);
+  });
+});

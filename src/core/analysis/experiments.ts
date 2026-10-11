@@ -181,6 +181,8 @@ export interface PrescribedSweepConfig {
 export interface FoldToSweepConfig {
   /** target fold angle per edge (edges not listed keep their reference angle) */
   targets: Record<number, number>;
+  /** optional per-edge [start, end] of the progress over which the edge moves */
+  schedule?: Record<number, [number, number]>;
   /** vertices held in place (e.g. the base facet) */
   fixed: number[];
   steps: number;
@@ -204,7 +206,9 @@ export function runFoldToSweep(model: OrigamiModel, cfg: FoldToSweepConfig, onSa
     s.setCreaseTargets((id) => {
       const e = model.edges[id];
       const t = cfg.targets[id];
-      return t === undefined ? e.referenceFoldAngle : e.referenceFoldAngle + u * (t - e.referenceFoldAngle);
+      const w = cfg.schedule?.[id];
+      const ue = w ? Math.max(0, Math.min(1, (u - w[0]) / (w[1] - w[0]))) : u;
+      return t === undefined ? e.referenceFoldAngle : e.referenceFoldAngle + ue * (t - e.referenceFoldAngle);
     });
     const r = s.relaxFIRE(cfg.maxIterPerStep ?? 6000, 1e-6);
     const e = s.energy();

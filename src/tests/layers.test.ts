@@ -86,3 +86,34 @@ describe('sheet count of a flat fold', () => {
     console.log('sheetsAtPoint', L.sheetsAtPoint, 'chainDepth', L.maxLevel + 1);
   });
 });
+
+describe('layer order of a flat state shown without its fold history', () => {
+  it('reading the slightly unfolded shape gives the same order as following the fold', () => {
+    const m = buildFromRegistry('miura', { rows: 5, cols: 5 });
+    const s = new RigidKinematicSolver(m, undefined, { enforceMV: true, useSymmetryLinks: false });
+    const d = m.edu.defaultDrive!.edge;
+    const sg = m.edges[d].assignment === 'M' ? -1 : 1;
+    const tris = m.faces.flatMap((f) => f.triangles);
+    // A: followed the whole fold
+    const A = new LayerTracker();
+    A.reset(tris);
+    for (let k = 1; k <= 40; k++) { s.setDrivingCrease(d, (sg * k * Math.PI) / 40); s.solve(); A.update(s.positions(), m.scale); }
+    const flatX = s.positions();
+    const rho = new Float64Array(s.rho);
+    // B: sees only the flat state, then the same fold slightly unfolded
+    const B = new LayerTracker();
+    B.reset(tris);
+    B.update(flatX, m.scale);
+    expect(B.unrecorded).toBeGreaterThan(0);
+    for (const f of [0.8, 0.9, 0.96, 0.98, 0.99, 0.995]) {
+      const pre = Float64Array.from(m.edges, (e) => e.referenceFoldAngle + f * (rho[e.id] - e.referenceFoldAngle));
+      B.update(s.positions(pre), m.scale);
+    }
+    B.update(flatX, m.scale);
+    expect(B.unrecorded).toBe(0);
+    const key = (p: [number, number]) => `${p[0]}>${p[1]}`;
+    const fromA = new Set(A.contacts.map(key));
+    expect(B.contacts.length).toBe(A.contacts.length);
+    for (const p of B.contacts) expect(fromA.has(key(p))).toBe(true);
+  });
+});

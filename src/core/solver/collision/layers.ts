@@ -70,6 +70,10 @@ export class LayerTracker {
   stacked = false;
   /** highest layer level in the current state */
   maxLevel = 0;
+  /** contact pairs whose order was never observed (state reached without passing through 'apart') */
+  unrecorded = 0;
+  /** contact pairs of the current state as [lower, upper] */
+  contacts: [number, number][] = [];
   /** most sheets of paper stacked over one point (checked at facet centres) */
   sheetsAtPoint = 1;
 
@@ -113,6 +117,8 @@ export class LayerTracker {
       return true;
     };
     let anyContact = false;
+    let unrecorded = 0;
+    const contacts: [number, number][] = [];
     for (let ii = 0; ii < n; ii++) {
       const i = order[ii];
       for (let jj = ii + 1; jj < n; jj++) {
@@ -140,12 +146,16 @@ export class LayerTracker {
           const ni = cross(sub(Ai[1], Ai[0]), sub(Ai[2], Ai[0])), nj = cross(sub(Bj[1], Bj[0]), sub(Bj[2], Bj[0]));
           if (inside(cen[i], Bj, nj)) cover[i]++;
           if (inside(cen[j], Ai, ni)) cover[j]++;
-          const s = this.above.get(k) ?? 1; // never seen apart: fixed fallback order
-          if (s > 0) up[lo].push(hi); else up[hi].push(lo);
+          const known = this.above.get(k);
+          if (known === undefined) unrecorded++;
+          const s = known ?? 1; // never seen apart: fixed fallback order
+          if (s > 0) { up[lo].push(hi); contacts.push([lo, hi]); } else { up[hi].push(lo); contacts.push([hi, lo]); }
         }
       }
     }
     this.stacked = anyContact;
+    this.unrecorded = unrecorded;
+    this.contacts = contacts;
     const level = new Float32Array(n);
     if (anyContact) {
       // Layers = longest path in the "above" relation. Inconsistent records can form cycles

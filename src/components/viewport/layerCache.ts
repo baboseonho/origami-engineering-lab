@@ -1,6 +1,7 @@
 import type { OrigamiModel } from '../../core/topology/types';
 import { LayerTracker } from '../../core/solver/collision/layers';
 import { engine } from '../../state/engine';
+import { useSim } from '../../state/simulationStore';
 
 interface LayerState { tracker: LayerTracker; version: number; edgeTris: number[][] }
 const cache = new WeakMap<OrigamiModel, LayerState>();
@@ -37,6 +38,18 @@ export function layersFor(model: OrigamiModel): LayerState {
   }
   if (c.version !== engine.version && engine.positions.length === model.vertices.length * 3) {
     c.tracker.update(engine.positions, model.scale);
+    // Layers in contact whose order was never seen (a flat state shown or loaded directly):
+    // look at the same fold slightly unfolded, where the layers stand apart, and read the order there.
+    if (c.tracker.unrecorded > 0 && engine.rigid) {
+      const s = useSim.getState();
+      const rho = s.solverMode === 'energy' && engine.energy ? engine.energy.foldAngles() : s.shownState ? s.rho : engine.rigid.rho;
+      for (const k of [0.8, 0.9, 0.96, 0.98, 0.99, 0.995]) {
+        const pre = new Float64Array(rho.length);
+        model.edges.forEach((e) => { pre[e.id] = e.referenceFoldAngle + k * ((rho[e.id] ?? e.referenceFoldAngle) - e.referenceFoldAngle); });
+        c.tracker.update(engine.rigid.positions(pre), model.scale);
+      }
+      c.tracker.update(engine.positions, model.scale);
+    }
     c.version = engine.version;
   }
   return c;

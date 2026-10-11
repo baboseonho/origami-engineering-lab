@@ -415,10 +415,8 @@ export function showReferenceState(name: string | null) {
   const rho = new Float64Array(engine.rigid.rho);
   for (const e of engine.model.edges) rho[e.id] = e.referenceFoldAngle;
   for (const [k, v] of Object.entries(st.foldAngles)) rho[+k] = v;
-  // shrink by a hair so coincident layers remain visible (purely visual)
-  const vis = new Float64Array(rho);
-  for (const e of engine.model.edges) if (Math.abs(vis[e.id]) > Math.PI - 1e-9) vis[e.id] = Math.sign(vis[e.id]) * (Math.PI - 2 * DEG);
-  engine.setPositions(engine.rigid.positions(vis));
+  // exact state; stacked layers are drawn apart by the layer-order display (viewport/layerCache)
+  engine.setPositions(engine.rigid.positions(rho));
   useSim.setState({ shownState: name, rho });
   scheduleDiagnostics();
 }
@@ -605,11 +603,17 @@ function foldEnergyTo(q: number) {
   e.setDrivingCrease(null, 0);
   driveActive = false;
   const target = foldedTarget(model);
+  const sched = model.edu.foldSchedule;
   const from = useSim.getState().stateFold;
   const n = Math.max(1, Math.ceil(Math.abs(q - from) / 0.05));
   for (let k = 1; k <= n; k++) {
     const p = from + ((q - from) * k) / n;
-    e.setCreaseTargets((id) => { const r = model.edges[id].referenceFoldAngle; return r + p * (target(id) - r); });
+    e.setCreaseTargets((id) => {
+      const r = model.edges[id].referenceFoldAngle;
+      const w = sched?.[id];
+      const pe = w ? Math.max(0, Math.min(1, (p - w[0]) / (w[1] - w[0]))) : p;
+      return r + pe * (target(id) - r);
+    });
     e.relaxFIRE(4000, 1e-6);
   }
   engine.setPositions(e.x);
@@ -757,7 +761,7 @@ export function runExperiment(kind: 'kreslingAxial' | 'yoshimuraCompression' | '
     // open bag → its flat (collapsed) state: every crease moves to its flat angle together,
     // the facets may bend/stretch (the tall-bag theorem says they must, somewhere on the way)
     const flat = model.edu.referenceStates?.[0]?.foldAngles ?? {};
-    const config: FoldToSweepConfig = { targets: flat, fixed: model.faces[model.edu.baseFace ?? 0].vertices, steps: (total = 48), params };
+    const config: FoldToSweepConfig = { targets: flat, schedule: model.edu.foldSchedule, fixed: model.faces[model.edu.baseFace ?? 0].vertices, steps: (total = 48), params };
     worker.postMessage({ type: 'foldTo', id, generator: m.generator, params: m.params, overrides: m.overrides, config });
   }
   useSim.setState({ experiment: { kind, running: true, samples: [], index: 0, total } });

@@ -306,6 +306,7 @@ function PatternFoldPanel({ mode }: { mode: 'rigid' | 'energy' }) {
   const result = useSim((s) => s.result);
   const maxStrain = useSim((s) => s.maxStrain);
   const maxBend = useSim((s) => s.maxFacetBending);
+  const collisions = useSim((s) => s.collisionCount);
   const p = mode === 'rigid' ? patternFoldProgress() : stateFold;
   const cfg = PATTERN_FOLD[generator] ?? PATTERN_FOLD.shoppingBag;
   const pending = useRef<number | null>(null);
@@ -359,6 +360,11 @@ function PatternFoldPanel({ mode }: { mode: 'rigid' | 'energy' }) {
           <KV k="최대 면 굽힘" v={`${toDeg(maxBend).toFixed(1)}°`} />
         </>}
         {stack > 1 && <KV k="한 지점에 겹친 종이 (최대)" v={`${stack}장`} />}
+        {mode === 'energy' && collisions > 0 && (
+          <p className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1.5 text-[12px] leading-relaxed text-ink-2">
+            <b className="text-ink">자기 교차 {collisions}쌍:</b> 이 구간에서는 종이가 잠깐 서로를 통과한다. 이 크리스 패턴(면 수가 적은 모델)은 면을 크게 늘리지 않고는 통과 없이 이 구간을 지날 수 없다. 실제 종이백은 바닥 판이 더 휘어지며 지나간다. 솔버에 접촉 모델은 없다.
+          </p>
+        )}
         {mode === 'energy' && <p className="pt-1 text-[11.5px] leading-relaxed text-ink-3">Energy 솔버(막대-힌지 모델)로 각 단계의 평형을 푼 결과다. 시작과 완전 접힘 상태에서는 변형이 0이고, 중간에서만 면이 변형된다.</p>}
       </div>
     </div>

@@ -79,6 +79,12 @@ export interface EducationalMetadata {
   coarseSurface?: { vertices: number[]; triangles: [number, number, number][] };
   /** Prescribed-path states (labelled as such; never presented as solver output). */
   referenceStates?: { name: string; foldAngles: Record<number, number> }[];
+  /**
+   * Order in which creases fold when the whole pattern is folded to its
+   * reference state: per edge, the [start, end] fraction of the overall
+   * progress over which it moves (absent = the whole range).
+   */
+  foldSchedule?: Record<number, [number, number]>;
   /** Vertex groups used by experiments (e.g. top / bottom rings of a cylinder). */
   groups?: Record<string, number[]>;
 }
