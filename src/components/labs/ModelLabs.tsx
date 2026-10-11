@@ -259,7 +259,7 @@ export function KreslingVsYoshimuraLab() {
     <div className="grid gap-3">
       <div className="grid gap-3 md:grid-cols-2">
         <TubeCard title="Kresling" sub="비틀림 좌굴" model={k} tube={res?.k} fallback={ref.k} />
-        <TubeCard title="Yoshimura" sub="축 압축" model={y} tube={res?.y} fallback={ref.y} />
+        <TubeCard title="Yoshimura" sub="압축 좌굴" model={y} tube={res?.y} fallback={ref.y} />
       </div>
 
       <div className="rounded-[3px] border border-rule-2 bg-paper-2/60 p-3">
@@ -295,7 +295,7 @@ export function KreslingVsYoshimuraLab() {
         {error && <p className="mt-2 text-[12px] text-bad">계산 실패: {error}</p>}
         <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
           반지름, 높이, 다각형, 강성은 같다. 상판은 강체 판으로 축 방향으로 눌리며, "회전 자유"이면 토크가 0이 되는 각까지 스스로 돈다.
-          Kresling은 압축되며 비틀린다(카이랄성에서 오는 압축–비틀림 연성). Yoshimura는 비틀리지 않고, 강체로 접히지 않으므로 면과 막대가 변형되며 에너지를 저장한다.
+          Kresling은 압축되며 비틀린다(카이랄성에서 오는 압축–비틀림 연성). Yoshimura는 비틀리지 않는다: 강체로 접히지 않아 처음에는 면이 압축되며 에너지를 쌓다가, 약 34% 압축에서 다이아몬드 모양으로 좌굴하며(스냅) 에너지가 급감한다. 다시 펴면 한참 동안 좌굴 상태가 유지된다(쌍안정·히스테리시스).
           비틀림을 규정하면(회전 자유 해제) Kresling의 선호 방향과 반대로 돌릴 때 에너지가 커진다.
           접촉(층 간 충돌) 모델은 없으므로 압축 범위를 자기 교차가 생기지 않는 {Math.round((PAIR_U_MAX / 1.2) * 100)}%까지로 둔다.
         </p>

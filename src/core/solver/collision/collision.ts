@@ -17,10 +17,19 @@ const sub = (a: V, b: V): V => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a: V, b: V): V => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
-/** Möller–Trumbore style segment/triangle test; strict interior intersection. */
-function segmentHitsTriangle(p: V, q: V, a: V, b: V, c: V, eps: number): boolean {
+/**
+ * Möller–Trumbore style segment/triangle test; strict interior intersection.
+ * `touch` is a contact distance: an edge that only grazes the other facet's
+ * plane (an endpoint within `touch` of it, as with stacked layers of a
+ * flat-folded state carrying numerical noise) is contact, not penetration.
+ */
+function segmentHitsTriangle(p: V, q: V, a: V, b: V, c: V, eps: number, touch: number): boolean {
   const d = sub(q, p);
   const e1 = sub(b, a), e2 = sub(c, a);
+  const nrm = cross(e1, e2);
+  const nl = Math.sqrt(dot(nrm, nrm)) || 1;
+  const dp = dot(sub(p, a), nrm) / nl, dq = dot(sub(q, a), nrm) / nl;
+  if (Math.abs(dp) < touch || Math.abs(dq) < touch || dp * dq > 0) return false;
   const h = cross(d, e2);
   const det = dot(e1, h);
   const scale = Math.sqrt(dot(e1, e1) * dot(e2, e2) * dot(d, d)) || 1;
@@ -58,6 +67,14 @@ export function detectCollisions(x: Float64Array, tris: [number, number, number]
   const pairs: [number, number][] = [];
   const hit = new Uint8Array(n);
   const eps = TOL.collision * 10;
+  // contact distance scales with the model: 1e-4 of its size (flat-folded layers sit closer than that)
+  let diag = 0;
+  for (let k = 0; k < 3; k++) {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < n; i++) { lo = Math.min(lo, box[6 * i + k]); hi = Math.max(hi, box[6 * i + 3 + k]); }
+    if (n) diag += (hi - lo) ** 2;
+  }
+  const touch = Math.max(TOL.collision, 1e-4 * Math.sqrt(diag));
   for (let ii = 0; ii < n; ii++) {
     const i = order[ii];
     for (let jj = ii + 1; jj < n; jj++) {
@@ -70,8 +87,8 @@ export function detectCollisions(x: Float64Array, tris: [number, number, number]
       const a = A.map((v) => get(x, v)) as [V, V, V];
       const b = B.map((v) => get(x, v)) as [V, V, V];
       let ok = false;
-      for (let k = 0; k < 3 && !ok; k++) ok = segmentHitsTriangle(a[k], a[(k + 1) % 3], b[0], b[1], b[2], eps);
-      for (let k = 0; k < 3 && !ok; k++) ok = segmentHitsTriangle(b[k], b[(k + 1) % 3], a[0], a[1], a[2], eps);
+      for (let k = 0; k < 3 && !ok; k++) ok = segmentHitsTriangle(a[k], a[(k + 1) % 3], b[0], b[1], b[2], eps, touch);
+      for (let k = 0; k < 3 && !ok; k++) ok = segmentHitsTriangle(b[k], b[(k + 1) % 3], a[0], a[1], a[2], eps, touch);
       if (ok) {
         hit[i] = 1; hit[j] = 1;
         if (pairs.length < maxPairs) pairs.push([i, j]);

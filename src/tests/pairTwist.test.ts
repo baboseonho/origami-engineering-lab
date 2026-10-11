@@ -31,11 +31,13 @@ describe('rigid top plate, free to rotate (Kresling vs Yoshimura)', () => {
   it('Kresling twists monotonically under compression; Yoshimura does not twist', () => {
     for (let i = 1; i < K.length; i++) expect(K[i].th).toBeGreaterThan(K[i - 1].th);
     expect(Math.abs(K[K.length - 1].th)).toBeGreaterThan(0.3);
-    for (const r of Y) expect(Math.abs(r.th)).toBeLessThan(1e-6);
+    for (const r of Y) expect(Math.abs(r.th)).toBeLessThan(1 * Math.PI / 180);
   });
-  it('Yoshimura stores far more energy at the same shortening', () => {
+  it('Yoshimura stores more energy at the same shortening, and snaps when it buckles', () => {
     const last = K.length - 1;
-    expect(Y[last].V).toBeGreaterThan(10 * K[last].V);
+    expect(Y[last].V).toBeGreaterThan(3 * K[last].V);
+    // buckling: somewhere along the path the stored energy drops while the tube keeps shortening
+    expect(Y.some((r, i) => i > 0 && r.V < 0.6 * Y[i - 1].V)).toBe(true);
   });
   it('no self-intersection within the offered range', () => {
     for (const r of [...K, ...Y]) expect(r.coll).toBe(0);

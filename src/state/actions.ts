@@ -185,7 +185,10 @@ function loadLessonNow(id: string) {
   // energy lessons start without a driving crease: a drive spring at its current angle would pin it
   if (useSim.getState().solverMode === 'rigid') applyDefaultDrive(model, AUTO_DRIVE.has(generator));
   useUI.getState().requestView('fit');
-  if (useSim.getState().solverMode === 'energy' && creaseRest === 'foldAll') play();
+  if (lesson.patternFold === 'energy' && lesson.solver === 'energy') {
+    // fold in from flat: every frame an equilibrium, at the shared speed
+    animatePatternFold(lesson.patternFoldStart ?? 0, 2600 / Math.max(0.05, lesson.patternFoldStart ?? 1));
+  } else if (useSim.getState().solverMode === 'energy' && creaseRest === 'foldAll') play();
 }
 
 function applyDefaultDrive(model: OrigamiModel, solveNow: boolean) {
@@ -539,22 +542,59 @@ export function play() {
   raf = requestAnimationFrame(loop);
 }
 
-// ───────────────────────────────────────────── fold every crease together (non-mechanisms)
-let foldStateRaf = 0;
+// ───────────────────────────────────────────── fold the whole pattern
+
+/** How the current lesson folds its whole pattern (see Lesson.patternFold), if it offers it. */
+export function patternFoldMode(): 'rigid' | 'energy' | null {
+  const l = lessonById(useModel.getState().lessonId);
+  if (!l?.patternFold || !engine.model) return null;
+  if (l.patternFold === 'rigid' && !engine.model.edu.defaultDrive) return null;
+  return l.patternFold;
+}
+
+/** Fully folded angle of every edge: the model's flat reference state if it has one, else ±180° by M/V. */
+function foldedTarget(model: OrigamiModel): (id: number) => number {
+  const flat = model.edu.referenceStates?.[0]?.foldAngles;
+  return (id) => {
+    const e = model.edges[id];
+    if (flat) return flat[id] ?? e.referenceFoldAngle;
+    return e.faces[1] >= 0 && isCrease(e.assignment) ? e.defaultTarget : e.referenceFoldAngle;
+  };
+}
+
+/** Current fold progress of the whole pattern (0 = as built, 1 = fully folded). */
+export function patternFoldProgress(): number {
+  const mode = patternFoldMode();
+  const model = engine.model;
+  if (mode === 'rigid' && model && engine.rigid) {
+    const dd = model.edu.defaultDrive!;
+    return Math.min(1, Math.abs(engine.rigid.rho[dd.edge] - model.edges[dd.edge].referenceFoldAngle) / Math.PI);
+  }
+  return useSim.getState().stateFold;
+}
+
+/** Rigid pattern fold: drive the default crease of a 1-DoF pattern to p·180° in its M/V sense. */
+function foldRigidTo(q: number) {
+  const model = engine.model!;
+  const dd = model.edu.defaultDrive!;
+  if (useSim.getState().solverMode !== 'rigid') setSolverMode('rigid');
+  if (useSim.getState().drive !== dd.edge) setDriveEdge(dd.edge);
+  const e = model.edges[dd.edge];
+  const sense = e.assignment === 'M' ? -1 : 1;
+  setTarget(e.referenceFoldAngle + sense * q * Math.PI);
+  useSim.setState({ stateFold: q });
+}
 
 /**
- * Fold ALL creases together toward the model's flat reference state:
- * each crease's rest angle is ρ_ref + p·(ρ_flat − ρ_ref). Energy model,
- * warm-started from the current shape and relaxed (FIRE) to equilibrium, so
- * the facets bend/stretch exactly as much as the bar-and-hinge model needs.
- * Used for structures that are not rigid mechanisms (the tall shopping bag),
- * where driving one crease alone cannot fold anything.
+ * Energy pattern fold: ALL creases move together toward their fully folded
+ * angles, ρ = ρ_ref + p·(ρ_folded − ρ_ref), warm-started from the current shape
+ * and relaxed (FIRE) to equilibrium; the facets bend/stretch as much as the
+ * bar-and-hinge model needs. For patterns that are not 1-DoF mechanisms (the
+ * waterbomb tessellation, the tall shopping bag) no single crease can do this.
+ * Large jumps are taken in steps of 0.05 so the path is followed, not skipped.
  */
-export function foldToState(p: number) {
-  const model = engine.model;
-  const flat = model?.edu.referenceStates?.[0]?.foldAngles;
-  if (!model || !flat) return;
-  const q = Math.max(0, Math.min(1, p));
+function foldEnergyTo(q: number) {
+  const model = engine.model!;
   if (useSim.getState().solverMode !== 'energy') setSolverMode('energy');
   stopPlaying();
   if (useSim.getState().experiment) clearExperiment();
@@ -564,29 +604,44 @@ export function foldToState(p: number) {
   if (useSim.getState().drive !== null) useSim.setState({ drive: null });
   e.setDrivingCrease(null, 0);
   driveActive = false;
-  e.setCreaseTargets((id) => {
-    const ed = model.edges[id];
-    const t = flat[id];
-    return t === undefined ? ed.referenceFoldAngle : ed.referenceFoldAngle + q * (t - ed.referenceFoldAngle);
-  });
-  e.relaxFIRE(4000, 1e-6);
+  const target = foldedTarget(model);
+  const from = useSim.getState().stateFold;
+  const n = Math.max(1, Math.ceil(Math.abs(q - from) / 0.05));
+  for (let k = 1; k <= n; k++) {
+    const p = from + ((q - from) * k) / n;
+    e.setCreaseTargets((id) => { const r = model.edges[id].referenceFoldAngle; return r + p * (target(id) - r); });
+    e.relaxFIRE(4000, 1e-6);
+  }
   engine.setPositions(e.x);
   useSim.setState({ stateFold: q });
   updateEnergyStats();
   scheduleDiagnostics();
 }
 
-/** Animate foldToState from the current progress to `to` (every frame is an equilibrium). */
-export function animateFoldToState(to: number, ms = 2400) {
-  cancelAnimationFrame(foldStateRaf);
-  const from = useSim.getState().stateFold;
-  if (reducedMotion()) {
-    for (let k = 1; k <= 24; k++) foldToState(from + ((to - from) * k) / 24);
-    return;
-  }
-  runTimeline(ms * Math.max(0.25, Math.abs(to - from)), (k) => { foldToState(from + (to - from) * k); }, (id) => (foldStateRaf = id));
+/** Fold the whole pattern to progress p ∈ [0, 1] (rigid or energy, per lesson). */
+export function setPatternFold(p: number) {
+  const mode = patternFoldMode();
+  if (!mode) return;
+  const q = Math.max(0, Math.min(1, p));
+  if (mode === 'rigid') foldRigidTo(q);
+  else foldEnergyTo(q);
 }
-export function cancelFoldToState() { cancelAnimationFrame(foldStateRaf); }
+
+let foldStateRaf = 0;
+/** Animate the whole-pattern fold to `to` at the shared fold speed (every frame is a solution). */
+export function animatePatternFold(to: number, ms = 2600) {
+  cancelAnimationFrame(foldStateRaf);
+  const mode = patternFoldMode();
+  if (!mode) return;
+  const from = patternFoldProgress();
+  if (reducedMotion()) { setPatternFold(to); return; }
+  runTimeline(ms * Math.max(0.25, Math.abs(to - from)), (k) => {
+    setPatternFold(from + (to - from) * k);
+    if (mode === 'rigid') { const r = useSim.getState().result; return !r || r.success; }
+    return true;
+  }, (id) => (foldStateRaf = id), () => useUI.getState().requestView('fit'));
+}
+export function cancelPatternFold() { cancelAnimationFrame(foldStateRaf); }
 
 export function stopPlaying() {
   if (raf) cancelAnimationFrame(raf);

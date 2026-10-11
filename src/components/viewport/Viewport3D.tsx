@@ -18,6 +18,7 @@ import { ASSIGN_COLOR } from '../controls/ui';
 import { ViewToolbar } from './ViewToolbar';
 import { Legend } from './Legend';
 import { DrawingFrame } from './DrawingFrame';
+import { layerLift, layersFor } from './layerCache';
 import { C } from '../../theme/tokens';
 
 const tmpM = new THREE.Matrix4();
@@ -64,12 +65,17 @@ function FaceMesh({ model }: { model: OrigamiModel }) {
     if (x.length !== model.vertices.length * 3) return;
     const vs = engine.vertexScalar;
     const showStrain = overlays.strain && solverMode === 'energy' && vs;
+    // stacked layers of a flat-folded state are lifted apart in their fold order (display only)
+    const L = layersFor(model).tracker;
+    const lift = layerLift(model, L);
     tris.forEach(({ t, f }, k) => {
+      const o = lift * L.level[k];
+      const ox = L.normal[3 * k] * o, oy = L.normal[3 * k + 1] * o, oz = L.normal[3 * k + 2] * o;
       const hit = overlays.collisions && engine.triangleHit[k];
       const sel = (selection?.kind === 'face' && selection.id === f) || (hover?.kind === 'face' && hover.id === f);
       for (let j = 0; j < 3; j++) {
         const v = t[j];
-        pos.setXYZ(3 * k + j, x[3 * v], x[3 * v + 1], x[3 * v + 2]);
+        pos.setXYZ(3 * k + j, x[3 * v] + ox, x[3 * v + 1] + oy, x[3 * v + 2] + oz);
         let r = 1, g = 1, b = 1;
         if (showStrain) {
           const s = Math.min(1, vs![v] / 0.05);
@@ -229,7 +235,15 @@ function PenLines({ model }: { model: OrigamiModel }) {
     last.current = engine.version;
     const buf: Record<PenKey, { p: number[]; c: number[] }> = { crease: { p: [], c: [] }, boundary: { p: [], c: [] }, flat: { p: [], c: [] }, strong: { p: [], c: [] } };
     const col = new THREE.Color();
+    const lay = layersFor(model);
+    const L = lay.tracker;
+    const lift = layerLift(model, L);
     for (const e of model.edges) {
+      // a crease sits on the highest layer it borders, slightly above it
+      let lev = 0, tn = -1;
+      if (lift) for (const t of lay.edgeTris[e.id]) if (tn < 0 || L.level[t] > lev) { lev = L.level[t]; tn = t; }
+      const o = lift ? lift * (lev + 0.4) : 0;
+      const ox = tn >= 0 ? L.normal[3 * tn] * o : 0, oy = tn >= 0 ? L.normal[3 * tn + 1] * o : 0, oz = tn >= 0 ? L.normal[3 * tn + 2] * o : 0;
       const isSel = selection?.kind === 'edge' && selection.id === e.id;
       const isHov = hover?.kind === 'edge' && hover.id === e.id;
       const isTheory = theoryHover !== null && model.edu.creaseLabels[e.id] === theoryHover;
@@ -237,7 +251,7 @@ function PenLines({ model }: { model: OrigamiModel }) {
       col.set(locked.includes(e.id) ? C.locked : e.assignment === 'B' ? C.ink : e.assignment === 'F' ? C.rule2 : ASSIGN_COLOR[e.assignment] ?? C.facet);
       if (isHov && !isSel) col.offsetHSL(0, 0, 0.1);
       const [i, j] = e.vertices;
-      buf[key].p.push(x[3 * i], x[3 * i + 1], x[3 * i + 2], x[3 * j], x[3 * j + 1], x[3 * j + 2]);
+      buf[key].p.push(x[3 * i] + ox, x[3 * i + 1] + oy, x[3 * i + 2] + oz, x[3 * j] + ox, x[3 * j + 1] + oy, x[3 * j + 2] + oz);
       buf[key].c.push(col.r, col.g, col.b, col.r, col.g, col.b);
     }
     for (const k of Object.keys(buf) as PenKey[]) {

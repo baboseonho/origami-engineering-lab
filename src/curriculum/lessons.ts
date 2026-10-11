@@ -29,6 +29,14 @@ export interface Lesson {
   useSymmetry?: boolean;
   experiment?: ExperimentId;
   panels?: PanelId[];
+  /**
+   * "Fold the whole pattern" control: 'rigid' drives the default crease of a
+   * 1-DoF mechanism (every frame an exact rigid solution); 'energy' moves every
+   * crease towards its fully folded angle together, relaxing to equilibrium.
+   */
+  patternFold?: 'rigid' | 'energy';
+  /** fold progress the lesson opens at (energy pattern fold) */
+  patternFoldStart?: number;
   content: { concept: string; observe: string; experiment: string; meaning: string; question?: string; answer?: string };
   challenges: Challenge[];
   theory: TheoryKey[];
@@ -156,7 +164,7 @@ export const LESSONS: Lesson[] = [
     theory: ['generalized', 'generalizedMaekawa'],
   },
   {
-    id: 'l3-bag', lecture: 3, title: '쇼핑백 정리 (Shopping Bag)', kind: 'model', generator: 'shoppingBag', params: { W: 2, D: 1, H: 2 },
+    id: 'l3-bag', lecture: 3, title: '쇼핑백 정리 (Shopping Bag)', kind: 'model', generator: 'shoppingBag', params: { W: 2, D: 1, H: 2 }, patternFold: 'energy',
     solver: 'rigid', enforceMV: false, panels: ['bagStates'], experiment: 'bagCollapse',
     content: {
       concept: 'Balkcom–Demaine–Demaine: 전통적인 크리스를 가진 높은(TALL) 종이 쇼핑백($H > D/2$)은 강체 접기가 불가능하다: 열린 상태와 평탄 상태는 강체 형상 공간의 고립점이다.',
@@ -226,7 +234,7 @@ export const LESSONS: Lesson[] = [
   },
   // ───────────────────────────── Lecture 4
   {
-    id: 'l4-miura', lecture: 4, title: '미우라 접기 (Miura-ori)', kind: 'model', generator: 'miura', params: { rows: 3, cols: 3, a: 1, b: 1, alpha: 60 },
+    id: 'l4-miura', lecture: 4, title: '미우라 접기 (Miura-ori)', kind: 'model', generator: 'miura', params: { rows: 3, cols: 3, a: 1, b: 1, alpha: 60 }, patternFold: 'rigid',
     solver: 'rigid', enforceMV: true, panels: ['miuraMetrics'],
     presets: [
       { label: '2×2', params: { rows: 2, cols: 2 } },
@@ -249,7 +257,7 @@ export const LESSONS: Lesson[] = [
     theory: ['miura', 'miuraPoisson', 'dof', 'convention'],
   },
   {
-    id: 'l4-waterbomb', lecture: 4, title: '워터밤(Waterbomb) 테셀레이션', kind: 'model', generator: 'waterbomb', params: { cols: 5, rows: 5 },
+    id: 'l4-waterbomb', lecture: 4, title: '워터밤(Waterbomb) 테셀레이션', kind: 'model', generator: 'waterbomb', params: { cols: 5, rows: 5 }, patternFold: 'energy', patternFoldStart: 0.3,
     solver: 'energy', panels: ['curvature'],
     content: {
       concept: '워터밤(Waterbomb) 테셀레이션은 오세틱이며 돔/구 형태를 만들 수 있다: 종이 자체는 가전개(developable) 상태를 유지하지만, 유효(EFFECTIVE) 곡면은 양의 가우스 곡률을 갖게 된다.',

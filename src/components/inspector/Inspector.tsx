@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { Anchor, ArrowLeft, ArrowRight, Lock, LockOpen, MousePointerClick, Play, Rewind } from 'lucide-react';
 import { analyzeVertex } from '../../core/analysis/metrics';
 import { fmtDeg, toDeg, toRad } from '../../core/geometry/angles';
@@ -8,10 +8,11 @@ import { engine } from '../../state/engine';
 import { useModel } from '../../state/modelStore';
 import { useSim } from '../../state/simulationStore';
 import { useUI } from '../../state/uiStore';
-import { animateFoldToState, cancelFoldToState, driveSelected, foldDriveFully, foldToState, pushHistory, setAssignment, setDriveEdge, setEnforceMV, setUseSymmetry, toggleLock } from '../../state/actions';
+import { animatePatternFold, applyParams, cancelPatternFold, driveSelected, foldDriveFully, patternFoldMode, patternFoldProgress, setPatternFold, pushHistory, setAssignment, setDriveEdge, setEnforceMV, setUseSymmetry, toggleLock } from '../../state/actions';
 import { lessonById } from '../../curriculum/lessons';
 import { ASSIGN_COLOR, ASSIGN_LABEL, AngleSlider, Badge, Button, KV, NumberField, Section, SpeedControl, Toggle, fmt } from '../controls/ui';
 import { FeasibilityBoard } from './FeasibilityBoard';
+import { layersFor } from '../viewport/layerCache';
 
 function SolverResultBox() {
   const result = useSim((s) => s.result);
@@ -44,7 +45,7 @@ function SolverResultBox() {
           {bagLesson && (
             <div className="mt-2.5 border-t border-dashed border-bad/30 pt-2.5">
               <p className="text-[12.5px] leading-relaxed text-ink-2">실제 종이백은 종이가 휘기 때문에 접힌다. 면의 굽힘을 허용하고 열린 백을 평탄 상태까지 접어 본다.</p>
-              <Button kind="primary" className="mt-2" onClick={() => animateFoldToState(1)}>종이를 굽혀 납작하게 접기</Button>
+              <Button kind="primary" className="mt-2" onClick={() => animatePatternFold(1)}>종이를 굽혀 납작하게 접기</Button>
             </div>
           )}
         </>
@@ -271,48 +272,95 @@ function ModelSummary() {
   );
 }
 
+/** Per-pattern wording and sizes of the whole-pattern fold panel. */
+const PATTERN_FOLD: Record<string, { title: string; text: ReactNode; from: string; to: string; fold: string; unfold: string; sizes?: number[] }> = {
+  miura: {
+    title: '패턴 전체 접기 · 미우라',
+    text: <>미우라 접기는 자유도 <b className="text-ink">1</b>의 기구다. 진행률이 구동 크리스의 각(0 → 180°)이고, 나머지 모든 크리스는 폐합 조건으로 정확히 따라 접힌다. 모든 프레임이 강체 해다(Rigid).</>,
+    from: '평면', to: '완전 접힘 (평탄)', fold: '전체 접기', unfold: '전체 펼치기', sizes: [3, 5, 7],
+  },
+  waterbomb: {
+    title: '패턴 전체 접기 · 워터밤',
+    text: <>워터밤 테셀레이션은 자유도가 많아 크리스 <b className="text-ink">하나</b>만 접어서는 패턴이 접히지 않는다. 모든 크리스를 완전 접힘각(산 −180°, 골 +180°)으로 <b className="text-ink">함께</b> 옮기며 매 단계 평형을 푼다(Energy). 중간에는 면이 조금 변형된다.</>,
+    from: '평면', to: '완전 접힘 (평탄)', fold: '전체 접기', unfold: '전체 펼치기', sizes: [3, 4, 6],
+  },
+  shoppingBag: {
+    title: '쇼핑백 접기',
+    text: <>쇼핑백은 크리스 <b className="text-ink">하나</b>를 움직여서는 접히지 않는다. 모든 크리스가 <b className="text-ink">동시에</b> 접히고, 그 사이 종이 면이 조금 휘거나 늘어나야 한다. 면을 강체로 두면(Rigid) 이 경로가 아예 없다는 것이 이 정리다.</>,
+    from: '열림', to: '평탄 (납작)', fold: '납작하게 접기', unfold: '다시 펼치기',
+  },
+};
+
 /**
- * Collective fold for the shopping bag: it is not a mechanism, so no single
- * crease can fold it. One slider folds every crease together (energy model).
+ * Fold the whole pattern with one slider: a 1-DoF pattern (Miura) through its
+ * driving crease, a non-mechanism (waterbomb, shopping bag) by moving every
+ * crease together in the energy model.
  */
-function BagFoldPanel() {
-  const p = useSim((s) => s.stateFold);
+function PatternFoldPanel({ mode }: { mode: 'rigid' | 'energy' }) {
+  const generator = useModel((s) => s.generator) ?? '';
+  const params = useModel((s) => s.params) as Record<string, number>;
+  const model = useModel((s) => s.model)!;
+  useSim((s) => s.rho); // re-render while the pattern moves
+  const stateFold = useSim((s) => s.stateFold);
   const solverMode = useSim((s) => s.solverMode);
+  const result = useSim((s) => s.result);
   const maxStrain = useSim((s) => s.maxStrain);
   const maxBend = useSim((s) => s.maxFacetBending);
+  const p = mode === 'rigid' ? patternFoldProgress() : stateFold;
+  const cfg = PATTERN_FOLD[generator] ?? PATTERN_FOLD.shoppingBag;
   const pending = useRef<number | null>(null);
   const raf = useRef(0);
-  const live = solverMode === 'energy';
   const onSlide = (v: number) => {
-    cancelFoldToState();
+    cancelPatternFold();
     pending.current = v;
-    if (!raf.current) raf.current = requestAnimationFrame(() => { raf.current = 0; if (pending.current !== null) foldToState(pending.current); pending.current = null; });
+    if (!raf.current) raf.current = requestAnimationFrame(() => { raf.current = 0; if (pending.current !== null) setPatternFold(pending.current); pending.current = null; });
+  };
+  const layers = layersFor(model).tracker;
+  const stack = layers.stacked ? layers.maxLevel + 1 : 1;
+  const resize = (n: number) => {
+    const keep = p;
+    applyParams({ rows: n, cols: n });
+    useSim.setState({ stateFold: 0 });
+    if (keep > 0) animatePatternFold(keep, 1800);
   };
   return (
     <div className="border-b border-rule-2 bg-paper-2/60 px-4 pb-4 pt-3.5">
-      <div className="lettering text-[11px] text-ink-3">쇼핑백 접기</div>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
-        쇼핑백은 크리스 <b className="text-ink">하나</b>를 움직여서는 접히지 않는다. 모든 크리스가 <b className="text-ink">동시에</b> 접히고, 그 사이 종이 면이 조금 휘거나 늘어나야 한다. 면을 강체로 두면(Rigid) 이 경로가 아예 없다는 것이 이 정리다.
-      </p>
+      <div className="lettering text-[11px] text-ink-3">{cfg.title}</div>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{cfg.text}</p>
+      {cfg.sizes && (
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <span className="lettering shrink-0 text-[10.5px] text-ink-3">크기</span>
+          <div role="radiogroup" aria-label="패턴 크기" className="flex rounded-[3px] border border-rule-2 bg-paper-2 p-0.5">
+            {cfg.sizes.map((n) => (
+              <button key={n} type="button" role="radio" aria-checked={params.rows === n && params.cols === n} onClick={() => resize(n)}
+                className={`tnum h-6 whitespace-nowrap rounded-[2px] px-2 text-[11.5px] transition-colors ${params.rows === n && params.cols === n ? 'bg-ink text-paper' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
+                {n}×{n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex items-baseline justify-between">
         <span className="text-[12.5px] font-medium text-ink">접힘 진행률</span>
         <span className="tnum text-[18px] font-semibold text-ink">{Math.round(p * 100)}%</span>
       </div>
-      <input type="range" className="mt-1 w-full" min={0} max={1} step={0.005} value={p} aria-label="쇼핑백 접힘 진행률"
+      <input type="range" className="mt-1 w-full" min={0} max={1} step={0.005} value={p} aria-label="패턴 전체 접힘 진행률"
         onChange={(e) => onSlide(parseFloat(e.target.value))} />
-      <div className="flex justify-between text-[11px] text-ink-3"><span>열림</span><span>평탄 (납작)</span></div>
+      <div className="flex justify-between text-[11px] text-ink-3"><span>{cfg.from}</span><span>{cfg.to}</span></div>
       <div className="mt-2 flex gap-1.5">
-        <Button kind="primary" onClick={() => animateFoldToState(1)}>납작하게 접기</Button>
-        <Button onClick={() => animateFoldToState(0)}>다시 펼치기</Button>
+        <Button kind="primary" onClick={() => animatePatternFold(1)}><Play size={14} />{cfg.fold}</Button>
+        <Button onClick={() => animatePatternFold(0)}><Rewind size={14} />{cfg.unfold}</Button>
       </div>
       <SpeedControl className="mt-2 justify-between" />
-      {live && p > 0 && (
-        <div className="mt-2.5 space-y-0.5 text-[12px]">
+      <div className="mt-2.5 space-y-0.5 text-[12px]">
+        {mode === 'rigid' && result && <KV k="닫힘 잔차 ‖C‖ (강체 해)" v={fmt(result.residualNorm)} />}
+        {mode === 'energy' && solverMode === 'energy' && p > 0 && <>
           <KV k="최대 축 변형률 (면 늘어남)" v={`${(maxStrain * 100).toFixed(2)} %`} />
           <KV k="최대 면 굽힘" v={`${toDeg(maxBend).toFixed(1)}°`} />
-          <p className="pt-1 text-[11.5px] leading-relaxed text-ink-3">Energy 솔버(막대-힌지 모델)로 각 단계의 평형을 푼 결과다. 열림과 평탄 상태에서는 변형이 0이고, 중간에서만 면이 변형된다.</p>
-        </div>
-      )}
+        </>}
+        {stack > 1 && <KV k="겹친 층 (접힌 순서대로 표시)" v={`${stack}층`} />}
+        {mode === 'energy' && <p className="pt-1 text-[11.5px] leading-relaxed text-ink-3">Energy 솔버(막대-힌지 모델)로 각 단계의 평형을 푼 결과다. 시작과 완전 접힘 상태에서는 변형이 0이고, 중간에서만 면이 변형된다.</p>}
+      </div>
     </div>
   );
 }
@@ -321,11 +369,12 @@ export function Inspector() {
   const model = useModel((s) => s.model);
   const selection = useUI((s) => s.selection);
   const lessonId = useModel((s) => s.lessonId);
-  const bag = lessonById(lessonId)?.experiment === 'bagCollapse' && !!model?.edu.referenceStates?.length;
+  useModel((s) => s.modelVersion); // re-evaluate the pattern-fold mode when the model changes
+  const foldMode = lessonId ? patternFoldMode() : null;
   if (!model) return <div className="p-4 text-[13px] text-ink-3">이 레슨은 전용 실습 화면을 사용한다.</div>;
   return (
     <div className="stable-gutter h-full overflow-y-auto">
-      {bag && <BagFoldPanel />}
+      {foldMode && <PatternFoldPanel mode={foldMode} />}
       {selection?.kind === 'edge' && model.edges[selection.id] && <CreaseInspector id={selection.id} />}
       {selection?.kind === 'vertex' && model.vertices[selection.id] && <VertexInspector id={selection.id} />}
       {selection?.kind === 'face' && model.faces[selection.id] && <FaceInspector id={selection.id} />}
