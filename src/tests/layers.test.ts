@@ -66,3 +66,23 @@ describe('flat-folded states: contact is not collision, layers follow the fold',
     expect(L.level[0]).toBeGreaterThan(L.level[1]); // first stays on top
   });
 });
+
+describe('sheet count of a flat fold', () => {
+  it('a 3×3 waterbomb folded flat stacks a plausible number of sheets over one point', () => {
+    const m = buildFromRegistry('waterbomb', { rows: 3, cols: 3 });
+    const s = new EnergySolver(m, ENERGY_PRESETS.paperLike);
+    s.fixVertices(m.faces[m.edu.baseFace ?? 0].vertices, 7);
+    const L = new LayerTracker();
+    L.reset(m.faces.flatMap((f) => f.triangles));
+    for (let k = 1; k <= 20; k++) {
+      const p = k / 20;
+      s.setCreaseTargets((id) => { const e = m.edges[id]; return e.referenceFoldAngle + p * (e.defaultTarget - e.referenceFoldAngle); });
+      s.relaxFIRE(6000, 1e-6);
+      L.update(s.x, m.scale);
+    }
+    // the sheet (area 9 bases) collapses onto a 2 × 0.5 strip: many sheets, but bounded by the facet count
+    expect(L.sheetsAtPoint).toBeGreaterThan(4);
+    expect(L.sheetsAtPoint).toBeLessThan(m.faces.length);
+    console.log('sheetsAtPoint', L.sheetsAtPoint, 'chainDepth', L.maxLevel + 1);
+  });
+});

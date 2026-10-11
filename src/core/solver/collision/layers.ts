@@ -70,6 +70,8 @@ export class LayerTracker {
   stacked = false;
   /** highest layer level in the current state */
   maxLevel = 0;
+  /** most sheets of paper stacked over one point (checked at facet centres) */
+  sheetsAtPoint = 1;
 
   reset(tris: [number, number, number][]) {
     this.tris = tris;
@@ -101,6 +103,15 @@ export class LayerTracker {
     const order = Array.from({ length: n }, (_, i) => i).sort((p, q) => box[6 * p] - box[6 * q]);
     // edges of the "j is above i" relation among pairs in contact
     const up: number[][] = Array.from({ length: n }, () => []);
+    // facets in contact covering each facet centre (how many sheets are stacked there)
+    const cover = new Uint16Array(n);
+    const inside = (p: V, t: V[], nrm: V) => {
+      for (let k = 0; k < 3; k++) {
+        const a = t[k], b = t[(k + 1) % 3];
+        if (dot(cross(sub(b, a), sub(p, a)), nrm) < 0) return false;
+      }
+      return true;
+    };
     let anyContact = false;
     for (let ii = 0; ii < n; ii++) {
       const i = order[ii];
@@ -125,6 +136,10 @@ export class LayerTracker {
           this.above.set(k, (d > 0) === (j === hi) ? 1 : -1);
         } else {
           anyContact = true;
+          const Ai = A.map(P), Bj = B.map(P);
+          const ni = cross(sub(Ai[1], Ai[0]), sub(Ai[2], Ai[0])), nj = cross(sub(Bj[1], Bj[0]), sub(Bj[2], Bj[0]));
+          if (inside(cen[i], Bj, nj)) cover[i]++;
+          if (inside(cen[j], Ai, ni)) cover[j]++;
           const s = this.above.get(k) ?? 1; // never seen apart: fixed fallback order
           if (s > 0) up[lo].push(hi); else up[hi].push(lo);
         }
@@ -168,6 +183,9 @@ export class LayerTracker {
     let mx = 0;
     for (let t = 0; t < n; t++) mx = Math.max(mx, level[t]);
     this.maxLevel = mx;
+    let most = 0;
+    for (let t = 0; t < n; t++) most = Math.max(most, cover[t]);
+    this.sheetsAtPoint = anyContact ? most + 1 : 1;
     for (let t = 0; t < n; t++) { this.normal[3 * t] = nrm[t][0]; this.normal[3 * t + 1] = nrm[t][1]; this.normal[3 * t + 2] = nrm[t][2]; }
   }
 }

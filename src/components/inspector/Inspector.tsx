@@ -316,7 +316,7 @@ function PatternFoldPanel({ mode }: { mode: 'rigid' | 'energy' }) {
     if (!raf.current) raf.current = requestAnimationFrame(() => { raf.current = 0; if (pending.current !== null) setPatternFold(pending.current); pending.current = null; });
   };
   const layers = layersFor(model).tracker;
-  const stack = layers.stacked ? layers.maxLevel + 1 : 1;
+  const stack = layers.stacked ? layers.sheetsAtPoint : 1;
   const resize = (n: number) => {
     const keep = p;
     applyParams({ rows: n, cols: n });
@@ -358,7 +358,7 @@ function PatternFoldPanel({ mode }: { mode: 'rigid' | 'energy' }) {
           <KV k="최대 축 변형률 (면 늘어남)" v={`${(maxStrain * 100).toFixed(2)} %`} />
           <KV k="최대 면 굽힘" v={`${toDeg(maxBend).toFixed(1)}°`} />
         </>}
-        {stack > 1 && <KV k="겹친 층 (접힌 순서대로 표시)" v={`${stack}층`} />}
+        {stack > 1 && <KV k="한 지점에 겹친 종이 (최대)" v={`${stack}장`} />}
         {mode === 'energy' && <p className="pt-1 text-[11.5px] leading-relaxed text-ink-3">Energy 솔버(막대-힌지 모델)로 각 단계의 평형을 푼 결과다. 시작과 완전 접힘 상태에서는 변형이 0이고, 중간에서만 면이 변형된다.</p>}
       </div>
     </div>
