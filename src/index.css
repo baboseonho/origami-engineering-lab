@@ -1,0 +1,195 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "@fontsource/barlow-semi-condensed/500.css";
+@import "@fontsource/barlow-semi-condensed/600.css";
+
+/*
+ * Drafting-table world: sage vinyl board, bright drawing sheets with a
+ * non-photo-blue grid, India ink, graphite, red pencil, checker's highlighter.
+ */
+@theme {
+  /* board + sheets */
+  --color-board: #d2dad2;
+  --color-board-2: #bcc7bd;
+  --color-paper: #fbfcf9;
+  --color-paper-2: #f1f4ef;
+  --color-paper-3: #e5eae3;
+  --color-rule: #d3d9d1;
+  --color-rule-2: #a8b2a9;
+  /* ink */
+  --color-ink: #17202a;
+  --color-ink-2: #36404c;
+  --color-ink-3: #58626e;
+  --color-nonphoto: #8cc0de;
+  --color-nonphoto-soft: #d4e6f1;
+  /* checker's highlighter (selection) */
+  --color-mark: #ffe04a;
+  --color-mark-ink: #5c4a00;
+  --color-mark-strong: #ffd21f;
+  --color-mark-soft: #fff6c4;
+  --color-mark-deep: #e3a400;
+  /* domain convention: mountain red, valley blue */
+  --color-mountain: #c8352b;
+  --color-valley: #2463c9;
+  --color-facet: #9aa5a0;
+  --color-boundary: #36404c;
+  --color-unassigned: #b7860b;
+  --color-locked: #6d28d9;
+  /* paper materials */
+  --color-paper-front: #fdfdfb;
+  --color-paper-back: #c9dcea;
+  --color-kraft: #ece6d6;
+  /* states */
+  --color-ok: #1d7448;
+  --color-ok-soft: #e1f0e6;
+  --color-warn: #9a5a00;
+  --color-warn-soft: #faefd7;
+  --color-bad: #b3241b;
+  --color-bad-soft: #fae4e1;
+  --color-info: #1d5ca6;
+  --color-info-soft: #e2ecf7;
+  --color-collide: #d6336c;
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-tech: "Barlow Semi Condensed", "Pretendard Variable", sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --font-greek: "Cambria Math", Cambria, "Times New Roman", serif;
+}
+
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--color-board);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--color-mark); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; border-radius: 2px; }
+input, select, textarea { caret-color: var(--color-mountain); }
+input[type="range"], input[type="checkbox"] { accent-color: var(--color-ink); }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--color-rule-2); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-ink-3); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* a drawing sheet lying on the board */
+.sheet {
+  background: var(--color-paper);
+  box-shadow: 0 1px 1px rgb(23 32 42 / 0.06), 0 2px 8px -2px rgb(23 32 42 / 0.14);
+}
+/* non-photo-blue drafting grid (minor 8px, major 40px) */
+.grid-paper {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(to right, rgb(140 192 222 / 0.32) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(140 192 222 / 0.32) 1px, transparent 1px),
+    linear-gradient(to right, rgb(140 192 222 / 0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(140 192 222 / 0.13) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+}
+/* small condensed technical lettering used in title blocks */
+.lettering {
+  font-family: var(--font-tech);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.greek, .lbl-greek { font-family: var(--font-greek); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* signature move: a sheet section folding along its top crease */
+.fold-body {
+  transform-origin: top center;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease-out;
+}
+.fold-body[data-folded="true"] { transform: perspective(900px) rotateX(-88deg); opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .fold-body { transition: none; }
+}
+
+.katex { font-size: 1.04em; }
+.katex-display { margin: 0.25em 0 !important; }
+.sym-link { cursor: help; border-bottom: 1px dotted var(--color-info); }
+
+.theory-aside .katex-display { font-size: 1em; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+
+/* inline math never breaks inside a formula */
+.math-inline { white-space: nowrap; display: inline-block; }
+.math-inline .katex { font-size: 1.02em; }
+.fit-tex .katex-display { margin: 0.2em 0 !important; }
+
+/* ───────────────────────── motion (paper world) ───────────────────────── */
+/* lesson change: outgoing sheet folds away along its top crease, the new one unfolds */
+.vt-main { view-transition-name: main-sheet; }
+.vt-lesson { view-transition-name: lesson-sheet; }
+::view-transition-group(main-sheet) { animation-duration: 560ms; }
+::view-transition-old(main-sheet) {
+  animation: sheet-fold-away 240ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  transform-origin: 50% 0%;
+}
+::view-transition-new(main-sheet) {
+  animation: sheet-unfold 560ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+  transform-origin: 50% 0%;
+}
+::view-transition-old(lesson-sheet) { animation: sheet-slide-out 200ms ease-in both; }
+::view-transition-new(lesson-sheet) { animation: sheet-slide-in 420ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both; }
+@keyframes sheet-fold-away {
+  to { transform: perspective(1600px) rotateX(64deg) scale(0.96); opacity: 0; filter: brightness(0.92); }
+}
+@keyframes sheet-unfold {
+  from { transform: perspective(1600px) rotateX(-78deg); opacity: 0; filter: brightness(0.86); }
+  45% { opacity: 1; }
+  to { transform: none; opacity: 1; filter: none; }
+}
+@keyframes sheet-slide-out { to { transform: translateY(-10px); opacity: 0; } }
+@keyframes sheet-slide-in { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* crease pattern plotted by a pen-plotter carriage sweeping left → right */
+.plot-reveal { animation: plot-reveal 900ms cubic-bezier(0.45, 0, 0.2, 1) both; }
+@keyframes plot-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.plot-carriage { animation: plot-carriage 900ms cubic-bezier(0.45, 0, 0.2, 1) both; }
+@keyframes plot-carriage {
+  0% { left: 0%; opacity: 1; }
+  92% { left: 100%; opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* ink stamp thunk when a verdict changes */
+.stamp-in { animation: stamp-in 360ms cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes stamp-in {
+  from { transform: scale(1.35) rotate(-7deg); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+
+/* scrolling sheets keep their width whether or not the scrollbar shows (no reflow feedback) */
+.theory-aside, .stable-gutter { scrollbar-gutter: stable; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* drawing index: plates unfold in sequence, then a pen draws each pattern */
+.cover-backdrop { animation: cover-fade 220ms ease-out both; }
+@keyframes cover-fade { from { opacity: 0; } }
+.cover-sheet { animation: sheet-unfold 620ms cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: 50% 0%; }
+.plate { animation: plate-unfold 520ms cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: 50% 0%; }
+@keyframes plate-unfold {
+  from { transform: perspective(700px) rotateX(-88deg); opacity: 0; }
+  40% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+.pen-draw { stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: pen-draw 520ms cubic-bezier(0.55, 0, 0.3, 1) both; }
+@keyframes pen-draw { to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-backdrop, .cover-sheet, .plate { animation: none; }
+  .pen-draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .plot-reveal, .plot-carriage, .stamp-in { animation: none; }
+  .plot-carriage { display: none; }
+}

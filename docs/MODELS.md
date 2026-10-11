@@ -1,0 +1,22 @@
+# Models (parametric generators)
+
+All generators are deterministic functions `params → OrigamiModel` (`src/models/generators/`), registered with parameter specs in `src/models/registry.ts`. Every default preset passes `validateModel` and has a closed reference configuration (`models.test.ts`).
+
+| Generator | Reference | Notes / assumptions |
+|---|---|---|
+| `singleVertex` | flat disk | n rays from sector angles; boundary arcs subdivided so facets are convex. |
+| `miura` | flat | Vertex (i,j): x = j·a + (i odd ? b cos α : 0), y = i·b sin α. Zig-zag lines have a uniform assignment alternating between lines; straight lines alternate segment-wise ⇒ 3:1 at every vertex. The labelled vertex ρ1..ρ4 is chosen near the centre (ρ1, ρ3 straight; ρ2, ρ4 zig-zag). Groups left/right/bottom/top drive the W, L measurements. |
+| `squareTwist` | flat | Central square, rays at φ and 90°+φ from each corner; square edges V, φ-rays V, (90°+φ)-rays M (big–little–big at the 90°−φ sector). Flat-foldable, not rigid-foldable. The flat-folded state (all ρ = ±180°) closes to ~1e-15. |
+| `shoppingBag` | open 3D box | Crease pattern of Balkcom–Demaine–Demaine–Ochsendorf–You: box edges, side centre crease down to S = (d/2, d/2), 45° diagonals S→bottom corners, S→back edge horizontal, back horizontal at d/2. Corners are cone points (Σθ = 270°). **Assignment of the gusset creases is not tabulated in the paper**; an exhaustive search over the 2⁵ symmetric assignments (box edges M) yields exactly one passing all vertex tests: centre V, diagonals V, S–E M, back horizontal V. The generator is meaningful for tall bags (H > D/2). |
+| `waterbomb` | flat | Origami Simulator asset recipe, cross-checked with Chen et al. (PMC7171592): horizontal lines y = kd M, vertical lines x = jd/2 M, both diagonals of each base V, rows offset by d/2, sheet clipped to [0, cols·d] (half bases at offset row ends). Coarse surface through base centres for curvature. |
+| `waterbombBase` | flat | Degree 8: diagonals M (target −180°), midlines V (+90°) (OS convention). 4M/4V ⇒ 3D state, not a flat fold. Symmetry links make it 1-DoF. |
+| `resch` | flat | Recipe decoded from the Origami Simulator asset and checked numerically; tucks = up-triangles of side 2s centred at c = (s/2, −s/(2√3)) + m(e1+e2) + n(−e1+2e2) with V spokes to corners (+180°) and M spokes to edge midpoints (−60°); remaining lattice edges M (−90°). Tuck centre: 6×60°, 3M/3V; lattice vertex: (90,90,60,30,30,60), 5M/1V — Kawasaki holds, Maekawa fails. Variant `perturbed` displaces tuck centres (Kawasaki fails). Tachi (2013) was not accessible; treat the recipe as best available. |
+| `boxpleat` | flat | Square grid with both diagonals in every cell (box-pleating framework). Presets choose which lines fold: `tray` (base + walls + 45° corner gussets; targets approximate, energy mode), `pleat` (accordion), `grid` (framework only). Unused lines are `F`. |
+| `kresling` | 3D cylinder | n-gon rings rotated by kφ at height kH; per cell 2n triangles; verticals b = M, diagonals c = V, interior rings M (Kidambi & Wang). Optional rigid end polygons (caps) implement the lecture's "edge points coplanar / rigid ring" constraint. `chirality` mirrors the pattern. **Kresling "Type I / II"**: no standard definition was found; the app exposes chirality and caps instead (documented assumption). |
+| `yoshimura` | 3D cylinder | Rings offset by half a step, 2n triangles per ring pair. `smooth`: every edge a facet hinge with uniform bending stiffness (thin cylinder discretised on the Yoshimura lattice — the mode shape is guided by this mesh alignment; the energy competition is the physical content). `creased`: rings V, diagonals M. Deterministic radial imperfection seeds buckling. **Yoshimura "Type I / II"** likewise not standardised; `smooth`/`creased` used instead. |
+
+## 2D layouts
+Flat models show their crease pattern directly. Cylinders use an unrolled layout periodic in x (`layout2D.periodX`), and the bag uses a schematic net with per-face overrides (it is not a single developable sheet). The 2D view labels these cases.
+
+## Lecture DoF example
+The lecture quotes N = 19, M = 6, N − 3M = 1 for its illustrated Miura model. Its exact counting convention is not available here; the closest preset ("Miura 3×4 panels", M = 6) gives N = 17, N − 3M = −1 with DoF_local = 1, which is used to discuss redundancy. Compare the counts in the DoF tab directly with the lecture figure.
