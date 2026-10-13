@@ -1,10 +1,10 @@
 import type { Params } from '../models/registry';
 
-export type LabId = 'conceptLab' | 'strip1D' | 'kawasaki' | 'maekawa' | 'mvCrimp' | 'generalized' | 'stepwise' | 'kreslingVsYoshimura';
+export type LabId = 'conceptLab' | 'strip1D' | 'kawasaki' | 'maekawa' | 'mvCrimp' | 'generalized' | 'gkawasaki' | 'stepwise' | 'kreslingVsYoshimura';
 export type ExperimentId = 'kreslingAxial' | 'yoshimuraCompression' | 'bagCollapse';
 export type PanelId = 'miuraMetrics' | 'curvature' | 'bagStates' | 'kreslingCompat' | 'dofNotes' | 'flatVsRigid' | 'reschVertices' | 'energyPresets';
 export type TheoryKey =
-  | 'convention' | 'kawasaki' | 'maekawa' | 'generalized' | 'generalizedMaekawa' | 'strip' | 'crimpLemma'
+  | 'convention' | 'kawasaki' | 'maekawa' | 'generalized' | 'generalizedMaekawa' | 'winding' | 'vertexClosure' | 'strip' | 'crimpLemma'
   | 'dof' | 'closure' | 'lm' | 'energy' | 'force' | 'miura' | 'miuraPoisson' | 'stepwise' | 'gaussian'
   | 'kresling' | 'reaction' | 'bag';
 
@@ -162,6 +162,23 @@ export const LESSONS: Lesson[] = [
     },
     challenges: [{ id: 'c1', text: '$A = +360^\\circ$인 $\\sum\\theta > 360^\\circ$ 꼭짓점을 구성하고 유효한 M/V 개수를 제시하라.' }],
     theory: ['generalized', 'generalizedMaekawa'],
+  },
+  {
+    id: 'l3-gkawasaki', lecture: 3, title: '일반화 Kawasaki 실험실: ±360°와 감김', kind: 'lab', lab: 'gkawasaki',
+    content: {
+      concept: '두 양을 구분한다. $T = \\sum\\theta_i$는 꼭짓점 둘레의 종이 양(고유 곡률)이고, $S = \\theta_1 - \\theta_2 + \\theta_3 - \\dots$는 평탄하게 접었을 때 각 광선이 놓이는 방향들의 누적, 즉 접힌 경로의 부호 있는 닫힘이다. 일반화 Kawasaki 조건은 $S \\in \\{0^\\circ, \\pm 360^\\circ\\}$.',
+      observe: 'Case C ($130^\\circ$와 $10^\\circ$가 번갈아)에서 각도 걸음을 재생한다: $0 \\to 130 \\to 120 \\to 250 \\to 240 \\to 370 \\to 360$. 끝 방향은 시작과 같지만 경로가 꼭짓점을 반시계로 한 바퀴 돈다(감김 수 $+1$). Case B는 $T = 420^\\circ$인 안장인데도 $S = 0$이고, Case E는 안장인데 $S = 180^\\circ$라서 실패한다.',
+      experiment: '섹터각을 바꾸며 $T$와 $S$가 따로 움직이는 것을 본다. 3D 창에서 꼭짓점을 돌려 보고, 각도 지도와 강체 접기 경로를 비교한다. Case C에서 "가까운 꼭짓점 열어 보기"의 $\\varepsilon$을 0으로 줄여 본다.',
+      meaning: '$T > 360^\\circ$(안장)라고 해서 $S = \\pm 360^\\circ$가 되는 것은 아니다. $S = \\pm 360^\\circ$는 접힌 종이가 꼭짓점을 한 바퀴 감는다는 뜻이다. 6장짜리 꼭짓점에서는 이것이 $S$의 최댓값이라 강체 패널이 3D로 열리지 못하고 평탄하게 감긴 상태로만 존재한다(닫힘 조건의 등호).',
+      question: '$S = 0^\\circ$와 $S = 360^\\circ$는 끝 방향이 같은데 무엇이 다른가?',
+      answer: '끝 방향은 같지만 지나온 경로가 다르다. $S = 0$은 되돌아오고, $S = 360^\\circ$는 꼭짓점을 한 바퀴 돌아서 온다(감김 수 1). 그래서 평탄하게 접힌 종이가 꼭짓점 둘레를 한 번 감싼다.',
+    },
+    challenges: [
+      { id: 'c1', text: '$T = 480^\\circ$이면서 $S = 0$인 6-크리스 꼭짓점을 만들어라.', hint: '홀수 합과 짝수 합을 둘 다 $240^\\circ$로.' },
+      { id: 'c2', text: '$S = +360^\\circ$인 12-크리스 꼭짓점을 만들고, 3D 창에서 평탄 잠금이 아닌지 확인하라.', answer: '예: $100, 10$을 네 번, 그 뒤 $10$을 네 번. 홀수 섹터가 6개라 닫힘 한계가 $(6-1)\\cdot 180^\\circ$로 넉넉해서 3D로 열린다.' },
+    ],
+    theory: ['generalized', 'winding', 'vertexClosure'],
+    links: [{ label: '비평탄 꼭짓점: 일반화 조건 (Maekawa)', to: 'l3-generalized' }],
   },
   {
     id: 'l3-bag', lecture: 3, title: '쇼핑백 정리 (Shopping Bag)', kind: 'model', generator: 'shoppingBag', params: { W: 2, D: 1, H: 2 }, patternFold: 'energy',

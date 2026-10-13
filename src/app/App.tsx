@@ -30,6 +30,7 @@ const LABS: Record<LabId, ReturnType<typeof named>> = {
   maekawa: named(() => import('../components/labs/VertexLabs'), 'MaekawaLab'),
   mvCrimp: named(() => import('../components/labs/VertexLabs'), 'MVCrimpLab'),
   generalized: named(() => import('../components/labs/VertexLabs'), 'GeneralizedLab'),
+  gkawasaki: named(() => import('../components/labs/GKawasakiLab'), 'GKawasakiLab'),
 };
 
 const FOLDED_STRIP = 41;

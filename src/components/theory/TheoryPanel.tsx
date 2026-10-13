@@ -27,6 +27,16 @@ export const EQUATIONS: Record<TheoryKey, { title: string; tex: string[]; note?:
     tex: [`A = \\sum_{i=1}^{n} (-1)^{i+1}\\,\\theta_i = ${t(1)} - ${t(2)} + ${t(3)} - \\dots \\in \\{0,\\ +2\\pi,\\ -2\\pi\\}`],
   },
   generalizedMaekawa: { title: '일반화 Maekawa', tex: ['A = 0 \\Rightarrow |M - V| = 2, \\qquad A = \\pm 2\\pi \\Rightarrow M = V'] },
+  winding: {
+    title: '곡률과 감김은 다른 양',
+    tex: ['T = \\sum_i \\theta_i, \\qquad \\delta = 360^\\circ - T', '\\varphi_0 = 0,\\quad \\varphi_k = \\varphi_{k-1} + (-1)^{k+1}\\theta_k,\\quad \\varphi_n = S', 'S = O - E \\in \\{0,\\ \\pm 360^\\circ\\} \\iff \\text{winding } S/360^\\circ \\in \\{0, \\pm 1\\}'],
+    note: 'δ > 0 원뿔, δ = 0 평평, δ < 0 안장. 평탄 접힘에서 광선 k는 방향 φ_(k−1)에 놓인다.',
+  },
+  vertexClosure: {
+    title: '강체 패널의 3D 닫힘 조건',
+    tex: ['\\sum_{i\\in I}\\theta_i - \\sum_{i\\notin I}\\theta_i \\ \\le\\ (|I|-1)\\,180^\\circ \\quad (|I|\\ \\text{odd})', 'n = 6:\\ I = \\{1,3,5\\} \\Rightarrow S \\le 360^\\circ'],
+    note: '등호이면 한 평면(대원) 위에서만 닫힌다(Kapovich–Millson). 그래서 6-크리스 꼭짓점의 S = ±360°는 평탄하게 감긴 상태로만 존재한다.',
+  },
   strip: {
     title: '1D 단순 접기',
     tex: ['\\text{End fold: } s_0 \\le s_1', '\\text{Crimp}(c_i,c_{i+1}):', '\\mathrm{MV}(c_i) \\ne \\mathrm{MV}(c_{i+1}),\\ s_{i-1} \\ge s_i \\le s_{i+1}', '\\text{Collision}(c_i,c_{i+1}):', '\\mathrm{MV}(c_i) = \\mathrm{MV}(c_{i+1}),\\ s_{i-1} > s_i < s_{i+1}'],

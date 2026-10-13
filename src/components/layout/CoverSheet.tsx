@@ -26,6 +26,7 @@ const LAB_PATTERN: Partial<Record<LabId, { generator: string; params: Params }>>
   maekawa: { generator: 'singleVertex', params: { sectors: '60,40,70,80,50,60', mv: 'M,V,M,M,V,M' } },
   mvCrimp: { generator: 'singleVertex', params: { sectors: '60,40,70,80,50,60', mv: 'M,V,M,M,V,M' } },
   generalized: { generator: 'singleVertex', params: { sectors: '80,100,90,70', mv: 'V,M,V,V' } },
+  gkawasaki: { generator: 'singleVertex', params: { sectors: '110,10,110,10,110,10', mv: 'M,V,M,V,M,V' } },
 };
 
 interface Thumb { segs: { a: Vec2; b: Vec2; as: Assignment }[]; box: [number, number, number, number] }
