@@ -1,4 +1,4 @@
-# Origami Engineering Lab
+# Origami BaBolaB
 
 Interactive computational-origami textbook + simulator for KAIST **AE53006 Origami Engineering**, Lectures 1–5.
 

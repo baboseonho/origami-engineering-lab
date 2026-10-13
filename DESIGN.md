@@ -1,5 +1,5 @@
 ---
-name: Origami Engineering Lab
+name: Origami BaBolaB
 description: A live engineering drawing set on a drafting table for KAIST AE53006 Origami Engineering.
 colors:
   board: "#d2dad2"
@@ -177,7 +177,7 @@ components:
     padding: "2px 6px"
 ---
 
-# Design System: Origami Engineering Lab
+# Design System: Origami BaBolaB
 
 ## Overview
 

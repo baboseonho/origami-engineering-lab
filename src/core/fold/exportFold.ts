@@ -11,7 +11,7 @@ import type { FoldFile } from './foldTypes';
 export function exportFold(model: OrigamiModel, foldAngles?: Float64Array, positions?: Float64Array): FoldFile {
   const f: FoldFile = {
     file_spec: 1.1,
-    file_creator: 'Origami Engineering Lab',
+    file_creator: 'Origami BaBolaB',
     file_classes: ['singleModel'],
     frame_title: model.metadata.name,
     frame_classes: ['creasePattern'],

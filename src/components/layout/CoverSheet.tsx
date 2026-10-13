@@ -112,7 +112,7 @@ export function CoverSheet() {
           <header className="flex flex-wrap items-end gap-x-8 gap-y-2 border-b-[1.5px] border-ink px-4 py-4 sm:px-6 sm:py-5">
             <div>
               <div className="lettering text-[11px] text-ink-3">AE53006 · KAIST · 도면 세트</div>
-              <h1 className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-ink sm:text-[34px]">Origami Engineering Lab</h1>
+              <h1 className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-ink sm:text-[34px]">Origami BaBolaB</h1>
               <p className="mt-2 max-w-[56ch] text-[14px] leading-relaxed text-ink-2">
                 한 장의 종이가 접힘선(crease)을 따라 움직이는 방식을 강의 순서대로 따라가는 실습 도면집. 도면을 고르면 그 전개도가 펼쳐진다.
               </p>

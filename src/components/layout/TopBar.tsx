@@ -84,7 +84,7 @@ export function TopBar() {
           <path d="M28.5 28.5 L19 28.5 L28.5 19 Z" fill="var(--color-paper-3)" stroke="var(--color-ink)" strokeWidth="1" />
         </svg>
         <div className="hidden leading-tight xl:block">
-          <div className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink">Origami Engineering Lab</div>
+          <div className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink">Origami BaBolaB</div>
           <div className="lettering text-[11px] text-ink-3 group-hover:text-ink">AE53006 · 도면 목록 ▾</div>
         </div>
       </button>

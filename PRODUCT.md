@@ -1,6 +1,6 @@
 # Product
 
-**Origami Engineering Lab** — an interactive computational-origami textbook and simulator for KAIST AE53006 *Origami Engineering* (Lectures 1–5).
+**Origami BaBolaB** — an interactive computational-origami textbook and simulator for KAIST AE53006 *Origami Engineering* (Lectures 1–5).
 
 ## Audience and scene
 KAIST engineering students studying the course, mostly the week before the exam: laptop at a desk or in the library, daytime and evening, sessions of 30–90 minutes, switching between the lecture slides and the app.
