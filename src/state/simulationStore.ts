@@ -39,6 +39,8 @@ export interface SimState {
   maxStrain: number;
   /** fold-to-state progress (0 = reference / open, 1 = the model's flat reference state) */
   stateFold: number;
+  /** largest axial strain met along the current pattern-fold path (energy) */
+  stateFoldPeak: number;
   maxFacetBending: number;
   collisionCount: number;
   paperDefect: number;
@@ -71,6 +73,7 @@ export const useSim = create<SimState>(() => ({
   energyHistory: [],
   maxStrain: 0,
   stateFold: 0,
+  stateFoldPeak: 0,
   maxFacetBending: 0,
   collisionCount: 0,
   paperDefect: 0,

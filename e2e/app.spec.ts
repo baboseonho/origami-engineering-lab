@@ -25,12 +25,16 @@ test('every lesson loads without runtime errors', async ({ page }) => {
 
 test('Miura: driving one crease gives a rigid 1-DoF solution', async ({ page }) => {
   await open(page, 'l4-miura');
-  const ok = page.getByText('강체 해 존재', { exact: true });
+  // the verdict strip answers each question with its own word
+  const verdict = page.getByRole('region', { name: '판정' });
+  const ok = verdict.getByText('있음', { exact: true });
   await expect(ok).toBeVisible();
-  await expect(page.getByText('DoF_local = 1').first()).toBeVisible();
+  await expect(verdict.getByText('있음 (1)', { exact: true })).toBeVisible();
+  // single-crease controls sit behind a disclosure when the sheet folds as a whole
+  await page.getByRole('button', { name: '이 크리스 하나만 움직이기' }).click();
   await page.getByRole('button', { name: '-90°', exact: true }).click();
   await expect(ok).toBeVisible();
-  await expect(page.getByText('-90.00°').first()).toBeVisible();
+  await expect(page.getByText('-90.0°').first()).toBeVisible();
 });
 
 test('Shopping bag: flat state closes, no crease can move rigidly', async ({ page }) => {
@@ -61,7 +65,7 @@ test('1D strip: collision preset is reported as not flat-foldable', async ({ pag
 test('Square twist: rigid drive is infeasible with an explicit reason', async ({ page }) => {
   await open(page, 'l2-terms');
   await page.getByRole('button', { name: '+45°', exact: true }).click();
-  await expect(page.getByText('강체 해 없음 (infeasible)')).toBeVisible();
+  await expect(page.getByText('강체 해 없음', { exact: true })).toBeVisible();
   await expect(page.getByText(/M\/V 배정 충돌/)).toBeVisible();
 });
 

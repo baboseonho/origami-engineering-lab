@@ -25,6 +25,9 @@ export interface UIState {
   settingsOpen: boolean;
   /** the drawing index (cover sheet) */
   coverOpen: boolean;
+  /** a short notice about something the app changed by itself */
+  notice: { text: string; n: number } | null;
+  notify: (text: string) => void;
   setCoverOpen: (v: boolean) => void;
   exaggeration: number;
   bottomHeight: number;
@@ -71,6 +74,8 @@ export const useUI = create<UIState>((set) => ({
   showDerivation: false,
   settingsOpen: false,
   coverOpen: false,
+  notice: null,
+  notify: (text) => set((st) => ({ notice: { text, n: (st.notice?.n ?? 0) + 1 } })),
   setCoverOpen: (coverOpen) => set({ coverOpen }),
   exaggeration: 1,
   bottomHeight: 270,

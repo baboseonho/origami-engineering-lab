@@ -58,7 +58,7 @@ function MiuraMetrics() {
   }, [P.a, P.b, P.alphaDeg, theta]);
   const xs = sweep?.drive.map(toDeg) ?? [];
   return (
-    <div className="grid grid-cols-[300px_1fr_1fr] gap-3 text-[12px]">
+    <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-[280px_minmax(0,1fr)_minmax(0,1fr)] gap-3 text-[13px]">
       <div>
         <KV k="폭 W (x, 직선 크리스 방향)" v={dims ? dims.W.toFixed(4) : '—'} />
         <KV k="길이 L (y, 지그재그 방향)" v={dims ? dims.L.toFixed(4) : '—'} />
@@ -75,7 +75,7 @@ function MiuraMetrics() {
             useUI.setState({ auxetic: { axisW: fd.d0.axisW, axisL: fd.d0.axisL, signW: Math.sign(fd.dW), signL: Math.sign(fd.dL) } });
           }}>오세틱 화살표</Button>
         </div>
-        <p className="mt-1 text-[10.5px] text-ink-3">화살표와 ν는 손으로 그린 것이 아니라 실제 꼭짓점 위치(두 강체 풀이의 유한 차분)에서 계산된다. 측정 ν는 유한 시트의 경계 중심을 사용하고, 단위 셀 값은 무한 테셀레이션에 대한 값이다.</p>
+        <p className="mt-1 text-[12px] text-ink-3">화살표와 ν는 손으로 그린 것이 아니라 실제 꼭짓점 위치(두 강체 풀이의 유한 차분)에서 계산된다. 측정 ν는 유한 시트의 경계 중심을 사용하고, 단위 셀 값은 무한 테셀레이션에 대한 값이다.</p>
       </div>
       <Plot series={sweep ? [{ label: 'W', color: SERIES[0], x: xs, y: sweep.dims.map((d) => d.W) }, { label: 'L', color: SERIES[1], x: xs, y: sweep.dims.map((d) => d.L) }] : []} xLabel="구동 ρ (°)" yLabel="전체 치수" markerX={drive !== null ? toDeg(target) : undefined} />
       <Plot series={sweep ? [{ label: '두께 T', color: SERIES[2], x: xs, y: sweep.dims.map((d) => d.T) }, { label: 'W·L / 평탄', color: SERIES[3], x: xs, y: sweep.dims.map((d) => (d.W * d.L) / ((sweep.dims[0].W * sweep.dims[0].L) || 1)) }] : []} xLabel="구동 ρ (°)" yLabel="" markerX={drive !== null ? toDeg(target) : undefined} />
@@ -95,7 +95,7 @@ function CurvaturePanel() {
   const x0 = Math.min(...xs, 0), x1 = Math.max(...xs, 1), y0 = Math.min(...ys, 0), y1 = Math.max(...ys, 1);
   const scaleK = Math.max(Math.abs(max), Math.abs(min), 1e-6);
   return (
-    <div className="grid grid-cols-[320px_260px_1fr] gap-3 text-[12px]">
+    <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-[300px_240px_minmax(0,1fr)] gap-3 text-[13px]">
       <div>
         <KV k="종이 각 결손 (최대 |K|)" v={fmt(paperDefect)} />
         <KV k="조대 곡면 K: 평균" v={`${toDeg(mean).toFixed(3)}°`} />
@@ -109,7 +109,7 @@ function CurvaturePanel() {
           return <circle key={i} cx={q.p[0]} cy={-q.p[1]} r={0.22} fill={t >= 0 ? `rgba(239,68,68,${0.25 + 0.75 * t})` : `rgba(59,130,246,${0.25 - 0.75 * t})`} />;
         })}
       </svg>
-      <p className="text-[11px] text-ink-3">
+      <p className="text-[12px] text-ink-3">
         이산 곡률 척도: 기저 중심을 지나는 조대(COARSE) 곡면의 각 내부 꼭짓점에서 K ≈ 2π − Σ 각도이다 (빨강 = 양수, 파랑 = 음수).
         종이 자체는 전개 가능 상태를 유지하며(종이의 각 결손은 ≈ 0), 유효 K가 양수이면 접힌 테셀레이션이 돔을 근사한다는 뜻이다.
         이는 교육용 추정치이며 미분기하 솔버가 아니다.
@@ -125,13 +125,13 @@ function KreslingCompat() {
   const data = useMemo(() => (st ? kreslingCompatibility(P.n, P.R, P.H, P.phi, st.H, 60) : []), [P.n, P.R, P.H, P.phi]); // eslint-disable-line react-hooks/exhaustive-deps
   const maxS = data.reduce((m, d) => Math.max(m, Math.abs(d.cStrain)), 0);
   return (
-    <div className="grid grid-cols-[320px_1fr] gap-3 text-[12px]">
+    <div className="grid grid-cols-1 @2xl:grid-cols-[300px_minmax(0,1fr)] gap-3 text-[13px]">
       <div>
         <KV k="상태 0: H₀, φ₀" v={`${P.H.toFixed(3)}, ${toDeg(P.phi).toFixed(1)}°`} />
         <KV k="상태 1 (같은 a, b, c): H₁, φ₁" v={st ? `${st.H.toFixed(3)}, ${toDeg(st.phi).toFixed(1)}°` : '없음 (H₁² < 0)'} />
         <KV k="예측 비틀림 φ₁ − φ₀" v={st ? `${toDeg(st.phi - P.phi).toFixed(1)}°` : '—'} />
         <KV k="b 보존 경로에서 c의 최대 변형률" v={st ? `${(maxS * 100).toFixed(2)} %` : '—'} />
-        <p className="mt-1 text-[10.5px] text-ink-3">규정된 기하 경로 (해석적): H가 H₀에서 H₁로 움직이는 동안 산접기 모서리 b의 길이를 유지하고, 골접기 대각선 c에 필요한 길이를 계산한다. 변형률이 0이 아니면 ⇒ 이 상태들을 지나는 강체 경로는 없다. 이는 솔버 결과가 아니다.</p>
+        <p className="mt-1 text-[12px] text-ink-3">규정된 기하 경로 (해석적): H가 H₀에서 H₁로 움직이는 동안 산접기 모서리 b의 길이를 유지하고, 골접기 대각선 c에 필요한 길이를 계산한다. 변형률이 0이 아니면 ⇒ 이 상태들을 지나는 강체 경로는 없다. 이는 솔버 결과가 아니다.</p>
       </div>
       <Plot series={[{ label: 'c의 변형률 (%)', color: SERIES[1], x: data.map((d) => d.h), y: data.map((d) => d.cStrain * 100) }]} xLabel="셀 높이 h" yLabel="필요 변형률 (%)" yZero />
     </div>
@@ -170,9 +170,9 @@ function StatesPanel({ kind }: { kind: 'bag' | 'twist' }) {
   const st = model.edu.referenceStates?.[0];
   const resid = st ? referenceStateResidual(st.name) : null;
   return (
-    <div className="grid grid-cols-[1fr_1fr] gap-4 text-[12px]">
+    <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-4 text-[13px]">
       <div>
-        <div className="mb-2 flex items-center gap-3 tnum text-[12px]">
+        <div className="mb-2 flex items-center gap-3 tnum text-[13px]">
           <button type="button" className={`rounded border px-3 py-2 ${!shown ? 'border-info/40 bg-info-soft' : 'border-rule-2'}`} onClick={() => showReferenceState(null)}>
             [{kind === 'bag' ? '열림' : '펼침'}]
           </button>
@@ -181,7 +181,7 @@ function StatesPanel({ kind }: { kind: 'bag' | 'twist' }) {
             [평탄]
           </button>
         </div>
-        <p className="text-[11px] text-ink-3">강체 면 조건에서 형상 공간은 연속적인 슬라이더가 아니라 고립된 두 점이다. 클릭하면 각 정확한 상태를 표시한다.</p>
+        <p className="text-[12px] text-ink-3">강체 면 조건에서 형상 공간은 연속적인 슬라이더가 아니라 고립된 두 점이다. 클릭하면 각 정확한 상태를 표시한다.</p>
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between"><span>평탄 접힘 가능 (평탄 상태가 닫힘)</span><Badge status={resid !== null && resid < 1e-8 ? 'ok' : 'bad'}>{resid !== null ? `‖C‖ = ${fmt(resid)}` : '—'}</Badge></div>
@@ -189,7 +189,7 @@ function StatesPanel({ kind }: { kind: 'bag' | 'twist' }) {
           <span>현재 상태에서의 강체 접힘 경로</span>
           {res ? <Badge status={res.movable === 0 ? 'bad' : 'ok'}>{res.movable}/{res.total} 크리스 이동 가능</Badge> : <Button onClick={run}>모든 크리스 ±5° 시험</Button>}
         </div>
-        <p className="text-[10.5px] text-ink-3">시험 = 각 크리스를 ±5° 구동하는 완전한 강체 연속 풀이 {enforceMV ? '(M/V 준수)' : '(M/V 무시 — 더 강한 시험)'}.{kind === 'bag' ? ' 이어서 Energy 모드로 전환하여 붕괴 실험을 실행한다: 이 전이에는 면 변형 에너지가 필요하다.' : ''}</p>
+        <p className="text-[12px] text-ink-3">시험 = 각 크리스를 ±5° 구동하는 완전한 강체 연속 풀이 {enforceMV ? '(M/V 준수)' : '(M/V 무시 — 더 강한 시험)'}.{kind === 'bag' ? ' 이어서 Energy 모드로 전환하여 붕괴 실험을 실행한다: 이 전이에는 면 변형 에너지가 필요하다.' : ''}</p>
       </div>
     </div>
   );
@@ -211,12 +211,12 @@ function ReschVertices() {
     return { k, m, both, n };
   }, [model]);
   return (
-    <div className="text-[12px]">
+    <div className="text-[13px]">
       <KV k="검사한 내부 꼭짓점" v={stats.n} />
       <KV k="Kawasaki 만족" v={`${stats.k}/${stats.n}`} />
       <KV k="Maekawa 만족" v={`${stats.m}/${stats.n}`} />
       <KV k="둘 다 (국소적으로 평탄 접힘 가능)" v={`${stats.both}/${stats.n}`} />
-      <p className="mt-1 text-[11px] text-ink-3">턱(tuck) 중심(분홍) 또는 격자 꼭짓점을 클릭하면 인스펙터에서 섹터와 배정을 확인할 수 있다.</p>
+      <p className="mt-1 text-[12px] text-ink-3">턱(tuck) 중심(분홍) 또는 격자 꼭짓점을 클릭하면 인스펙터에서 섹터와 배정을 확인할 수 있다.</p>
     </div>
   );
 }
@@ -242,7 +242,7 @@ export function GeometryTab() {
       {panels.includes('bagStates') && <StatesPanel kind="bag" />}
       {panels.includes('flatVsRigid') && <StatesPanel kind="twist" />}
       {panels.includes('reschVertices') && <ReschVertices />}
-      <div className="text-[12px] text-ink-3">
+      <div className="text-[13px] text-ink-3">
         현재 배치의 경계 상자: <span className="tnum text-ink">{bbox ? bbox.map((x) => x.toFixed(3)).join(' × ') : '—'}</span>
       </div>
     </div>

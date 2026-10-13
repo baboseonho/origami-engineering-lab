@@ -104,16 +104,16 @@ export function TheoryPanel({ keys }: { keys?: TheoryKey[] }) {
       onMouseLeave={() => useUI.getState().setTheoryHover(null)}
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-ink-3">기호(ρi, θi)에 마우스를 올리면 뷰에서 강조된다.</span>
+        <span className="text-[12px] text-ink-3">기호(ρi, θi)에 마우스를 올리면 뷰에서 강조된다.</span>
         <Toggle checked={showDerivation} onChange={(b) => useUI.getState().setShowDerivation(b)} label="유도" />
       </div>
       {[...list, ...extra].map((k) => {
         const eq = EQUATIONS[k];
         return (
           <div key={k} className="rounded border border-rule bg-paper-2 px-3 py-1.5">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{eq.title}</div>
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">{eq.title}</div>
             {eq.tex.map((x, i) => <FitTex key={i} tex={x} />)}
-            {eq.note && <div className="text-[12.5px] leading-relaxed text-ink-3"><Rich text={eq.note} /></div>}
+            {eq.note && <div className="text-[13px] leading-relaxed text-ink-3"><Rich text={eq.note} /></div>}
           </div>
         );
       })}

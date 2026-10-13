@@ -15,7 +15,7 @@ export function Legend({ compact, position = 'bottom' }: { compact?: boolean; po
   const present = new Set(model ? model.edges.map((e) => e.assignment) : ['M', 'V']);
   const items = ITEMS.filter(([k]) => k === 'M' || k === 'V' || present.has(k as never));
   return (
-    <div className={`pointer-events-none absolute left-[15px] max-w-[calc(100%-30px)] rounded-[3px] border border-ink/50 bg-paper/95 px-2.5 py-1.5 text-[11.5px] leading-tight text-ink-2 ${position === 'top' ? 'top-[15px]' : 'bottom-[48px]'}`}>
+    <div className={`pointer-events-none absolute left-[15px] max-w-[calc(100%-30px)] rounded-[3px] border border-ink/50 bg-paper/95 px-2.5 py-1.5 text-[12px] leading-tight text-ink-2 ${position === 'top' ? 'top-[15px]' : 'bottom-[48px]'}`}>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {items.map(([k, l, dash]) => (
           <span key={k} className="flex items-center gap-1.5">
@@ -25,7 +25,7 @@ export function Legend({ compact, position = 'bottom' }: { compact?: boolean; po
         ))}
       </div>
       {!compact && (
-        <div className="tnum mt-1 text-[11px] text-ink-3">
+        <div className="tnum mt-1 text-[12px] text-ink-3">
           <span className="greek">ρ</span> = 0 평면 · <span className="greek">ρ</span> &gt; 0 골 · <span className="greek">ρ</span> &lt; 0 산 · |<span className="greek">ρ</span>| → 180° 완전 접힘
         </div>
       )}

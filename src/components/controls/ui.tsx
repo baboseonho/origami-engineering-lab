@@ -31,7 +31,7 @@ export function Section({ title, children, right, dense, foldable, defaultOpen =
   const [open, setOpen] = useState(defaultOpen);
   const id = useId();
   const head = (
-    <h3 className="lettering text-[11.5px] text-ink-3">{title}</h3>
+    <h3 className="lettering text-[12px] text-ink-3">{title}</h3>
   );
   return (
     <section className={`border-b border-dashed border-rule-2 ${dense ? 'px-4 py-2.5' : 'px-4 py-3'}`}>
@@ -54,7 +54,7 @@ export function Section({ title, children, right, dense, foldable, defaultOpen =
 export function FoldBody({ open, children, id }: { open: boolean; children: ReactNode; id?: string }) {
   return (
     <div id={id} className="grid transition-[grid-template-rows] duration-200 ease-out" style={{ gridTemplateRows: open ? '1fr' : '0fr' }}>
-      <div className="min-h-0 overflow-hidden">
+      <div className="min-h-0 overflow-hidden" inert={!open}>
         <div className="fold-body" data-folded={!open}>{children}</div>
       </div>
     </div>
@@ -77,7 +77,7 @@ export const STAMP_WORD: Record<Status, string> = { ok: '가능', warn: '주의'
 export function Badge({ status, children }: { status: Status; children?: ReactNode }) {
   const Icon = STAMP_ICON[status];
   return (
-    <span className={`stamp-in inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-[2px] border-[1.5px] bg-paper px-1.5 py-[1px] text-[12px] font-semibold leading-[1.35] ${STAMP[status]}`}>
+    <span className={`stamp-in inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-[2px] border-[1.5px] bg-paper px-1.5 py-[1px] text-[13px] font-semibold leading-[1.35] ${STAMP[status]}`}>
       <Icon size={12} strokeWidth={2.75} aria-hidden />
       {children ?? STAMP_WORD[status]}
     </span>
@@ -87,9 +87,9 @@ export function Badge({ status, children }: { status: Status; children?: ReactNo
 export function StatusRow({ label, status, value, title }: { label: ReactNode; status: Status; value?: ReactNode; title?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1" title={title}>
-      <span className="min-w-0 text-[13px] leading-snug text-ink-2">{label}</span>
+      <span className="min-w-0 text-[14px] leading-snug text-ink-2">{label}</span>
       <span className="flex shrink-0 items-center gap-2">
-        {value !== undefined && <span className="tnum text-[12px] text-ink-3">{value}</span>}
+        {value !== undefined && <span className="tnum text-[13px] text-ink-3">{value}</span>}
         <Badge key={status} status={status} />
       </span>
     </div>
@@ -98,7 +98,7 @@ export function StatusRow({ label, status, value, title }: { label: ReactNode; s
 
 export function KV({ k, v, mono = true }: { k: ReactNode; v: ReactNode; mono?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-[3px] text-[13px]">
+    <div className="flex items-baseline justify-between gap-3 py-[3px] text-[14px]">
       <span className="text-ink-3">{k}</span>
       <span className={`${mono ? 'tnum' : ''} text-right text-ink`}>{v}</span>
     </div>
@@ -109,9 +109,9 @@ export function Button({ children, onClick, active, disabled, title, kind = 'def
   children: ReactNode; onClick?: () => void; active?: boolean; disabled?: boolean; title?: string;
   kind?: 'default' | 'primary' | 'ghost' | 'danger'; className?: string; size?: 'sm' | 'md';
 }) {
-  const base = `inline-flex items-center justify-center gap-1.5 rounded-[4px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${size === 'sm' ? 'h-7 px-2 text-[12px]' : 'h-8 px-3 text-[13px]'}`;
+  const base = `inline-flex items-center justify-center gap-1.5 rounded-[4px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3 text-[14px]'}`;
   const styles = {
-    default: active ? 'bg-ink text-paper border border-ink' : 'bg-paper text-ink border border-rule-2 hover:border-ink-3 hover:bg-paper-2',
+    default: active ? 'bg-paper text-ink border border-ink font-semibold shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'bg-paper text-ink border border-rule-2 hover:border-ink-3 hover:bg-paper-2',
     primary: 'bg-ink text-paper border border-ink hover:bg-ink-2',
     ghost: active ? 'bg-paper-3 text-ink' : 'text-ink-2 hover:bg-paper-2 hover:text-ink',
     danger: 'bg-bad text-paper border border-bad hover:bg-bad/90',
@@ -125,14 +125,14 @@ export function Button({ children, onClick, active, disabled, title, kind = 'def
 
 export function Toggle({ checked, onChange, label, title }: { checked: boolean; onChange: (b: boolean) => void; label: ReactNode; title?: string }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 py-1 text-[13px] text-ink-2" title={title}>
+    <label className="flex cursor-pointer items-center gap-2 py-1 text-[14px] text-ink-2" title={title}>
       <input type="checkbox" className="h-3.5 w-3.5" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
   );
 }
 
-const inputCls = 'rounded-[4px] border border-rule-2 bg-paper px-2 py-1 tnum text-[13px] text-ink transition-colors focus:border-ink focus:outline-none';
+const inputCls = 'rounded-[4px] border border-rule-2 bg-paper px-2 py-1 tnum text-[14px] text-ink transition-colors focus:border-ink focus:outline-none';
 
 /** Numeric input that commits on Enter/blur. */
 export function NumberField({ value, onCommit, step = 1, min, max, suffix, width = 'w-20', label }: {
@@ -149,7 +149,7 @@ export function NumberField({ value, onCommit, step = 1, min, max, suffix, width
     <span className="inline-flex items-center gap-1">
       <input aria-label={label} inputMode="decimal" className={`${width} ${inputCls}`} value={txt} step={step}
         onChange={(e) => setTxt(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') commit(); }} />
-      {suffix && <span className="text-[12px] text-ink-3">{suffix}</span>}
+      {suffix && <span className="text-[13px] text-ink-3">{suffix}</span>}
     </span>
   );
 }
@@ -170,7 +170,7 @@ export function AngleSlider({ value, onChange, onStart, min = -180, max = 180, s
           return (
             <span key={t} className="absolute top-0 -translate-x-1/2" style={{ left: `${x}%` }}>
               <span className={`mx-auto block w-px ${major ? 'h-2 bg-ink-3' : 'h-1 bg-rule-2'}`} />
-              {major && <span className="tnum block text-[10px] leading-3 text-ink-3">{t > 0 ? `+${t}` : t}</span>}
+              {major && <span className="tnum block text-[12px] leading-3 text-ink-3">{t > 0 ? `+${t}` : t}</span>}
             </span>
           );
         })}
@@ -185,7 +185,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
     <div role="tablist" className="no-scrollbar flex min-w-0 gap-0.5 overflow-x-auto">
       {tabs.map((t) => (
         <button key={t.id} role="tab" type="button" aria-selected={value === t.id} onClick={() => onChange(t.id)}
-          className={`-mb-px shrink-0 whitespace-nowrap rounded-t-[4px] border border-b-0 px-3 py-1.5 text-[13px] font-medium transition-colors ${value === t.id ? 'border-rule-2 bg-paper text-ink shadow-[inset_0_2px_0_var(--color-ink)]' : 'border-transparent text-ink-3 hover:text-ink'}`}>
+          className={`-mb-px shrink-0 whitespace-nowrap rounded-t-[4px] border border-b-0 px-3 py-1.5 text-[14px] font-medium transition-colors ${value === t.id ? 'border-rule-2 bg-paper text-ink shadow-[inset_0_2px_0_var(--color-ink)]' : 'border-transparent text-ink-3 hover:text-ink'}`}>
           {t.label}
         </button>
       ))}
@@ -203,12 +203,12 @@ export function SpeedControl({ className = '' }: { className?: string }) {
   const v = useUI((s) => s.foldSpeed);
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>
-      <span className="lettering shrink-0 text-[10.5px] text-ink-3">속도</span>
+      <span className="lettering shrink-0 text-[12px] text-ink-3">속도</span>
       <div role="radiogroup" aria-label="접기 속도" className="flex rounded-[3px] border border-rule-2 bg-paper-2 p-0.5">
         {FOLD_SPEEDS.map((s) => (
           <button key={s} type="button" role="radio" aria-checked={v === s} title={s < 1 ? `${Math.round(1 / s)}배 느리게` : s > 1 ? '2배 빠르게' : '보통 속도'}
             onClick={() => useUI.getState().setFoldSpeed(s)}
-            className={`tnum h-6 whitespace-nowrap rounded-[2px] px-1.5 text-[11.5px] transition-colors ${v === s ? 'bg-ink text-paper' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
+            className={`tnum h-6 whitespace-nowrap rounded-[2px] px-1.5 text-[12px] transition-colors ${v === s ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
             {s}×
           </button>
         ))}

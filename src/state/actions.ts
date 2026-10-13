@@ -380,7 +380,9 @@ export function resetSimulation() {
   scheduleDiagnostics();
 }
 
-export function setSolverMode(mode: 'rigid' | 'energy') {
+/** Switch the solver; `reason` (an automatic switch) is announced to the student. */
+export function setSolverMode(mode: 'rigid' | 'energy', reason?: string) {
+  if (reason && useSim.getState().solverMode !== mode) useUI.getState().notify(`${mode === 'energy' ? 'Energy' : 'Rigid'} 솔버로 바꿨다: ${reason}`);
   const s = useSim.getState();
   if (s.solverMode === mode) return;
   pushHistory();
@@ -575,7 +577,7 @@ export function patternFoldProgress(): number {
 function foldRigidTo(q: number) {
   const model = engine.model!;
   const dd = model.edu.defaultDrive!;
-  if (useSim.getState().solverMode !== 'rigid') setSolverMode('rigid');
+  if (useSim.getState().solverMode !== 'rigid') setSolverMode('rigid', '이 패턴은 강체 기구로 접는다');
   if (useSim.getState().drive !== dd.edge) setDriveEdge(dd.edge);
   const e = model.edges[dd.edge];
   const sense = e.assignment === 'M' ? -1 : 1;
@@ -593,7 +595,7 @@ function foldRigidTo(q: number) {
  */
 function foldEnergyTo(q: number) {
   const model = engine.model!;
-  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy');
+  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', '모든 크리스를 함께 접으려면 면이 휘어야 한다');
   stopPlaying();
   if (useSim.getState().experiment) clearExperiment();
   if (!engine.energy) initEnergy();
@@ -617,8 +619,9 @@ function foldEnergyTo(q: number) {
     e.relaxFIRE(4000, 1e-6);
   }
   engine.setPositions(e.x);
-  useSim.setState({ stateFold: q });
   updateEnergyStats();
+  const st = useSim.getState();
+  useSim.setState({ stateFold: q, stateFoldPeak: q < 1e-9 ? 0 : Math.max(st.stateFoldPeak, st.maxStrain) });
   scheduleDiagnostics();
 }
 
@@ -740,7 +743,7 @@ export function runExperiment(kind: 'kreslingAxial' | 'yoshimuraCompression' | '
   const model = engine.model;
   if (!model || !m.generator) return;
   stopPlaying();
-  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy');
+  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', '실험은 에너지법으로 계산한다');
   const params = useSim.getState().energyParams;
   worker?.terminate();
   worker = new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' });

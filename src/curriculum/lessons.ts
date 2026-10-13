@@ -35,6 +35,8 @@ export interface Lesson {
    * crease towards its fully folded angle together, relaxing to equilibrium.
    */
   patternFold?: 'rigid' | 'energy';
+  /** a sentence under the verdict when the lesson needs one (e.g. a theorem the stamps alone would hide) */
+  verdictNote?: string;
   /** fold progress the lesson opens at (energy pattern fold) */
   patternFoldStart?: number;
   content: { concept: string; observe: string; experiment: string; meaning: string; question?: string; answer?: string };
@@ -42,6 +44,29 @@ export interface Lesson {
   theory: TheoryKey[];
   /** lesson ids this one links to (terminology links) */
   links?: { label: string; to: string }[];
+}
+
+/** Lecture titles: the one source for the cover, the index and the top bar. */
+export const LECTURE_TITLES: Record<number, string> = {
+  1: '도입 · 형상과 기능',
+  2: '평탄 접기의 정리',
+  3: '강체 접기와 자유도',
+  4: '테셀레이션',
+  5: '원통과 응용 패턴',
+};
+
+/** Theorems / ideas a sheet is about (shown on the cover so a theorem can be found fast). */
+export const THEORY_TAG: Partial<Record<TheoryKey, string>> = {
+  kawasaki: 'Kawasaki', maekawa: 'Maekawa', generalized: '일반화 Kawasaki', generalizedMaekawa: '일반화 Maekawa',
+  winding: '±360° 감김', strip: '1D 접기', crimpLemma: 'crimp', dof: 'N − 3M', energy: '에너지법', stepwise: '단계적 기구학',
+  miura: 'Miura', kresling: 'Kresling', bag: '쇼핑백 정리', gaussian: '가우스 곡률', lm: '수치 풀이',
+};
+
+/** Sheet number "lecture.index" (1-based), e.g. 3.2 — the same everywhere. */
+export function sheetNumber(id: string): string {
+  const l = LESSONS.find((x) => x.id === id);
+  if (!l) return '';
+  return `${l.lecture}.${LESSONS.filter((x) => x.lecture === l.lecture).findIndex((x) => x.id === id) + 1}`;
 }
 
 export const LESSONS: Lesson[] = [
@@ -182,6 +207,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'l3-bag', lecture: 3, title: '쇼핑백 정리 (Shopping Bag)', kind: 'model', generator: 'shoppingBag', params: { W: 2, D: 1, H: 2 }, patternFold: 'energy',
+    verdictNote: '정리: 열린 쇼핑백은 강체로는 접히지 않는다. 위의 1차 가동성은 아주 작은 흔들림일 뿐, 끝까지 접히는 운동으로 이어지지 않는다. 종이를 굽혀야(Energy) 납작해진다.',
     solver: 'rigid', enforceMV: false, panels: ['bagStates'], experiment: 'bagCollapse',
     content: {
       concept: 'Balkcom–Demaine–Demaine: 전통적인 크리스를 가진 높은(TALL) 종이 쇼핑백($H > D/2$)은 강체 접기가 불가능하다: 열린 상태와 평탄 상태는 강체 형상 공간의 고립점이다.',

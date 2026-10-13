@@ -244,14 +244,17 @@ Charts draw series in this fixed order: valley blue, mountain red, ok green, war
 **Character:** A neutral Korean grotesque does all reading and data work with tabular figures on by default; a condensed technical face appears only as title-block lettering; Greek symbols are set in a math serif so ρ and θ read as the slides print them.
 
 ### Hierarchy
-- **Readout** (600, 22px, 1.25, tabular): The primary numbers a student is driving: current ρ and target ρ in the inspector. Element ids (e12, v4) use the same scale at 20px bold.
-- **Headline** (700, 17px, 1.375, -0.025em): Lesson sheet title at the top of the lesson column. The app name in the title block is 15px semibold.
-- **Title** (600, 13.5px): Current sheet name in the title block, note headings, question headings.
-- **Body** (400, 14px, 1.7): Lesson concept text and notes; reading columns stay within the 256 to 300px sidebar.
-- **Body UI** (400, 13px, 1.5): Controls, list rows, key-value rows, inspector prose (12.5px for secondary hints).
-- **Label** (600, 10 to 11.5px, 0.06em, uppercase): Title-block captions, section heads, drawing-frame zone letters and view title-block captions.
-- **Data** (400, 12 to 12.5px, tabular): Tables, units, tick values (10px on the angle ruler, 9px on chart axes).
-- **Symbol** (Cambria Math, inherits size): Every ρ, θ and crease label such as α or β, inline and in callouts.
+Six sizes, nothing below 12px on screen (including chart axes, SVG labels and the drawing frame): **12 / 13 / 14 / 15 / 18 / 22 px**. The cover title alone is 26/34px.
+- **Readout** (600, 22px, tabular): The numbers a student drives or reads first: current ρ, fold progress, S and T in the GK lab, the selected element's name (ρ1, v4).
+- **Headline** (700, 18px): Lesson sheet title at the top of the lesson column.
+- **Title** (600, 15px): Current sheet name in the title block, the fold card's heading, the app name.
+- **Body** (400, 14px, 1.7): Lesson text, the fold card's explanation, verdict labels.
+- **Body UI** (400, 13px, 1.5): Controls, list rows, key-value rows, secondary hints.
+- **Label** (600, 12px, 0.06em, uppercase): Title-block captions, section heads, drawing-frame zone letters (at 55% ink-3).
+- **Data** (400, 12 to 13px, tabular): Tables, units, chart ticks and legends.
+- **Symbol** (Cambria Math, inherits size): Every ρ, θ and crease label, inline and in callouts.
+
+**The Real Pixels Rule.** Text inside an SVG is sized in screen pixels, not viewBox units: charts are drawn at their measured width, and the crease pattern, sector diagram and angular walk convert 12–15px into drawing units from the element's measured size, so zooming never shrinks a label below 12px. Less important numbers (solver iterations, κ, sector tables) sit behind a disclosure rather than in smaller type.
 
 ### Named Rules
 **The Tabular Figures Rule.** Numbers are set in the body face with tabular figures (`tnum`), never in a monospace, so columns align without changing voice.
@@ -287,9 +290,9 @@ Drafting geometry: nearly square corners and fine lines. Sheets and callouts are
 ## Components
 
 ### Buttons
-Quiet, ink-on-paper, square-cornered; selection is solid ink.
+Quiet, ink-on-paper, square-cornered. **Solid ink means "do this"; an inked outline means "this is chosen".** The two are never the same mark.
 - **Shape:** gently squared (4px), 32px tall (28px small).
-- **Default:** paper fill, rule-2 border, ink text, 13px medium; hover darkens the border to ink-3 and fills paper-2; active/pressed is solid ink with paper text.
+- **Default:** paper fill, rule-2 border, ink text, 14px medium; hover darkens the border to ink-3 and fills paper-2; pressed/chosen is paper with an ink border and a 1px inset ink ring, semibold.
 - **Primary:** solid ink, paper text; hover graphite (ink-2).
 - **Ghost:** no fill, graphite text; hover paper-2 with ink text; active paper-3.
 - **Danger:** solid bad red, paper text.
@@ -297,12 +300,21 @@ Quiet, ink-on-paper, square-cornered; selection is solid ink.
 
 ### Segmented Control
 - **Style:** a paper-2 track with a 4px rule-2 border and 2px padding; options 28px tall, 13px medium, 3px corners.
-- **State:** the selected option is solid ink with paper text and a small shadow; others graphite, hovering to paper fill. Used for 학습 방식, Rigid/Energy solver and 3D / 전개도 / 분할 view.
+- **State:** the selected option is paper with a 1.5px inset ink ring and semibold ink text (`bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]`); others graphite, hovering to paper fill. Used for the Rigid/Energy solver, 3D / 전개도 / 분할, the lesson mode tabs (설명 · 탐구 · 과제), speed and size pickers.
 
 ### Stamps (Badge)
 The checker's verdict, inked onto the sheet.
 - **Style:** paper fill, 1.5px outline in the state colour, 2px corners, 12px semibold, a 12px line icon (check, triangle, x, minus, info) plus a word.
-- **State:** ok 가능, warn 주의, bad 불가, na 해당 없음 (ink-3 at 60%), info 참고. A stamp always carries a word, so it never reads as a checkbox.
+- **State:** ok, warn, bad, na (ink-3 at 60%), info. A stamp always carries a word, and **the word answers its own question**: 평탄 접힘 조건 성립/위반, 현재 강체 해 있음/없음, 1차(무한소) 가동성 있음 (n)/없음 (0), 자기 교차 없음/있음 (n쌍), 면 변형 작음/보통/큼. "가능" is not used as a generic yes.
+
+### Verdict Strip
+The top of the inspector, sticky while the panel scrolls: five rows (label left, stamp right), two columns from 1500px. "근거 보기" unfolds the measured value and a one-line explanation of each row. A lesson can add one sentence under it (`verdictNote`), e.g. the shopping bag says that infinitesimal mobility is not a folding motion. The five properties are never merged into one "valid" label.
+
+### Inspector Order
+1. Verdict strip. 2. One fold card: the single primary way to fold this sheet (progress slider, one ink action, the only speed control, and plain-language readouts such as "닫힘 오차 ≈ 0 (정확한 강체 해)" with the raw ‖C‖ in a tooltip, or "면 늘어남 지금 / 경로 중 최대"). 3. The selection: name (one name per crease everywhere, `creaseName`: ρ1 when the lesson labels it, otherwise e12), assignment chip, current ρ; a rigid failure explains itself right there. Single-crease angle controls, M/V reassignment, linked creases and solver numbers are disclosures. 4. Model info and solver options, folded.
+
+### Notice
+When the app changes something on its own (switching the solver for a pattern fold or an experiment) a paper note with an info icon rises at the bottom centre for five seconds (`aria-live="polite"`, closable), saying what changed and why.
 
 ### Cards / Containers (Sheets and Sections)
 - **Corner Style:** 3px.
@@ -318,7 +330,10 @@ The checker's verdict, inked onto the sheet.
 - **Range and checkbox:** native controls with ink accent colour. The angle slider adds a ruler scale beneath (ticks every 45°, major ticks and labels every 90°, from −180 to +180).
 
 ### Navigation
-- **Title block (header):** a 58px sheet split into ruled cells, each with a lettering caption over its content (강의, 도면 n/N, 학습 방식, 솔버, 보기); the lecture switch L1 to L5 selects in solid ink. Icon actions on the right are 36px, graphite, with captions revealed at 1500px.
+- **Title block (header):** a 58px sheet split into ruled cells, each with a lettering caption over its content: identity (opens the cover), 강의 L1–L5 (≥1280px), where you are ("도면 4.1 · 테셀레이션" over the sheet title, with previous/next sheet arrows), and on model sheets only 솔버 and 보기. Lab sheets show neither. Play appears only in Energy. Icon actions on the right are 36px, graphite, with captions revealed at 1500px. Below 768px it becomes two rows: index, where you are, actions; then solver and view without captions.
+- **Lesson mode:** 설명 / 탐구 / 과제 tabs sit at the top of the lesson column, next to the text they change.
+- **Below 1280px** the right sheet carries "레슨 | 검사" (or "레슨 | 이론" on labs) tabs, so the lesson text is reachable without the drawer.
+- **Sheet numbers** are "lecture.index" (4.1) everywhere: index, cover, title block. Lecture titles come from one table (`LECTURE_TITLES`).
 - **Drawing index:** collapsible lecture rows with a chevron; sheets listed on a dashed left rule with tabular numbers (1.3); the active sheet sits on a highlighter swatch at 70% in semibold ink.
 - **Tabs:** drawing-set tabs on a paper-2 rail; the active tab is the top sheet (paper fill, rule-2 border, inset ink top edge).
 
@@ -332,7 +347,7 @@ An always-visible paper card (3px, ink border at 50%) showing each assignment's 
 A section folds along its top crease: rotateX to −88° in 900px perspective with transform-origin at the top, 220ms on cubic-bezier(0.16, 1, 0.3, 1), opacity out in 180ms, and the row height collapses over 200ms ease-out. Reduced motion removes the transition. The analysis sheet folds to its 41px strip the same way.
 
 ### Cover Sheet (drawing index)
-The set's cover: a ruled title block (name, course, sheet count) above one band per lecture. Each lesson is a plate with its crease pattern thumbnail, plate number "L-NN" and a "현재 도면" highlighter chip on the open lesson. Plates unfold in sequence (rotateX −88° → 0 about the top edge, 45 ms stagger) and a pen draws each pattern with `pathLength=1` dash offset, boundary lines first.
+The set's cover: a ruled title block (name, course, sheet count) above one band per lecture. Each lesson is a plate with its crease pattern thumbnail, sheet number "4.1", a line of theorem tags (Kawasaki · Maekawa, N − 3M …) and a "현재 도면" highlighter chip on the open lesson. While it is open the board behind is inert and focus starts on its close button and returns on close. Plates unfold in sequence (rotateX −88° → 0 about the top edge, 45 ms stagger) and a pen draws each pattern with `pathLength=1` dash offset, boundary lines first.
 
 ### Motion Vocabulary
 - **Sheet unfold** (lesson change): View Transition, the new sheet rotates in from −78° about its top edge, 560 ms on cubic-bezier(0.16, 1, 0.3, 1).
@@ -342,7 +357,7 @@ The set's cover: a ruled title block (name, course, sheet count) above one band 
 - Reduced motion removes all of them.
 
 ### Selection Callout
-The selected crease in 3D carries a drafting leader note: ink dot on the crease, ink leader, 14px shoulder, and a highlighter chip reading "label · e12 M  ρ = −63.25°" in 13px semibold. In 2D the driving crease gets a dimension line with the value on a highlighter chip.
+The selected crease in 3D carries a drafting leader note: ink dot on the crease, ink leader, 14px shoulder, and a highlighter chip reading "ρ1 −70.0°" (crease name, one decimal) in 14px semibold. In 2D the driving crease gets a dimension line with the same text on a highlighter chip.
 
 ## Do's and Don'ts
 
@@ -350,10 +365,11 @@ The selected crease in 3D carries a drafting leader note: ink dot on the crease,
 - **Do** draw mountain folds in mountain red with the dash-dot pattern and valley folds in valley blue with the dash pattern in every view, legend, table and chart.
 - **Do** mark selection with the highlighter underlay (mark) beneath the element, keeping the element's own colour on top.
 - **Do** put every panel on a paper sheet with the sheet-on-board shadow and 3px corners, separated from its neighbours by the 8px board gutter.
-- **Do** select interactive chrome with solid India ink and paper text.
-- **Do** report feasibility with outlined ink stamps that carry a word (가능, 주의, 불가, 해당 없음, 참고).
+- **Do** mark a chosen option with an inked outline, and keep solid ink for the one primary action of a panel.
+- **Do** report feasibility with outlined ink stamps whose word answers the row's question (성립, 있음, 없음, 작음 …).
+- **Do** give each sheet one obvious way to fold it; extra controls go behind a disclosure.
 - **Do** set numbers with tabular figures in Pretendard and Greek symbols in Cambria Math.
-- **Do** caption title-block cells and section heads with the condensed uppercase lettering (10 to 11.5px, 0.06em).
+- **Do** caption title-block cells and section heads with the condensed uppercase lettering (12px, 0.06em).
 - **Do** fold sections open and closed along their top crease (220ms rotateX hinge), with no transition under reduced motion.
 - **Do** write UI copy in Korean and keep lecture terms and symbols in English.
 
@@ -365,3 +381,5 @@ The selected crease in 3D carries a drafting leader note: ink dot on the crease,
 - **Don't** use a monospace face for numbers or labels; tabular figures in the body face do that job.
 - **Don't** use unicode glyphs as icons or arrows; icons come from one line-icon library (lucide).
 - **Don't** use the condensed lettering as an eyebrow above prose headlines.
+- **Don't** set any text below 12px, and don't scale SVG text with the viewBox.
+- **Don't** change a mode silently; announce it with a notice.

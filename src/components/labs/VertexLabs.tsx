@@ -50,7 +50,7 @@ function useVertex(initial: number[], initialMV: MV[]) {
 
 function SectorTable({ sectors, mv, onEdit }: { sectors: number[]; mv: MV[]; onEdit?: (i: number, d: number) => void }) {
   return (
-    <table className="w-full tnum text-[11.5px]">
+    <table className="w-full tnum text-[12px]">
       <thead><tr className="text-ink-3"><td>i</td><td>θi</td><td>홀짝</td><td>크리스 c(i) M/V</td></tr></thead>
       <tbody>
         {sectors.map((s, i) => (
@@ -82,15 +82,15 @@ export function KawasakiLab() {
     <div className="grid grid-cols-[auto_1fr] gap-4">
       <div>
         <VertexDiagram rays={v.rays} mv={v.mv} onDrag={v.drag} onSectorClick={setSel} selectedSector={sel} size={420} />
-        <p className="text-center text-[11px] text-ink-3">크리스 광선(또는 끝 표식)을 끌어 움직인다. 섹터를 클릭하면 선택된다.</p>
+        <p className="text-center text-[12px] text-ink-3">크리스 광선(또는 끝 표식)을 끌어 움직인다. 섹터를 클릭하면 선택된다.</p>
       </div>
       <div className="space-y-2">
         <Section title="Kawasaki 상태">
           <div className={`rounded border p-3 ${ok ? 'border-ok/40 bg-ok-soft' : 'border-bad/40 bg-bad-soft'}`}>
-            <div className="tnum text-2xl">{(deg(k.residual) >= 0 ? '+' : '') + deg(k.residual).toFixed(3)}°</div>
-            <div className="text-[11px] text-ink-3">Kawasaki 잔차 = Σodd θi − Σeven θi</div>
+            <div className="tnum text-[22px]">{(deg(k.residual) >= 0 ? '+' : '') + deg(k.residual).toFixed(3)}°</div>
+            <div className="text-[12px] text-ink-3">Kawasaki 잔차 = Σodd θi − Σeven θi</div>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-1 tnum text-[12px]">
+          <div className="mt-2 grid grid-cols-2 gap-1 tnum text-[13px]">
             <div>Σ 홀수 = <span className="text-info">{deg(k.sumOdd).toFixed(3)}°</span></div>
             <div>Σ 짝수 = <span className="text-ink-2">{deg(k.sumEven).toFixed(3)}°</span></div>
             <div>Σ 전체 = {deg(k.total).toFixed(3)}°</div>
@@ -115,7 +115,7 @@ export function KawasakiLab() {
             <Button onClick={() => setN(5)}>n = 5 (홀수)</Button>
             <Button onClick={() => openIn3D(v.sectors, v.mv)} disabled={!ok}>3D로 접기<ArrowRight size={14} /></Button>
           </div>
-          <p className="mt-1 text-[11px] text-ink-3">"평탄 접힘 가능하게 수정"은 선택한 섹터를 둘러싼 광선 하나를 δ = −잔차/2만큼 회전시킨다. θk는 +δ, 이웃 섹터는 −δ만큼 변하므로 Σθ는 360°로 유지되고 교대합은 0이 된다.</p>
+          <p className="mt-1 text-[12px] text-ink-3">"평탄 접힘 가능하게 수정"은 선택한 섹터를 둘러싼 광선 하나를 δ = −잔차/2만큼 회전시킨다. θk는 +δ, 이웃 섹터는 −δ만큼 변하므로 Σθ는 360°로 유지되고 교대합은 0이 된다.</p>
         </Section>
         <Section title="섹터"><SectorTable sectors={v.sectors} mv={v.mv} /></Section>
       </div>
@@ -133,24 +133,24 @@ export function MaekawaLab() {
     <div className="grid grid-cols-[auto_1fr] gap-4">
       <div>
         <VertexDiagram rays={v.rays} mv={v.mv} onRayClick={(i) => v.setMv((mv) => mv.map((x, j) => (j === i ? (x === 'M' ? 'V' : 'M') : x)))} size={420} />
-        <p className="text-center text-[11px] text-ink-3">크리스(또는 표식)를 클릭하여 산접기 / 골접기를 전환한다.</p>
+        <p className="text-center text-[12px] text-ink-3">크리스(또는 표식)를 클릭하여 산접기 / 골접기를 전환한다.</p>
       </div>
       <div className="space-y-2">
         <Section title="개수 조건 (Maekawa–Justin)">
           <div className="grid grid-cols-3 gap-2 tnum">
-            <div className="rounded bg-paper-2 p-2"><div className="text-[10px] text-ink-3">M</div><div className="text-xl text-bad">{m.M}</div></div>
-            <div className="rounded bg-paper-2 p-2"><div className="text-[10px] text-ink-3">V</div><div className="text-xl text-info">{m.V}</div></div>
-            <div className="rounded bg-paper-2 p-2"><div className="text-[10px] text-ink-3">V − M</div><div className="text-xl">{m.difference > 0 ? '+' : ''}{m.difference}</div></div>
+            <div className="rounded bg-paper-2 p-2"><div className="text-[12px] text-ink-3">M</div><div className="text-[18px] text-bad">{m.M}</div></div>
+            <div className="rounded bg-paper-2 p-2"><div className="text-[12px] text-ink-3">V</div><div className="text-[18px] text-info">{m.V}</div></div>
+            <div className="rounded bg-paper-2 p-2"><div className="text-[12px] text-ink-3">V − M</div><div className="text-[18px]">{m.difference > 0 ? '+' : ''}{m.difference}</div></div>
           </div>
           <div className="mt-2"><Badge status={m.satisfied ? 'ok' : 'bad'}>|M − V| = 2 {m.satisfied ? '성립' : '불성립'}</Badge></div>
         </Section>
         <Section title="필요조건 vs 충분조건">
-          <div className="space-y-1 text-[12px]">
+          <div className="space-y-1 text-[13px]">
             <div className="flex justify-between"><span>필요: |M − V| = 2</span><Badge status={m.satisfied ? 'ok' : 'bad'} /></div>
             <div className="flex justify-between"><span>필요: Kawasaki (섹터각)</span><Badge status={k.satisfied ? 'ok' : 'bad'} /></div>
             <div className="flex justify-between"><span>충분 판정: crimp(크림프) / big–little–big 축약</span>{full ? <Badge status={full.valid ? 'ok' : 'bad'}>{full.valid ? '유효' : '무효'}</Badge> : <Badge status="na">Kawasaki 필요</Badge>}</div>
-            {full && !full.valid && <p className="text-[11.5px] text-bad">{full.reason}</p>}
-            {m.satisfied && full && !full.valid && <p className="rounded border border-warn/40 bg-warn-soft p-1.5 text-[11.5px] text-warn">Maekawa는 성립하지만 이 배정은 여전히 평탄 접힘 불가능하다 — 개수 조건만으로는 충분하지 않다.</p>}
+            {full && !full.valid && <p className="text-[12px] text-bad">{full.reason}</p>}
+            {m.satisfied && full && !full.valid && <p className="rounded border border-warn/40 bg-warn-soft p-1.5 text-[12px] text-warn">Maekawa는 성립하지만 이 배정은 여전히 평탄 접힘 불가능하다 — 개수 조건만으로는 충분하지 않다.</p>}
           </div>
         </Section>
         <Section title="프리셋">
@@ -173,21 +173,21 @@ function LinearVertex({ sectors, mv, creases, mark }: { sectors: number[]; mv: M
   const W = 560;
   let x = 0;
   return (
-    <svg viewBox={`0 0 ${W} 46`} className="w-full">
+    <svg viewBox={`0 0 ${W} 58`} className="w-full">
       {sectors.map((s, i) => {
         const w = (s / total) * (W - 20);
         const x0 = 10 + x;
         x += w;
         return (
           <g key={i}>
-            <rect x={x0} y={14} width={w} height={16} fill={i === mark ? withAlpha(C.mark, 0.6) : i % 2 === 0 ? C.infoSoft : C.badSoft} />
-            <text x={x0 + w / 2} y={42} fontSize={10} fill={C.ink2} textAnchor="middle" fontFamily="monospace">{deg(s).toFixed(1)}°</text>
-            <line x1={x0} x2={x0} y1={8} y2={34} stroke={ASSIGN_COLOR[mv[i]]} strokeWidth={3} />
-            <text x={x0} y={7} fontSize={9} fill={ASSIGN_COLOR[mv[i]]} textAnchor="middle" fontFamily="monospace">c{creases[i] + 1}{mv[i]}</text>
+            <rect x={x0} y={20} width={w} height={16} fill={i === mark ? withAlpha(C.mark, 0.6) : i % 2 === 0 ? C.infoSoft : C.badSoft} />
+            <text x={x0 + w / 2} y={53} fontSize={13} fill={C.ink2} textAnchor="middle" fontFamily="monospace">{deg(s).toFixed(1)}°</text>
+            <line x1={x0} x2={x0} y1={15} y2={40} stroke={ASSIGN_COLOR[mv[i]]} strokeWidth={3} />
+            <text x={x0} y={12} fontSize={13} fill={ASSIGN_COLOR[mv[i]]} textAnchor="middle" fontFamily="monospace">c{creases[i] + 1}{mv[i]}</text>
           </g>
         );
       })}
-      <text x={W - 10} y={7} fontSize={9} fill={C.ink3} textAnchor="end" fontFamily="monospace">(순환 → c{creases[0] + 1}로 복귀)</text>
+      <text x={W - 10} y={12} fontSize={12} fill={C.ink3} textAnchor="end" fontFamily="monospace">(순환 → c{creases[0] + 1}로 복귀)</text>
     </svg>
   );
 }
@@ -209,7 +209,7 @@ export function MVCrimpLab() {
       <div>
         <VertexDiagram rays={v.rays} mv={v.mv} onRayClick={(i) => v.setMv((mv) => mv.map((x, j) => (j === i ? (x === 'M' ? 'V' : 'M') : x)))} size={360}
           highlightRays={res.steps[step]?.removed} />
-        <p className="text-center text-[11px] text-ink-3">크리스를 클릭하여 M/V를 전환한다.</p>
+        <p className="text-center text-[12px] text-ink-3">크리스를 클릭하여 M/V를 전환한다.</p>
         <div className="mt-2 flex flex-wrap justify-center gap-1">
           <Button onClick={() => v.load([60, 40, 70, 80, 50, 60], ['M', 'V', 'M', 'M', 'V', 'M'])}>6차</Button>
           <Button onClick={() => v.load([70, 100, 110, 80], ['V', 'M', 'V', 'V'])}>4차</Button>
@@ -222,7 +222,7 @@ export function MVCrimpLab() {
           <div className="space-y-2">
             {states.slice(0, step + 1).map((st, i) => (
               <div key={i} className={i === step ? '' : 'opacity-50'}>
-                <div className="text-[11.5px] text-ink-2">
+                <div className="text-[12px] text-ink-2">
                   {i === 0 ? '원래 패턴' : `단계 ${i}: ${res.steps[i - 1].strict ? '엄격한' : '비엄격'} 국소 최소 섹터 ${deg(res.steps[i - 1].before.sectors[res.steps[i - 1].sectorIndex]).toFixed(1)}°에서 crimp (c${res.steps[i - 1].removed[0] + 1}, c${res.steps[i - 1].removed[1] + 1})`}
                   {i > 0 && <span className="ml-1 tnum text-ink-3">→ θ(i−1) − θi + θ(i+1)</span>}
                 </div>
@@ -231,13 +231,13 @@ export function MVCrimpLab() {
             ))}
           </div>
           {step >= res.steps.length && (
-            <div className={`mt-2 rounded border p-2 text-[12px] ${res.valid ? 'border-ok/40 bg-ok-soft text-ok' : 'border-bad/40 bg-bad-soft text-bad'}`}>
+            <div className={`mt-2 rounded border p-2 text-[13px] ${res.valid ? 'border-ok/40 bg-ok-soft text-ok' : 'border-bad/40 bg-bad-soft text-bad'}`}>
               {res.valid ? '기저 사례: 배정이 같은 두 공선 크리스 (단일 직선 접기). ' : '증명 실패: '}{res.reason}
             </div>
           )}
         </Section>
         <Section title="시험 요약">
-          <ol className="ml-4 list-decimal space-y-0.5 text-[12px] text-ink-2">
+          <ol className="ml-4 list-decimal space-y-0.5 text-[13px] text-ink-2">
             <li>Kawasaki를 확인한다 (Σodd = Σeven = 180°).</li>
             <li>국소 최소 섹터 θi를 찾는다 (θi−1 ≥ θi ≤ θi+1). 엄격한 최소이면 양쪽 크리스의 배정은 달라야 한다 (big–little–big).</li>
             <li>Crimp(크림프): 두 크리스를 제거하고 θi−1 − θi + θi+1로 합친다. Kawasaki와 Maekawa는 보존된다.</li>
@@ -285,15 +285,15 @@ export function GeneralizedLab() {
             );
           })}
           {pts.map((p, k) => <circle key={k} cx={p[0]} cy={p[1]} r={0.025} fill={k === n ? (g.satisfied ? C.ok : C.bad) : C.ink} />)}
-          <text x={0} y={1.12} fontSize={0.07} fill={C.ink2} textAnchor="middle">각 광선의 접힌 상: φk = θ1 − θ2 + … ± θk</text>
+          <text x={0} y={1.12} fontSize={12 * (2.3 / 380)} fill={C.ink2} textAnchor="middle">각 광선의 접힌 상: φk = θ1 − θ2 + … ± θk</text>
         </svg>
-        <p className="w-[380px] text-[11px] text-ink-3">각 섹터를 방향을 번갈아 가며 평평하게 놓는다. 이 경로는 시작 광선(점선)에서 끝나야 한다: A = 0 (되돌아옴) 또는 A = ±360° (한 바퀴 감김). 나선 반지름은 층을 구분하기 위한 것일 뿐이다.</p>
+        <p className="w-[380px] max-w-full text-[13px] leading-relaxed text-ink-3">각 섹터를 방향을 번갈아 가며 평평하게 놓는다. 이 경로는 시작 광선(점선)에서 끝나야 한다: A = 0 (되돌아옴) 또는 A = ±360° (한 바퀴 감김). 나선 반지름은 층을 구분하기 위한 것일 뿐이다.</p>
       </div>
       <div className="space-y-2">
         <Section title="일반화 조건">
           <div className="grid grid-cols-2 gap-2 tnum">
-            <div className="rounded bg-paper-2 p-2"><div className="text-[10px] text-ink-3">Σθ</div><div className="text-xl">{deg(g.total).toFixed(2)}°</div></div>
-            <div className={`rounded p-2 ${g.satisfied ? 'bg-ok-soft' : 'bg-bad-soft'}`}><div className="text-[10px] text-ink-3">A = Σ(−1)^(i+1) θi</div><div className="text-xl">{deg(g.alternating).toFixed(2)}°</div></div>
+            <div className="rounded bg-paper-2 p-2"><div className="text-[12px] text-ink-3">Σθ</div><div className="text-[18px]">{deg(g.total).toFixed(2)}°</div></div>
+            <div className={`rounded p-2 ${g.satisfied ? 'bg-ok-soft' : 'bg-bad-soft'}`}><div className="text-[12px] text-ink-3">A = Σ(−1)^(i+1) θi</div><div className="text-[18px]">{deg(g.alternating).toFixed(2)}°</div></div>
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
             <Badge status={n % 2 === 0 ? 'ok' : 'bad'}>n 짝수</Badge>
@@ -304,10 +304,10 @@ export function GeneralizedLab() {
         <Section title="일반화 Maekawa (클릭하여 전환)">
           <div className="mb-1 flex flex-wrap gap-1">
             {mv.map((x, i) => (
-              <button key={i} type="button" className="rounded border border-rule-2 px-2 py-0.5 tnum text-xs" style={{ color: ASSIGN_COLOR[x] }} onClick={() => setMv((m) => m.map((y, j) => (j === i ? (y === 'M' ? 'V' : 'M') : y)))}>c{i + 1}:{x}</button>
+              <button key={i} type="button" className="rounded border border-rule-2 px-2 py-0.5 tnum text-[12px]" style={{ color: ASSIGN_COLOR[x] }} onClick={() => setMv((m) => m.map((y, j) => (j === i ? (y === 'M' ? 'V' : 'M') : y)))}>c{i + 1}:{x}</button>
             ))}
           </div>
-          <div className="flex items-center justify-between text-[12px]"><span>M = {gm.M}, V = {gm.V}; 기대값 {gm.expected}</span><Badge status={gm.satisfied ? 'ok' : 'bad'} /></div>
+          <div className="flex items-center justify-between text-[13px]"><span>M = {gm.M}, V = {gm.V}; 기대값 {gm.expected}</span><Badge status={gm.satisfied ? 'ok' : 'bad'} /></div>
         </Section>
         <Section title="섹터각 (°)">
           <div className="flex flex-wrap gap-1">
@@ -326,7 +326,7 @@ export function GeneralizedLab() {
             <Button onClick={() => load([20, 200, 20, 200], ['M', 'V', 'M', 'V'])}>A = −360°</Button>
             <Button onClick={() => load([80, 70, 60, 90], ['M', 'M', 'M', 'V'])}>일반 원뿔 (실패)</Button>
           </div>
-          <p className="mt-1 text-[11px] text-ink-3">±360°인 이유: Σθ &gt; 360°이면 홀수 섹터만으로도 한 바퀴를 넘을 수 있으므로, 접힌 경로가 꼭짓점을 한 바퀴 감은 뒤 닫힐 수 있다. 이때 M과 V의 회전이 쌍으로 상쇄되므로 ⇒ M = V이다.</p>
+          <p className="mt-1 text-[12px] text-ink-3">±360°인 이유: Σθ &gt; 360°이면 홀수 섹터만으로도 한 바퀴를 넘을 수 있으므로, 접힌 경로가 꼭짓점을 한 바퀴 감은 뒤 닫힐 수 있다. 이때 M과 V의 회전이 쌍으로 상쇄되므로 ⇒ M = V이다.</p>
         </Section>
       </div>
     </div>

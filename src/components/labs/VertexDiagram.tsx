@@ -63,9 +63,9 @@ export function VertexDiagram({
             onMouseEnter={() => useUI.getState().setTheoryHover(lbl)} onMouseLeave={() => useUI.getState().setTheoryHover(null)}>
             <path d={path} fill={hot ? withAlpha(C.mark, 0.6) : i % 2 === 0 ? withAlpha(C.valley, 0.13) : withAlpha(C.mountain, 0.09)} stroke="none" />
             {showLabels && (
-              <text x={0.62 * Math.cos(a0 + s / 2)} y={-0.62 * Math.sin(a0 + s / 2)} fontSize={0.075} textAnchor="middle" dominantBaseline="middle" fill={i % 2 === 0 ? C.info : C.locked} fontFamily="monospace">
-                <tspan x={0.62 * Math.cos(a0 + s / 2)} dy="-0.04">θ{i + 1}</tspan>
-                <tspan x={0.62 * Math.cos(a0 + s / 2)} dy="0.09">{((s * 180) / Math.PI).toFixed(1)}°</tspan>
+              <text x={0.62 * Math.cos(a0 + s / 2)} y={-0.62 * Math.sin(a0 + s / 2)} fontSize={13 * (2.6 / size)} textAnchor="middle" dominantBaseline="middle" fill={i % 2 === 0 ? C.info : C.locked} fontFamily="monospace">
+                <tspan x={0.62 * Math.cos(a0 + s / 2)} dy="-0.5em">θ{i + 1}</tspan>
+                <tspan x={0.62 * Math.cos(a0 + s / 2)} dy="1.15em">{((s * 180) / Math.PI).toFixed(1)}°</tspan>
               </text>
             )}
           </g>
@@ -80,9 +80,9 @@ export function VertexDiagram({
               strokeDasharray={mv[i] === 'M' ? '0.06 0.025 0.012 0.025' : mv[i] === 'V' ? '0.05 0.03' : undefined} />
             <line x1={0} y1={0} x2={R * Math.cos(a)} y2={-R * Math.sin(a)} stroke="transparent" strokeWidth={0.09} style={{ cursor: onDrag ? 'grab' : onRayClick ? 'pointer' : undefined }}
               onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); drag.current = { i, moved: false }; }} />
-            <circle cx={1.1 * Math.cos(a)} cy={-1.1 * Math.sin(a)} r={0.075} fill={C.paper} stroke={col} strokeWidth={0.012}
+            <circle cx={1.1 * Math.cos(a)} cy={-1.1 * Math.sin(a)} r={Math.max(0.075, 12 * (2.6 / size))} fill={C.paper} stroke={col} strokeWidth={0.012}
               onPointerDown={() => { drag.current = { i, moved: false }; }} style={{ cursor: 'pointer' }} />
-            <text x={1.1 * Math.cos(a)} y={-1.1 * Math.sin(a)} fontSize={0.07} textAnchor="middle" dominantBaseline="central" fill={col} fontFamily="monospace" pointerEvents="none">
+            <text x={1.1 * Math.cos(a)} y={-1.1 * Math.sin(a)} fontSize={12 * (2.6 / size)} textAnchor="middle" dominantBaseline="central" fill={col} fontFamily="monospace" pointerEvents="none">
               {mv[i]}{i + 1}
             </text>
           </g>

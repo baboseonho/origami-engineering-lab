@@ -56,6 +56,16 @@ _Last updated: 2026-10-07_
 * **Responsive.** ≥ 1280 px: three columns. 768–1279 px: view + inspector, with the index in a drawer. < 768 px: one column, with the index and inspector in paper-flap drawers opened from the top bar. Analysis tabs scroll sideways.
 * **Labs.** The concept and stepwise labs fill the sheet with their own 3D frame (no frame inside a frame) and refit the camera after stow/deploy.
 
+## Readability and ease-of-use pass (2026-10)
+A critique found the verdict buried at the bottom of the inspector, three competing ways to fold a sheet, solid ink used for both "chosen" and "do this", 37–55 % of text under 12px, a top bar full of controls that do nothing on lab sheets, a solver that switched silently, and inconsistent names (ρ3 vs e2, two sets of lecture titles, two sheet numberings). Changes:
+* **Inspector:** a sticky verdict strip with question-specific words and "근거 보기"; one fold card per sheet (the only speed control); the selection below it; single-crease controls, M/V reassignment, linked creases and solver numbers in disclosures. The shopping bag adds a note that infinitesimal mobility is not a folding motion, and its fold card shows the peak strain along the path.
+* **Type:** six sizes (12/13/14/15/18/22), nothing under 12px; charts are drawn at their real width with 12px axes and an HTML legend; SVG labels (crease pattern, vertex labs, GK lab) are sized in screen pixels.
+* **Title bar:** where you are (sheet number, lecture, title, previous/next); solver and view only on model sheets; play only in Energy. Lesson mode moved to tabs in the lesson column. Two rows on phones.
+* **Names:** one crease name (`creaseName`), one table of lecture titles, one sheet number "4.1" (index, cover, title bar); theorem tags on the cover; selection labels "ρ1 −70.0°" in 2D and 3D.
+* **Feedback:** an automatic solver switch raises a notice with the reason; no "−0.000°".
+* **Layout:** below 1280px the right sheet has "레슨 | 검사" tabs; analysis tabs reflow on the panel's own width (container queries); the GK lab's three status cards are one ruled block and its 3D view spans the width; the 3D toolbar is 맞춤 · 시점 · 원근 · 표시 항목.
+* **Accessibility:** the board is inert under the cover (focus moves in and back); folded sections and the folded analysis panel are inert.
+
 ## Known issues / limitations
 * "Type I / Type II" Kresling and Yoshimura variants: no standard definition was found, so chirality/caps (Kresling) and smooth/creased (Yoshimura) are offered instead. Align with the lecture's definitions if they differ.
 * The lecture's Miura count N = 19, M = 6 is not reproduced exactly (counting convention unknown); the 3×4-panel preset gives N = 17, M = 6.

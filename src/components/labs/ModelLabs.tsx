@@ -74,7 +74,7 @@ export function ConceptLab() {
       <div className="relative min-h-0 min-w-0"><Viewport3D /></div>
       <div className="border-t border-rule bg-paper lg:overflow-y-auto lg:border-l lg:border-t-0">
         <Section title="형상 (Rigid 솔버, 1 DoF)">
-          <div className="flex justify-between text-[11px] text-ink-3"><span>펼침 (평탄)</span><span>중간</span><span>수납 (압축)</span></div>
+          <div className="flex justify-between text-[12px] text-ink-3"><span>펼침 (평탄)</span><span>중간</span><span>수납 (압축)</span></div>
           <input type="range" className="w-full" min={0} max={1} step={0.002} value={pct} aria-label="형상 (펼침 → 수납)" onChange={(e) => { cancelAnimationFrame(anim.current); go(parseFloat(e.target.value)); }} />
           <div className="mt-1 flex gap-1">
             <Button onClick={() => animate(1)}><Play size={14} />수납</Button>
@@ -82,16 +82,16 @@ export function ConceptLab() {
             <Button onClick={() => animate(0)}><Play size={14} />펼치기</Button>
           </div>
           <SpeedControl className="mt-2" />
-          <div className="mt-2 text-[12px]">
+          <div className="mt-2 text-[13px]">
             <KV k="구동 접힘각" v={drive !== null ? `${toDeg(rho[drive] ?? 0).toFixed(1)}°` : '—'} />
             <KV k="점유 면적 W·L / 평탄" v={dims ? dims.areaRatio.toFixed(3) : '—'} />
             <KV k="두께 T" v={dims ? dims.T.toFixed(3) : '—'} />
             <KV k="닫힘 잔차" v={fmt(result?.residualNorm)} />
           </div>
-          <p className="mt-1 text-[11px] text-ink-3">애니메이션의 모든 프레임은 보간이 아니라 정확한 강체 해(기구학 솔버의 연속법)이다.</p>
+          <p className="mt-1 text-[12px] text-ink-3">애니메이션의 모든 프레임은 보간이 아니라 정확한 강체 해(기구학 솔버의 연속법)이다.</p>
         </Section>
         <Section title="하나의 사상, 다양한 응용">
-          <ul className="space-y-1 text-[12px]">
+          <ul className="space-y-1 text-[13px]">
             {APPLICATIONS.map(([t, d]) => <li key={t}><b className="text-ink">{t}</b> <span className="text-ink-3">— {d}</span></li>)}
           </ul>
         </Section>
@@ -128,16 +128,16 @@ export function StepwiseLab() {
       <div className="relative min-h-0 min-w-0"><Viewport3D /></div>
       <div className="border-t border-rule bg-paper lg:overflow-y-auto lg:border-l lg:border-t-0">
         <Section title="입력">
-          <label className="block text-[12px]">α = {alpha}° (섹터 α, 180−α, 180−α, α)
+          <label className="block text-[13px]">α = {alpha}° (섹터 α, 180−α, 180−α, α)
             <input type="range" className="w-full" min={30} max={85} step={1} value={alpha} onChange={(e) => setAlpha(parseInt(e.target.value))} />
           </label>
-          <label className="block text-[12px]">|ρ1| = {toDeg(Math.abs(target)).toFixed(1)}° (구동 크리스 c1, 골접기)
+          <label className="block text-[13px]">|ρ1| = {toDeg(Math.abs(target)).toFixed(1)}° (구동 크리스 c1, 골접기)
             <input type="range" className="w-full" min={0} max={175} step={0.5} value={Math.abs(toDeg(target))} disabled={drive === null}
               onChange={(e) => setTarget(parseFloat(e.target.value) * DEG)} />
           </label>
         </Section>
         <Section title="실시간 유도">
-          <table className="w-full text-[11.5px]">
+          <table className="w-full text-[12px]">
             <tbody>
               {rows.map(([a, b, c]) => (
                 <tr key={a} className="border-b border-rule align-top">
@@ -150,7 +150,7 @@ export function StepwiseLab() {
           </table>
         </Section>
         <Section title="해석해 vs 범용 수치 솔버">
-          <div className="space-y-0.5 tnum text-[12px]">
+          <div className="space-y-0.5 tnum text-[13px]">
             <KV k="|ρ2| 해석해" v={`${toDeg(d.rho2Magnitude).toFixed(6)}°`} />
             <KV k="|ρ2| 솔버" v={`${toDeg(solver2).toFixed(6)}°`} />
             <KV k="ρ3 솔버 vs −ρ1" v={e3 >= 0 ? `${toDeg(rho[e3]).toFixed(4)}° vs ${toDeg(-(rho[e1] ?? 0)).toFixed(4)}°` : '—'} />
@@ -158,7 +158,7 @@ export function StepwiseLab() {
             <KV k="tan(|ρ1|/2) / tan(|ρ2|/2)" v={`${(Math.tan(r1 / 2) / Math.tan(solver2 / 2)).toFixed(6)} (cos α = ${Math.cos(alpha * DEG).toFixed(6)})`} />
           </div>
           <div className="mt-1">{Math.abs(solver2 - d.rho2Magnitude) < 1e-6 ? <Badge status="ok">&lt; 1e-6 rad 이내로 일치</Badge> : r1 < 1e-6 ? <Badge status="na">비교하려면 ρ1을 구동한다</Badge> : <Badge status="warn">Δ = {fmt(Math.abs(solver2 - d.rho2Magnitude))} rad</Badge>}</div>
-          <p className="mt-1 text-[11px] text-ink-3">설명되지 않은 상수는 없다. 모든 값은 위 단계에 따라 α와 ρ1로부터 계산되며, 오른쪽 열은 범용 Levenberg–Marquardt 닫힘 솔버의 결과이다.</p>
+          <p className="mt-1 text-[12px] text-ink-3">설명되지 않은 상수는 없다. 모든 값은 위 단계에 따라 α와 ρ1로부터 계산되며, 오른쪽 열은 범용 Levenberg–Marquardt 닫힘 솔버의 결과이다.</p>
         </Section>
       </div>
     </div>
@@ -172,18 +172,18 @@ function TubeCard({ title, sub, model, tube, fallback }: { title: string; sub: s
   return (
     <div className="min-w-0 rounded-[3px] border border-rule-2 bg-paper">
       <div className="flex items-baseline justify-between gap-2 border-b border-rule px-3 py-1.5">
-        <div className="min-w-0"><b className="text-[13px] text-ink">{title}</b> <span className="text-[11.5px] text-ink-3">{sub}</span></div>
+        <div className="min-w-0"><b className="text-[14px] text-ink">{title}</b> <span className="text-[12px] text-ink-3">{sub}</span></div>
         {tube && tube.collisions > 0 && <Badge status="warn">자기 교차 {tube.collisions}</Badge>}
       </div>
       <MiniView model={model} positions={tube?.positions ?? fallback} height="min(44vh, 400px)" />
-      <dl className="grid grid-cols-3 border-t border-rule text-[12px]">
+      <dl className="grid grid-cols-3 border-t border-rule text-[13px]">
         {[
           ['에너지 V', tube ? fmt(tube.energy) : '—'],
           ['상판 비틀림', tube ? `${toDeg(tube.twist).toFixed(1)}°` : '—'],
           ['최대 변형률', tube ? `${(tube.maxStrain * 100).toFixed(1)}%` : '—'],
         ].map(([k, v]) => (
           <div key={k} className="border-l border-rule px-3 py-1.5 first:border-l-0">
-            <dt className="lettering text-[10.5px] text-ink-3">{k}</dt>
+            <dt className="lettering text-[12px] text-ink-3">{k}</dt>
             <dd className="tnum text-[15px] font-semibold text-ink">{v}</dd>
           </div>
         ))}
@@ -264,12 +264,12 @@ export function KreslingVsYoshimuraLab() {
 
       <div className="rounded-[3px] border border-rule-2 bg-paper-2/60 p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <div className="lettering text-[11px] text-ink-3">공통 하중 · 강체 상판, 매 프레임 에너지 최소(FIRE)</div>
-          <span className={`tnum text-[11.5px] ${busy ? 'text-ink-2' : 'text-ink-3'}`}>{busy ? '계산 중…' : error ? '' : '평형 상태'}</span>
+          <div className="lettering text-[12px] text-ink-3">공통 하중 · 강체 상판, 매 프레임 에너지 최소(FIRE)</div>
+          <span className={`tnum text-[12px] ${busy ? 'text-ink-2' : 'text-ink-3'}`}>{busy ? '계산 중…' : error ? '' : '평형 상태'}</span>
         </div>
-        <div className="grid gap-4 text-[12.5px] md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 text-[13px] md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <div>
-            <div className="flex items-baseline justify-between"><span className="font-medium text-ink">축 압축 u</span><span className="tnum text-[16px] font-semibold text-ink">{u.toFixed(3)} <span className="text-[11.5px] font-normal text-ink-3">/ H = 1.2 ({Math.round((u / 1.2) * 100)}%)</span></span></div>
+            <div className="flex items-baseline justify-between"><span className="font-medium text-ink">축 압축 u</span><span className="tnum text-[15px] font-semibold text-ink">{u.toFixed(3)} <span className="text-[12px] font-normal text-ink-3">/ H = 1.2 ({Math.round((u / 1.2) * 100)}%)</span></span></div>
             <input type="range" className="mt-1 w-full" min={0} max={PAIR_U_MAX} step={0.005} value={u} aria-label="축 압축 u"
               onChange={(e) => { stop(); setU(parseFloat(e.target.value)); }} />
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -289,11 +289,11 @@ export function KreslingVsYoshimuraLab() {
               <input type="range" className="w-full" min={-45} max={45} step={1} value={twist} disabled={free} aria-label="규정 비틀림"
                 onChange={(e) => setTwist(parseInt(e.target.value))} />
             </div>
-            {ratio !== null && <p className="mt-2 text-[12px] text-ink-2">같은 압축에서 Yoshimura의 에너지가 Kresling의 <b className="tnum text-ink">{ratio >= 100 ? ratio.toFixed(0) : ratio.toFixed(1)}배</b>이다.</p>}
+            {ratio !== null && <p className="mt-2 text-[13px] text-ink-2">같은 압축에서 Yoshimura의 에너지가 Kresling의 <b className="tnum text-ink">{ratio >= 100 ? ratio.toFixed(0) : ratio.toFixed(1)}배</b>이다.</p>}
           </div>
         </div>
-        {error && <p className="mt-2 text-[12px] text-bad">계산 실패: {error}</p>}
-        <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
+        {error && <p className="mt-2 text-[13px] text-bad">계산 실패: {error}</p>}
+        <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
           반지름, 높이, 다각형, 강성은 같다. 상판은 강체 판으로 축 방향으로 눌리며, "회전 자유"이면 토크가 0이 되는 각까지 스스로 돈다.
           Kresling은 압축되며 비틀린다(카이랄성에서 오는 압축–비틀림 연성). Yoshimura는 비틀리지 않는다: 강체로 접히지 않아 처음에는 면이 압축되며 에너지를 쌓다가, 약 34% 압축에서 다이아몬드 모양으로 좌굴하며(스냅) 에너지가 급감한다. 다시 펴면 한참 동안 좌굴 상태가 유지된다(쌍안정·히스테리시스).
           비틀림을 규정하면(회전 자유 해제) Kresling의 선호 방향과 반대로 돌릴 때 에너지가 커진다.

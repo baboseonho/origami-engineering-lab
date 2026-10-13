@@ -111,7 +111,7 @@ export function Strip1DLab() {
                 </g>
               ))}
             </svg>
-            <div className="flex flex-wrap gap-3 text-[11px] text-ink-3">
+            <div className="flex flex-wrap gap-3 text-[12px] text-ink-3">
               <span><span className="text-ok">▭</span> 가능한 연산</span>
               <span><span className="text-bad">▭</span> 충돌 (엄격히 더 짧은 구간 양쪽이 같은 방향)</span>
               <span><span className="text-warn">┄</span> 등거리 퇴화 경우</span>
@@ -122,22 +122,22 @@ export function Strip1DLab() {
               <polyline points={poly.map(([x, z]) => `${x},${-z}`).join(' ')} fill="none" stroke={C.kraft} strokeWidth={0.12} strokeLinejoin="round" />
               {poly.slice(1, -1).map(([x, z], i) => <circle key={i} cx={x} cy={-z} r={0.14} fill={ASSIGN_COLOR[strip.creases[i].mv]} />)}
             </svg>
-            <p className="text-[11px] text-ink-3">겹친 층이 보이도록 접힌 크리스를 ±172°로 그린다. 이는 층 적층의 개략도이며 축척 도면이 아니다.</p>
+            <p className="text-[12px] text-ink-3">겹친 층이 보이도록 접힌 크리스를 ±172°로 그린다. 이는 층 적층의 개략도이며 축척 도면이 아니다.</p>
           </Section>
         </div>
         <div>
           <Section title="판정">
             {full.foldable ? <Badge status="ok">평탄 접힘 가능: 완전한 엔드 폴드 / 크림프 순서가 존재한다</Badge> : <Badge status="bad">이 M/V 배정으로는 평탄 접힘 불가능</Badge>}
             {!full.foldable && analysis.collisions.length > 0 && (
-              <p className="mt-1 text-[11.5px] text-bad">충돌 위치 {analysis.collisions.map((c) => `(${label(c.creaseIds[0])}, ${label(c.creaseIds[1])})`).join(', ')}: 양쪽 이웃보다 짧은 구간의 두 크리스가 같은 방향이다.</p>
+              <p className="mt-1 text-[12px] text-bad">충돌 위치 {analysis.collisions.map((c) => `(${label(c.creaseIds[0])}, ${label(c.creaseIds[1])})`).join(', ')}: 양쪽 이웃보다 짧은 구간의 두 크리스가 같은 방향이다.</p>
             )}
-            <div className="mt-2 tnum text-[11px] text-ink-3">현재 적층의 구간 길이: [{segs.map((s) => s.toFixed(2)).join(', ')}]</div>
-            <div className="mt-1 text-[11.5px]">현재 가능한 연산: {analysis.ops.length ? analysis.ops.map((o) => describeOp(o, label)).join(', ') : current.creases.length ? '없음' : '완전히 접힘'}</div>
+            <div className="mt-2 tnum text-[12px] text-ink-3">현재 적층의 구간 길이: [{segs.map((s) => s.toFixed(2)).join(', ')}]</div>
+            <div className="mt-1 text-[12px]">현재 가능한 연산: {analysis.ops.length ? analysis.ops.map((o) => describeOp(o, label)).join(', ') : current.creases.length ? '없음' : '완전히 접힘'}</div>
           </Section>
           <Section title="접기 순서">
             {plan ? (
               plan.foldable ? (
-                <ol className="space-y-0.5 tnum text-[12px]">
+                <ol className="space-y-0.5 tnum text-[13px]">
                   {plan.sequence.map((op, i) => (
                     <li key={i} className={i < executed.length ? 'text-ok' : i === executed.length ? 'text-mark-ink' : 'text-ink-3'}>
                       단계 {i + 1}: {describeOp(op, label)} {i < executed.length && <Check size={13} className="inline" />}
@@ -145,10 +145,10 @@ export function Strip1DLab() {
                   ))}
                 </ol>
               ) : <div className="text-bad">유효한 순서 없음: 이 M/V 배정으로는 평탄 접힘 불가능하다.</div>
-            ) : <div className="text-[11.5px] text-ink-3">자동 풀이를 누른 뒤 "단계" 버튼으로 연산을 하나씩 실행한다.</div>}
+            ) : <div className="text-[12px] text-ink-3">자동 풀이를 누른 뒤 "단계" 버튼으로 연산을 하나씩 실행한다.</div>}
           </Section>
           <Section title="규칙 (강의 부등식)">
-            <ul className="space-y-1 text-[11.5px] text-ink-2">
+            <ul className="space-y-1 text-[12px] text-ink-2">
               <li><b>엔드 폴드(end fold)</b> c₁: s₀ ≤ s₁ (플랩이 다음 구간 안에 놓인다)</li>
               <li><b>크림프(crimp)</b> (cᵢ, cᵢ₊₁): M/V가 반대이고 sᵢ₋₁ ≥ sᵢ ≤ sᵢ₊₁</li>
               <li><b>충돌</b>: M/V가 같고 sᵢ₋₁ &gt; sᵢ &lt; sᵢ₊₁ (엄격)</li>

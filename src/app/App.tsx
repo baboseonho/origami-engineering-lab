@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { lessonById, type LabId } from '../curriculum/lessons';
 import { useModel } from '../state/modelStore';
 import { useUI } from '../state/uiStore';
@@ -9,6 +9,7 @@ import { SettingsModal } from '../components/layout/SettingsModal';
 import { Drawer } from '../components/layout/Drawer';
 import { SheetLoading } from '../components/layout/SheetLoading';
 import { CoverSheet } from '../components/layout/CoverSheet';
+import { Toast } from '../components/layout/Toast';
 import { SheetBoundary } from '../components/layout/SheetBoundary';
 import { Inspector } from '../components/inspector/Inspector';
 import { BottomPanel } from '../components/analysis/BottomPanel';
@@ -95,7 +96,31 @@ function SideSheet({ isLab }: { isLab: boolean }) {
   );
 }
 
+/**
+ * The right-hand sheet. Below xl the lesson column is not on screen, so the
+ * sheet carries two tabs: the lesson (text, presets, tasks) and the inspector.
+ */
+function AsideSheet({ isLab }: { isLab: boolean }) {
+  const [tab, setTab] = useState<'lesson' | 'side'>('side');
+  const tabs = [['lesson', '레슨'], ['side', isLab ? '이론' : '검사']] as const;
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div role="tablist" aria-label="오른쪽 패널" className="flex shrink-0 gap-1 border-b border-rule-2 bg-paper-2 p-1.5 xl:hidden">
+        {tabs.map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            className={`h-8 flex-1 rounded-[3px] text-[14px] font-medium transition-colors ${tab === id ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'lesson' && <div className="min-h-0 flex-1 xl:hidden"><Sidebar /></div>}
+      <div className={`min-h-0 flex-1 ${tab === 'lesson' ? 'max-xl:hidden' : ''}`}><SideSheet isLab={isLab} /></div>
+    </div>
+  );
+}
+
 export default function App() {
+  const coverOpen = useUI((s) => s.coverOpen);
   const lessonId = useModel((s) => s.lessonId);
   const drawer = useUI((s) => s.drawer);
   useEffect(() => {
@@ -119,7 +144,8 @@ export default function App() {
   const Lab = lesson?.kind === 'lab' && lesson.lab ? LABS[lesson.lab] : null;
   const closeDrawer = () => useUI.getState().setDrawer(null);
   return (
-    <div className="grid h-[100dvh] grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr] gap-2 overflow-hidden bg-board p-2">
+    <>
+    <div className="grid h-[100dvh] grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr] gap-2 overflow-hidden bg-board p-2" inert={coverOpen}>
       <TopBar />
       <div className="grid min-h-0 grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[256px_minmax(0,1fr)_318px] min-[1500px]:grid-cols-[300px_minmax(0,1fr)_350px]">
         <div className="hidden min-h-0 xl:block"><Sidebar /></div>
@@ -130,7 +156,7 @@ export default function App() {
                 <SheetBoundary label="실습" resetKey={lessonId}><Suspense fallback={<SheetLoading label="실습 도구를 펼치는 중" />}><Lab key={lessonId} /></Suspense></SheetBoundary>
               ) : (
                 <DrawingFrame title={lesson!.title}>
-                  <div className="absolute inset-[8px] overflow-y-auto px-3 pb-12 pt-3">
+                  <div className="absolute inset-[8px] overflow-y-auto px-3 pb-16 pt-3">
                     <SheetBoundary label="실습" resetKey={lessonId}><Suspense fallback={<SheetLoading label="실습 도구를 펼치는 중" />}><Lab key={lessonId} /></Suspense></SheetBoundary>
                   </div>
                 </DrawingFrame>
@@ -139,7 +165,7 @@ export default function App() {
           ) : <ModelWorkspace />}
         </main>
         <aside className="sheet hidden min-h-0 overflow-hidden rounded-[3px] md:block">
-          <SideSheet isLab={!!Lab} />
+          <AsideSheet isLab={!!Lab} />
         </aside>
       </div>
       <Drawer side="left" open={drawer === 'index'} onClose={closeDrawer} label="도면 목록">
@@ -149,7 +175,9 @@ export default function App() {
         <SideSheet isLab={!!Lab} />
       </Drawer>
       <SettingsModal />
-      <CoverSheet />
     </div>
+    <CoverSheet />
+    <Toast />
+    </>
   );
 }

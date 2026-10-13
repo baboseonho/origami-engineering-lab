@@ -19,38 +19,46 @@ const colorOf = (i: number) => (i % 2 === 0 ? ODD : EVEN);
 const rad = (d: number) => (d * Math.PI) / 180;
 const deg1 = (d: number) => `${Math.round(d * 10) / 10}°`;
 
+/** viewBox units per screen pixel of a square SVG spanning `span` units, so labels stay 12–13px. */
+function useUnitPerPx(span: number) {
+  const ref = useRef<SVGSVGElement>(null);
+  const [u, setU] = useState(span / 320);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setU(span / Math.max(120, e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [span]);
+  return [ref, u] as const;
+}
+
 // ───────────────────────────────────────────── status bar
 
 function Status({ r, shape }: { r: SectorReport; shape: VertexShape | null }) {
-  const cls = r.intrinsic === 'flat' ? '평평한 종이 (유클리드)' : r.intrinsic === 'cone' ? '각 부족 → 원뿔형' : '각 초과 → 안장형';
+  const cls = r.intrinsic === 'flat' ? '평평한 종이' : r.intrinsic === 'cone' ? '각 부족 → 원뿔형' : '각 초과 → 안장형';
+  const w = r.winding === null ? null : r.winding > 0 ? '+1' : r.winding < 0 ? '−1' : '0';
   return (
-    <div className="grid gap-2 lg:grid-cols-[1fr_1fr_1.25fr]">
-      <div className="rounded-[3px] border border-rule-2 bg-paper px-3 py-2">
-        <div className="lettering text-[10.5px] text-ink-3">꼭짓점 둘레의 종이 양 (곡률)</div>
-        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-4 gap-y-0.5 tnum">
-          <span className="text-[13px] text-ink-2">T = Σθ = <b className="text-[18px] text-ink">{deg1(r.total)}</b></span>
-          <span className="text-[13px] text-ink-2">δ = 360° − T = <b className="text-ink">{fmtSigned(r.defect)}</b></span>
+    <div className="grid overflow-hidden rounded-[3px] border border-rule-2 bg-paper md:grid-cols-[1.2fr_1fr_1fr]" role="status" aria-live="polite">
+      <div className={`px-3.5 py-2.5 ${r.pass ? 'bg-ok-soft' : 'bg-bad-soft'}`}>
+        <div className="lettering text-[12px] text-ink-3">일반화 Kawasaki (generalized)</div>
+        <div className="flex flex-wrap items-baseline gap-x-2.5">
+          <span className={`text-[22px] font-bold tracking-tight ${r.pass ? 'text-ok' : 'text-bad'}`}>{r.pass ? 'PASS · 성립' : 'FAIL · 위반'}</span>
         </div>
-        <div className="mt-0.5 text-[12.5px] font-medium text-ink">{cls}</div>
+        <div className="text-[13px] leading-snug text-ink-2">{r.pass ? 'S ∈ {0°, ±360°}: 접힌 경로가 시작 광선으로 돌아온다 (층 순서는 별도 문제)' : r.reason}</div>
+        {shape?.flatLocked && <div className="mt-0.5 text-[13px] font-medium text-ink">강체 패널은 3D로 열리지 않는다 (평탄 잠금). ① 설명 참고.</div>}
       </div>
-      <div className="rounded-[3px] border border-rule-2 bg-paper px-3 py-2">
-        <div className="lettering text-[10.5px] text-ink-3">교대합 (평탄 접힘 경로의 닫힘)</div>
-        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 tnum text-[13px] text-ink-2">
-          <span>O = <b style={{ color: ODD }}>{deg1(r.odd)}</b></span>
-          <span>E = <b style={{ color: EVEN }}>{deg1(r.even)}</b></span>
-          <span>S = O − E = <b className="text-[18px] text-ink">{fmtSigned(r.S)}</b></span>
+      <div className="border-t border-rule-2 px-3.5 py-2.5 md:border-l md:border-t-0">
+        <div className="lettering text-[12px] text-ink-3">교대합 S · 감김 수</div>
+        <div className="tnum text-[22px] font-semibold leading-tight text-ink">S = {fmtSigned(r.S)}</div>
+        <div className="tnum text-[13px] text-ink-2">
+          <span style={{ color: ODD }}>O {deg1(r.odd)}</span> − <span style={{ color: EVEN }}>E {deg1(r.even)}</span> · 감김 수 {w === null ? <b className="text-bad">정수 아님 ({(r.S / 360).toFixed(2)})</b> : <b className="text-ink">{w}</b>}
         </div>
-        <div className="mt-0.5 text-[12.5px] text-ink-2">감김 수 = {r.winding === null ? <b className="text-bad">정수 아님 ({(r.S / 360).toFixed(3)})</b> : <b className="text-ink">{r.winding > 0 ? '+1' : r.winding < 0 ? '−1' : '0'}</b>}</div>
       </div>
-      <div className={`rounded-[3px] border-2 px-3 py-2 ${r.pass ? 'border-ok bg-ok-soft' : 'border-bad bg-bad-soft'}`} role="status" aria-live="polite">
-        <div className="lettering text-[10.5px] text-ink-3">GENERALIZED KAWASAKI</div>
-        <div className="flex flex-wrap items-baseline gap-x-3">
-          <span className={`text-[22px] font-bold tracking-tight ${r.pass ? 'text-ok' : 'text-bad'}`}>{r.pass ? 'PASS' : 'FAIL'}</span>
-          <span className="tnum text-[14px] text-ink">S = {fmtSigned(r.S)}</span>
-          {r.pass && <span className="tnum text-[14px] text-ink">Winding = {r.winding! > 0 ? '+1' : r.winding! < 0 ? '−1' : '0'}</span>}
-        </div>
-        <div className="text-[12px] leading-snug text-ink-2">{r.pass ? 'S ∈ {0°, ±360°}: 접힌 경로가 시작 광선으로 돌아온다 (기하 조건; 층 순서는 별도)' : r.reason}</div>
-        {shape?.flatLocked && <div className="mt-0.5 text-[12px] font-medium text-ink">강체 패널은 3D로 열릴 수 없다 (평탄 잠금) — 아래 3D 창 설명 참고</div>}
+      <div className="border-t border-rule-2 px-3.5 py-2.5 md:border-l md:border-t-0">
+        <div className="lettering text-[12px] text-ink-3">종이 양 Σθ (곡률)</div>
+        <div className="tnum text-[22px] font-semibold leading-tight text-ink">T = {deg1(r.total)}</div>
+        <div className="tnum text-[13px] text-ink-2">δ = 360° − T = {fmtSigned(r.defect)} · <span className="font-medium text-ink">{cls}</span></div>
       </div>
     </div>
   );
@@ -63,14 +71,14 @@ function AngleControls({ theta, setTheta }: { theta: number[]; setTheta: (t: num
   return (
     <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
       {theta.map((t, i) => (
-        <label key={i} className="flex w-[118px] flex-col gap-0.5 text-[12px]">
+        <label key={i} className="flex w-[118px] flex-col gap-0.5 text-[13px]">
           <span className="flex items-baseline justify-between">
             <span className="font-semibold" style={{ color: colorOf(i) }}>θ<sub>{i + 1}</sub> {i % 2 === 0 ? '(+, 홀수)' : '(−, 짝수)'}</span>
           </span>
           <span className="flex items-center gap-1">
             <input type="number" min={1} max={179} step={0.5} value={t} aria-label={`θ${i + 1}`}
               onChange={(e) => { const v = parseFloat(e.target.value); if (Number.isFinite(v)) set(i, v); }}
-              className="tnum h-7 w-[64px] rounded-[3px] border border-rule-2 bg-paper px-1.5 text-[13px]" />
+              className="tnum h-7 w-[64px] rounded-[3px] border border-rule-2 bg-paper px-1.5 text-[14px]" />
             <span className="text-ink-3">°</span>
           </span>
           <input type="range" min={1} max={179} step={0.5} value={t} aria-label={`θ${i + 1} 슬라이더`} onChange={(e) => set(i, parseFloat(e.target.value))} style={{ accentColor: colorOf(i) }} />
@@ -101,45 +109,46 @@ function SectorDiagram({ theta, r }: { theta: number[]; r: SectorReport }) {
     const pts = Array.from({ length: steps + 1 }, (_, k) => pt(a0 + ((a1 - a0) * k) / steps, R));
     return `M0,0 L${pts.map((p) => p.join(',')).join(' L')} Z`;
   };
+  const [svg, u] = useUnitPerPx(2.24);
   const over = r.total - 360;
   const maxBar = Math.max(r.odd, r.even, 360);
   return (
     <div className="flex h-full flex-col">
-      <svg viewBox="-1.12 -1.12 2.24 2.24" className="mx-auto aspect-square w-full max-w-[340px]" role="img" aria-label="섹터각 다이어그램">
+      <svg ref={svg} viewBox="-1.12 -1.12 2.24 2.24" className="mx-auto aspect-square w-full max-w-[340px]" role="img" aria-label="섹터각 다이어그램">
         <circle cx={0} cy={0} r={1} fill="none" stroke={C.rule2} strokeWidth={0.006} />
         {wedges.map((w) => (
           <path key={w.i} d={arcPath(w.a0, w.a1, w.R)} fill={colorOf(w.i)} fillOpacity={w.a0 >= 360 - 1e-9 || w.a1 > 360 + 1e-9 ? 0.32 : 0.2} stroke={colorOf(w.i)} strokeWidth={0.008} />
         ))}
         {/* 360° = one turn of ordinary paper */}
         <line x1={0} y1={0} x2={1.08} y2={0} stroke={C.ink} strokeWidth={0.008} strokeDasharray="0.03 0.02" />
-        <text x={1.08} y={-0.04} fontSize={0.065} textAnchor="end" fill={C.ink2}>0° = 360°</text>
+        <text x={1.08} y={-5 * u} fontSize={12 * u} textAnchor="end" fill={C.ink2}>0° = 360°</text>
         {over > 1e-6 && (() => {
           const R = 1.04;
           const steps = Math.max(2, Math.ceil(over / 3));
           const d = Array.from({ length: steps + 1 }, (_, k) => pt(360 + (over * k) / steps, R).join(',')).join(' L');
           const mid = pt(360 + over / 2, 1.1);
-          return <g><path d={`M${d}`} fill="none" stroke={C.bad} strokeWidth={0.025} /><text x={mid[0]} y={mid[1] + 0.02} fontSize={0.06} textAnchor="middle" fill={C.bad} fontWeight={700}>+{deg1(over)} 초과</text></g>;
+          return <g><path d={`M${d}`} fill="none" stroke={C.bad} strokeWidth={0.025} /><text x={mid[0]} y={mid[1] + 0.02} fontSize={13 * u} textAnchor="middle" fill={C.bad} fontWeight={700}>+{deg1(over)} 초과</text></g>;
         })()}
         {over < -1e-6 && (() => {
           const steps = Math.max(2, Math.ceil(-over / 3));
           const d = Array.from({ length: steps + 1 }, (_, k) => pt(r.total + (-over * k) / steps, 1.04).join(',')).join(' L');
           const mid = pt(r.total - over / 2, 1.1);
-          return <g><path d={`M${d}`} fill="none" stroke={C.info} strokeWidth={0.025} /><text x={mid[0]} y={mid[1] + 0.02} fontSize={0.06} textAnchor="middle" fill={C.info} fontWeight={700}>{deg1(-over)} 부족</text></g>;
+          return <g><path d={`M${d}`} fill="none" stroke={C.info} strokeWidth={0.025} /><text x={mid[0]} y={mid[1] + 0.02} fontSize={13 * u} textAnchor="middle" fill={C.info} fontWeight={700}>{deg1(-over)} 부족</text></g>;
         })()}
         {wedges.map((w) => {
           const p = pt((w.a0 + w.a1) / 2, w.R * (w.i % 2 === 0 ? 0.55 : 0.8));
-          return <text key={'l' + w.i} x={p[0]} y={p[1] + 0.025} fontSize={0.072} textAnchor="middle" fill={colorOf(w.i)} fontWeight={700}>θ{w.i + 1}={deg1(theta[w.i])}</text>;
+          return <text key={'l' + w.i} x={p[0]} y={p[1] + 4 * u} fontSize={13 * u} textAnchor="middle" fill={colorOf(w.i)} fontWeight={700} stroke={C.paper} strokeWidth={3 * u} paintOrder="stroke">θ{w.i + 1} {deg1(theta[w.i])}</text>;
         })}
       </svg>
-      <p className="mt-1 text-center text-[11.5px] leading-snug text-ink-3">종이를 자르지 않고 펼친 순서대로 섹터를 이어 붙인 그림. 한 바퀴(360°)를 넘는 부분이 겹치면 각 초과 = 안장, 모자라면 각 부족 = 원뿔.</p>
-      <div className="mt-2 space-y-1.5 px-1 text-[12.5px]">
-        {[['O (홀수 θ1, θ3, …)', r.odd, ODD, theta.filter((_, i) => i % 2 === 0)], ['E (짝수 θ2, θ4, …)', r.even, EVEN, theta.filter((_, i) => i % 2 === 1)]].map(([label, v, col, parts]) => (
+      <p className="mt-1 text-center text-[13px] leading-snug text-ink-3">종이를 자르지 않고 펼친 순서대로 섹터를 이어 붙인 그림. 한 바퀴(360°)를 넘는 부분이 겹치면 각 초과 = 안장, 모자라면 각 부족 = 원뿔.</p>
+      <div className="mt-2 space-y-1.5 px-1 text-[13px]">
+        {[['O (홀수 θ)', r.odd, ODD, theta.filter((_, i) => i % 2 === 0)], ['E (짝수 θ)', r.even, EVEN, theta.filter((_, i) => i % 2 === 1)]].map(([label, v, col, parts]) => (
           <div key={label as string}>
-            <div className="flex justify-between"><span style={{ color: col as string }} className="font-semibold">{label as string}</span><span className="tnum text-ink">{(parts as number[]).map((p) => deg1(p)).join(' + ')} = <b>{deg1(v as number)}</b></span></div>
+            <div className="flex flex-wrap justify-between gap-x-2"><span style={{ color: col as string }} className="whitespace-nowrap font-semibold">{label as string}</span><span className="tnum text-right text-ink">{(parts as number[]).map((p) => deg1(p)).join(' + ')} = <b>{deg1(v as number)}</b></span></div>
             <div className="mt-0.5 h-2.5 rounded-[2px] bg-paper-2"><div className="h-full rounded-[2px]" style={{ width: `${((v as number) / maxBar) * 100}%`, background: col as string }} /></div>
           </div>
         ))}
-        <div className="tnum flex justify-between border-t border-rule pt-1 text-[13.5px]"><span className="text-ink-2">S = O − E</span><b className="text-ink">{deg1(r.odd)} − {deg1(r.even)} = {fmtSigned(r.S)}</b></div>
+        <div className="tnum flex flex-wrap justify-between gap-x-2 border-t border-rule pt-1 text-[14px]"><span className="whitespace-nowrap text-ink-2">S = O − E</span><b className="text-ink">{deg1(r.odd)} − {deg1(r.even)} = {fmtSigned(r.S)}</b></div>
       </div>
     </div>
   );
@@ -186,20 +195,21 @@ function AngularWalk({ r }: { r: SectorReport }) {
     const steps = Math.max(2, Math.ceil(Math.abs(a1 - a0) / 3));
     return Array.from({ length: steps + 1 }, (_, j) => { const t = j / steps; return pt(a0 + (a1 - a0) * t, R0 + (R1 - R0) * t).join(','); }).join(' L');
   };
+  const [svg, u] = useUnitPerPx(2.24);
   const done = k >= n;
   const turns = cur / 360;
   const endTip = pt(cur, 1.0);
   return (
     <div className="flex h-full flex-col">
       <div className="mb-1 text-center">
-        <div className="lettering text-[10.5px] text-ink-3">평탄하게 접었을 때 각 광선이 놓이는 방향 φ</div>
-        <div className={`tnum text-[26px] font-bold leading-tight ${r.winding === null ? 'text-bad' : 'text-ink'}`}>
-          Winding number = {r.winding === null ? `${(r.S / 360).toFixed(2)} (정수 아님)` : r.winding > 0 ? '+1' : r.winding < 0 ? '−1' : '0'}
+        <div className="lettering text-[12px] text-ink-3">평탄하게 접었을 때 각 광선이 놓이는 방향 φ</div>
+        <div className={`tnum text-[22px] font-semibold leading-tight ${r.winding === null ? 'text-bad' : 'text-ink'}`}>
+          감김 수 = {r.winding === null ? `${(r.S / 360).toFixed(2)} (정수 아님)` : r.winding > 0 ? '+1' : r.winding < 0 ? '−1' : '0'}
         </div>
       </div>
-      <svg viewBox="-1.12 -1.12 2.24 2.24" className="mx-auto aspect-square w-full max-w-[340px]" role="img" aria-label="각도 걸음 (angular walk)">
+      <svg ref={svg} viewBox="-1.12 -1.12 2.24 2.24" className="mx-auto aspect-square w-full max-w-[340px]" role="img" aria-label="각도 걸음 (angular walk)">
         <circle cx={0} cy={0} r={1} fill="none" stroke={C.rule2} strokeWidth={0.006} />
-        {[0, 90, 180, 270].map((a) => { const q = pt(a, 1.05); return <text key={a} x={q[0]} y={q[1] + 0.022} fontSize={0.055} textAnchor="middle" fill={C.ink3}>{a}°</text>; })}
+        {[0, 90, 180, 270].map((a) => { const q = pt(a, 1.05); return <text key={a} x={q[0]} y={q[1] + 4 * u} fontSize={12 * u} textAnchor="middle" fill={C.ink3}>{a}°</text>; })}
         {/* start ray */}
         <line x1={0} y1={0} x2={1} y2={0} stroke={C.ink} strokeWidth={0.012} strokeDasharray="0.04 0.025" />
         {/* finished steps */}
@@ -224,7 +234,7 @@ function AngularWalk({ r }: { r: SectorReport }) {
         })()}
 
       </svg>
-      <div className="tnum text-center text-[14px] font-semibold text-ink">현재 방향 φ = {fmtSigned(cur)}{Math.abs(turns) >= 1 - 1e-9 ? ` (${turns > 0 ? '+' : ''}${turns.toFixed(2)}바퀴)` : ''}</div>
+      <div className="tnum text-center text-[15px] font-semibold text-ink">현재 방향 φ = {fmtSigned(cur)}{Math.abs(turns) >= 1 - 1e-9 && <span className="whitespace-nowrap"> ({turns > 0 ? '+' : ''}{turns.toFixed(2)}바퀴)</span>}</div>
       <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
         {playing ? <Button size="sm" onClick={pause}><Pause size={13} />정지</Button> : <Button size="sm" kind="primary" onClick={play}><Play size={13} />재생</Button>}
         <Button size="sm" onClick={step}><SkipForward size={13} />한 단계</Button>
@@ -232,15 +242,15 @@ function AngularWalk({ r }: { r: SectorReport }) {
         <SpeedControl />
       </div>
       {/* the cumulative sequence */}
-      <div className="tnum mt-2 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-[12.5px]">
+      <div className="tnum mt-2 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-[13px]">
         {phi.map((v, j) => (
           <span key={j} className="flex items-center gap-1">
-            {j > 0 && <span className="text-[11px]" style={{ color: colorOf(j - 1) }}>{j % 2 === 1 ? '+' : '−'}{deg1(r.phi[j] - r.phi[j - 1] >= 0 ? r.phi[j] - r.phi[j - 1] : r.phi[j - 1] - r.phi[j])}→</span>}
+            {j > 0 && <span className="text-[13px]" style={{ color: colorOf(j - 1) }}>{j % 2 === 1 ? '+' : '−'}{deg1(r.phi[j] - r.phi[j - 1] >= 0 ? r.phi[j] - r.phi[j - 1] : r.phi[j - 1] - r.phi[j])}→</span>}
             <span className={`rounded-[2px] px-1 ${j <= k ? 'bg-paper-2 font-semibold text-ink' : 'text-ink-3'}`}>{deg1(v)}</span>
           </span>
         ))}
       </div>
-      <p className={`mt-1.5 rounded-[3px] px-2 py-1 text-center text-[12.5px] leading-snug ${r.pass ? 'bg-paper-2 text-ink-2' : 'bg-bad-soft text-ink-2'}`}>
+      <p className={`mt-1.5 rounded-[3px] px-2 py-1 text-center text-[13px] leading-snug ${r.pass ? 'bg-paper-2 text-ink-2' : 'bg-bad-soft text-ink-2'}`}>
         {r.winding === 0 && '시작 방향 → 끝 방향: 같은 방향으로 돌아오지만 한 바퀴를 돌지 않는다 (S = 0°)'}
         {r.winding === 1 && '시작 방향 → 반시계 방향으로 정확히 한 바퀴 → 같은 방향 (S = +360°). 끝 방향은 0°일 때와 같지만, 지나온 경로가 꼭짓점을 한 번 감는다.'}
         {r.winding === -1 && '시작 방향 → 시계 방향으로 정확히 한 바퀴 → 같은 방향 (S = −360°).'}
@@ -368,7 +378,7 @@ function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; 
       <div role="tablist" aria-label="3D 보기" className="flex flex-wrap gap-1">
         {([['vertex', '3D 꼭짓점'], ['flat', '평탄 접힘 각도 지도']] as [View3D, string][]).map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}
-            className={`h-7 rounded-[3px] px-2.5 text-[12.5px] font-medium disabled:opacity-35 ${view === id ? 'bg-ink text-paper' : 'border border-rule-2 text-ink-2 hover:text-ink'}`}>{label}</button>
+            className={`h-7 rounded-[3px] px-2.5 text-[13px] font-medium disabled:opacity-35 ${view === id ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'border border-rule-2 text-ink-2 hover:text-ink'}`}>{label}</button>
         ))}
       </div>
       <div className="relative mt-1.5 min-h-[260px] flex-1 overflow-hidden rounded-[3px] border border-rule-2 bg-paper-2/50">
@@ -378,7 +388,7 @@ function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; 
           {view === 'flat' && <VertexPanels rays={flatRays} theta={theta} lift={0.035} />}
         </Scene>
       </div>
-      <div className="mt-1.5 space-y-1 text-[12px] leading-snug text-ink-2">
+      <div className="mt-1.5 space-y-1 text-[13px] leading-snug text-ink-2">
         {view === 'vertex' && shape && !shape.flatLocked && (
           <p><b className="text-ink">정확한 강체 기하.</b> 각 패널은 θi를 그대로 유지한다 (ri·ri+1 = cos θi, 잔차 {shape.residual.toExponential(1)}). {r.intrinsic === 'flat' ? 'T = 360°: 평평한 종이 그대로.' : r.intrinsic === 'saddle' ? 'T > 360°: 평면에 놓일 수 없어 위아래로 물결치는 안장 모양.' : 'T < 360°: 원뿔 모양.'} 마우스로 돌려 볼 수 있다.
             {shape.crossings > 0 && <b className="text-bad"> 이 형상에서는 패널 {shape.crossings}쌍이 서로 통과한다.</b>}</p>
@@ -400,7 +410,7 @@ function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; 
             <br /><i>Angular closure visualization. This view illustrates the generalized Kawasaki winding condition; it does not independently verify global layer ordering or collision.</i>
           </p>
         )}
-        <p className="text-[11.5px] text-ink-3">3D 꼭짓점과 평탄 접힘 상태 사이의 접는 동작(경로)은 계산하지 않는다: 각 창은 그 자체로 정확한 배치이며, 두 상태를 잇는 움직임을 꾸며 넣지 않았다.</p>
+        <p className="text-[13px] text-ink-3">3D 꼭짓점과 평탄 접힘 상태 사이의 접는 동작(경로)은 계산하지 않는다: 각 창은 그 자체로 정확한 배치이며, 두 상태를 잇는 움직임을 꾸며 넣지 않았다.</p>
       </div>
     </div>
   );
@@ -424,37 +434,36 @@ export function GKawasakiLab() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="lettering mr-1 text-[11px] text-ink-3">예제</span>
+        <span className="lettering mr-1 text-[12px] text-ink-3">예제</span>
         {GK_CASES.map((c) => (
           <button key={c.id} type="button" onClick={() => pick(c)} aria-pressed={caseId === c.id}
-            className={`rounded-[3px] border px-2.5 py-1 text-left text-[12.5px] transition-colors ${caseId === c.id ? 'border-ink bg-ink text-paper' : 'border-rule-2 bg-paper text-ink-2 hover:border-ink hover:text-ink'}`}>
+            className={`rounded-[3px] border px-2.5 py-1 text-left text-[13px] transition-colors ${caseId === c.id ? 'border-ink bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'border-rule-2 bg-paper text-ink-2 hover:border-ink hover:text-ink'}`}>
             <b>Case {c.id}</b> <span className="opacity-80">{c.title}</span>
           </button>
         ))}
       </div>
-      {current && <p className="text-[13px] text-ink-2"><b className="text-ink">Case {current.id}.</b> {current.note}</p>}
+      {current && <p className="text-[14px] text-ink-2"><b className="text-ink">Case {current.id}.</b> {current.note}</p>}
       <Status r={r} shape={shape} />
-      <div className="grid gap-3 xl:grid-cols-[1.15fr_1fr_1fr]">
-        <section className="rounded-[3px] border border-rule-2 bg-paper p-2.5" aria-label="3D 꼭짓점">
-          <h3 className="mb-1.5 text-[13px] font-semibold text-ink">① 3D 꼭짓점 기하</h3>
-          <div className="h-[460px]"><Vertex3DPanel theta={theta} r={r} shape={shape} /></div>
+      <div className="grid gap-3 lg:grid-cols-2 min-[1800px]:grid-cols-[1.15fr_1fr_1fr]">
+        <section className="rounded-[3px] border border-rule-2 bg-paper p-2.5 lg:col-span-2 min-[1800px]:col-span-1" aria-label="3D 꼭짓점">
+          <h3 className="mb-1.5 text-[14px] font-semibold text-ink">① 3D 꼭짓점 기하</h3>
+          <div className="h-[420px]"><Vertex3DPanel theta={theta} r={r} shape={shape} /></div>
         </section>
         <section className="rounded-[3px] border border-rule-2 bg-paper p-2.5" aria-label="섹터각 다이어그램">
-          <h3 className="mb-1.5 text-[13px] font-semibold text-ink">② 섹터각: Σθ와 O, E</h3>
+          <h3 className="mb-1.5 text-[14px] font-semibold text-ink">② 섹터각: Σθ와 O, E</h3>
           <SectorDiagram theta={theta} r={r} />
         </section>
         <section className="rounded-[3px] border border-rule-2 bg-paper p-2.5" aria-label="각도 걸음">
-          <h3 className="mb-1.5 text-[13px] font-semibold text-ink">③ 교대 각도 걸음 (angular walk)</h3>
+          <h3 className="mb-1.5 text-[14px] font-semibold text-ink">③ 교대 각도 걸음 (angular walk)</h3>
           <AngularWalk r={r} />
         </section>
       </div>
       <section className="rounded-[3px] border border-rule-2 bg-paper-2/60 p-2.5" aria-label="섹터각 입력">
-        <h3 className="mb-1.5 text-[13px] font-semibold text-ink">섹터각 바꾸기 <span className="font-normal text-ink-3">(바꾸는 즉시 모든 값과 3D 형상이 다시 계산된다)</span></h3>
+        <h3 className="mb-1.5 text-[14px] font-semibold text-ink">섹터각 바꾸기 <span className="font-normal text-ink-3">(바꾸는 즉시 모든 값과 3D 형상이 다시 계산된다)</span></h3>
         <AngleControls theta={theta} setTheta={edit} />
       </section>
-      <p className="rounded-[3px] border-l-4 border-ink bg-paper px-3 py-2 text-[13px] leading-relaxed text-ink-2">
-        <b className="text-ink">핵심:</b> Σθ는 꼭짓점 둘레의 <b className="text-ink">고유 곡률</b>(종이가 얼마나 있는지)이고, 교대합 S는 <b className="text-ink">평탄하게 접은 경로가 몇 번 감기는지</b>(부호 있는 각도 닫힘)다. 둘은 서로 다른 양이다. —
-        <i> Σθ describes the intrinsic angular curvature around the vertex, whereas the alternating sum S describes the signed angular closure of the flat-folded path. They are different quantities.</i>
+      <p className="rounded-[3px] border border-rule-2 bg-paper px-3.5 py-2.5 text-[14px] leading-relaxed text-ink-2">
+        <b className="text-ink">핵심.</b> Σθ는 꼭짓점 둘레의 <b className="text-ink">고유 곡률</b>(종이가 얼마나 있는지)이고, 교대합 S는 <b className="text-ink">평탄하게 접은 경로가 몇 번 감기는지</b>(부호 있는 각도 닫힘)다. 둘은 서로 다른 양이다.
       </p>
     </div>
   );

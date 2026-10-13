@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
-import { LESSONS, type LabId, type Lesson } from '../../curriculum/lessons';
+import { useEffect, useMemo, useRef } from 'react';
+import { LECTURE_TITLES, LESSONS, THEORY_TAG, sheetNumber, type LabId, type Lesson } from '../../curriculum/lessons';
 import type { Vec2 } from '../../core/geometry/vectors';
 import type { Assignment } from '../../core/topology/types';
 import { buildFromRegistry, type Params } from '../../models/registry';
@@ -9,13 +9,6 @@ import { useUI } from '../../state/uiStore';
 import { loadLesson } from '../../state/actions';
 import { C } from '../../theme/tokens';
 
-const LECTURE_NAME: Record<number, string> = {
-  1: '도입 · 형상과 기능',
-  2: '평탄 접기의 정리',
-  3: '강체 접기와 자유도',
-  4: '테셀레이션',
-  5: '원통과 응용 패턴',
-};
 
 /** The crease pattern each lab sheet is about (labs have no generator of their own). */
 const LAB_PATTERN: Partial<Record<LabId, { generator: string; params: Params }>> = {
@@ -96,11 +89,14 @@ export function CoverSheet() {
   const open = useUI((s) => s.coverOpen);
   const current = useModel((s) => s.lessonId);
   const close = () => useUI.getState().setCoverOpen(false);
+  const closeBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
+    const before = document.activeElement as HTMLElement | null;
+    closeBtn.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); before?.focus?.(); };
   }, [open]);
   if (!open) return null;
   let plate = 0;
@@ -112,33 +108,33 @@ export function CoverSheet() {
           {/* title block */}
           <header className="flex flex-wrap items-end gap-x-8 gap-y-2 border-b-[1.5px] border-ink px-4 py-4 sm:px-6 sm:py-5">
             <div>
-              <div className="lettering text-[11px] text-ink-3">AE53006 · KAIST · 도면 세트</div>
+              <div className="lettering text-[12px] text-ink-3">AE53006 · KAIST · 도면 세트</div>
               <h1 className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-ink sm:text-[34px]">Origami BaBolaB</h1>
-              <p className="mt-2 max-w-[56ch] text-[14px] leading-relaxed text-ink-2">
+              <p className="mt-2 max-w-[56ch] text-[15px] leading-relaxed text-ink-2">
                 한 장의 종이가 접힘선(crease)을 따라 움직이는 방식을 강의 순서대로 따라가는 실습 도면집. 도면을 고르면 그 전개도가 펼쳐진다.
               </p>
             </div>
-            <dl className="ml-auto grid grid-cols-3 border border-rule-2 text-[12px]">
-              {[['도면', String(LESSONS.length)], ['강의', '5'], ['척도', '1:1']].map(([k, v]) => (
+            <dl className="ml-auto grid grid-cols-2 border border-rule-2 text-[13px]">
+              {[['도면', String(LESSONS.length)], ['강의', '5']].map(([k, v]) => (
                 <div key={k} className="border-l border-rule-2 px-3 py-1.5 first:border-l-0">
-                  <dt className="lettering text-[10.5px] text-ink-3">{k}</dt>
-                  <dd className="tnum text-[17px] font-semibold text-ink">{v}</dd>
+                  <dt className="lettering text-[12px] text-ink-3">{k}</dt>
+                  <dd className="tnum text-[18px] font-semibold text-ink">{v}</dd>
                 </div>
               ))}
             </dl>
-            <button type="button" onClick={close} aria-label="도면 목록 닫기"
+            <button ref={closeBtn} type="button" onClick={close} aria-label="도면 목록 닫기"
               className="absolute right-2 top-2 rounded-[4px] p-1.5 text-ink-3 hover:bg-paper-2 hover:text-ink"><X size={18} /></button>
           </header>
 
           {([1, 2, 3, 4, 5] as const).map((lec) => (
             <section key={lec} className="border-b border-rule-2 px-4 pb-4 pt-3 last:border-b-0 sm:px-6">
               <h2 className="mb-2.5 flex items-baseline gap-3">
-                <span className="tnum text-[13px] font-semibold text-ink">L{lec}</span>
-                <span className="text-[14px] font-semibold text-ink">{LECTURE_NAME[lec]}</span>
+                <span className="tnum text-[14px] font-semibold text-ink">L{lec}</span>
+                <span className="text-[15px] font-semibold text-ink">{LECTURE_TITLES[lec]}</span>
                 <span className="h-px flex-1 self-center border-t border-dashed border-rule-2" aria-hidden />
               </h2>
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                {LESSONS.filter((l) => l.lecture === lec).map((l, i) => {
+                {LESSONS.filter((l) => l.lecture === lec).map((l) => {
                   plate += 1;
                   const delay = plate * 45;
                   const here = l.id === current;
@@ -149,18 +145,21 @@ export function CoverSheet() {
                       style={{ animationDelay: `${delay}ms` }}>
                       <div className="relative aspect-[4/3] shrink-0 border-b border-rule bg-paper-2/60">
                         <div className="absolute inset-x-3 bottom-2.5 top-5"><PatternThumb lesson={l} delay={delay + 180} /></div>
-                        <span className="absolute left-1.5 top-1 tnum text-[10.5px] text-ink-3">{lec}-{String(i + 1).padStart(2, '0')}</span>
-                        {l.kind === 'lab' && <span className="lettering absolute right-1.5 top-1 text-[10px] text-ink-3">실습</span>}
-                        {here && <span className="lettering absolute bottom-1 right-1.5 rounded-[2px] bg-mark px-1 text-[10px] text-mark-ink">현재 도면</span>}
+                        <span className="absolute left-1.5 top-1 tnum text-[12px] text-ink-3">{sheetNumber(l.id)}</span>
+                        {l.kind === 'lab' && <span className="lettering absolute right-1.5 top-1 text-[12px] text-ink-3">실습</span>}
+                        {here && <span className="lettering absolute bottom-1 right-1.5 rounded-[2px] bg-mark px-1 text-[12px] text-mark-ink">현재 도면</span>}
                       </div>
-                      <div className="px-2.5 py-2 text-[13px] font-medium leading-snug text-ink group-hover:underline group-hover:decoration-mark group-hover:decoration-2 group-hover:underline-offset-2">{l.title}</div>
+                      <div className="px-2.5 py-2">
+                        <div className="text-[14px] font-medium leading-snug text-ink group-hover:underline group-hover:decoration-mark group-hover:decoration-2 group-hover:underline-offset-2">{l.title}</div>
+                        {l.theory.some((t) => THEORY_TAG[t]) && <div className="mt-0.5 truncate text-[12px] text-ink-3">{l.theory.map((t) => THEORY_TAG[t]).filter(Boolean).join(' · ')}</div>}
+                      </div>
                     </button>
                   );
                 })}
               </div>
             </section>
           ))}
-          <footer className="flex flex-wrap justify-between gap-2 border-t-[1.5px] border-ink px-4 py-2 text-[11.5px] text-ink-3 sm:px-6">
+          <footer className="flex flex-wrap justify-between gap-2 border-t-[1.5px] border-ink px-4 py-2 text-[12px] text-ink-3 sm:px-6">
             <span><b style={{ color: C.mountain }}>━ ·</b> 산접기 Mountain &nbsp; <b style={{ color: C.valley }}>‒ ‒</b> 골접기 Valley &nbsp; <b className="text-ink">━</b> 경계</span>
             <span>Esc로 닫기</span>
           </footer>

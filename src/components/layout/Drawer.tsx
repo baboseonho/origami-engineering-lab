@@ -44,7 +44,7 @@ export function Drawer({ side, open, onClose, label, children }: {
       >
         <div className="sheet flex min-h-0 flex-1 flex-col overflow-hidden rounded-[3px]">
           <div className="flex shrink-0 items-center justify-between border-b border-rule-2 bg-paper-2 py-1 pl-4 pr-1.5">
-            <span className="lettering text-[11px] text-ink-3">{label}</span>
+            <span className="lettering text-[12px] text-ink-3">{label}</span>
             <button type="button" onClick={onClose} aria-label="닫기"
               className="flex h-8 w-8 items-center justify-center rounded-[4px] text-ink-2 hover:bg-paper hover:text-ink">
               <X size={16} />

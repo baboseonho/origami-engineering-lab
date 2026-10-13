@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isCrease, type OrigamiModel } from '../../core/topology/types';
 import { vertexStar } from '../../core/topology/adjacency';
-import { toDeg } from '../../core/geometry/angles';
+import { creaseName } from '../../core/topology/names';
+import { fmtDeg, toDeg } from '../../core/geometry/angles';
 import type { Vec2 } from '../../core/geometry/vectors';
 import { useModel } from '../../state/modelStore';
 import { useSim } from '../../state/simulationStore';
@@ -79,6 +80,16 @@ export function CreasePattern2D() {
   }, [bounds]);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  // on-screen size of the drawing, so labels are sized in real pixels (≥ 12px) at any zoom
+  const [px, setPx] = useState({ w: 600, h: 400 });
+  const hasModel = !!model;
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setPx({ w: e.contentRect.width || 1, h: e.contentRect.height || 1 }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasModel]);
 
   const axes = useMemo(() => (model ? symmetryAxes(model, bounds.x + bounds.w / 2, bounds.y + bounds.h / 2) : []), [model, bounds]);
   const highlightVs = useMemo(() => {
@@ -91,7 +102,8 @@ export function CreasePattern2D() {
   if (!model) return <div className="grid h-full place-items-center text-ink-3">전개도가 없다</div>;
   const sc = Math.max(bounds.w, bounds.h);
   const lw = sc * 0.006;
-  const fs = sc * 0.042;
+  // drawing units per screen pixel (viewBox "meet"); fs is a 20px base, so every label is 12–15px on screen
+  const fs = 20 * Math.max(view.w / px.w, view.h / px.h);
 
   const onWheel = (e: React.WheelEvent) => {
     const k = e.deltaY > 0 ? 1.12 : 1 / 1.12;
@@ -197,8 +209,7 @@ export function CreasePattern2D() {
           let ang = (Math.atan2(-(B[1] - A[1]), B[0] - A[0]) * 180) / Math.PI;
           if (ang > 90) ang -= 180; else if (ang < -90) ang += 180;
           const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
-          const lab = model.edu.creaseLabels[e.id];
-          const txt = `${lab ? lab + ' ' : ''}ρ = ${(((rho[e.id] ?? 0) * 180) / Math.PI).toFixed(1)}°`;
+          const txt = `${creaseName(model, e.id)} ${fmtDeg(rho[e.id] ?? 0, 1)}`;
           void nx; void ny;
           return (
             <g key="dim" pointerEvents="none">
@@ -241,21 +252,23 @@ export function CreasePattern2D() {
         ))}
         {overlays.edgeIds && model.edges.length <= 500 && model.edges.map((e) => {
           const [a, b] = edgePts(model, e.id);
-          return <text key={'et' + e.id} x={(a[0] + b[0]) / 2} y={-(a[1] + b[1]) / 2} fontSize={fs * 0.55} fill={C.ink3} fontFamily="Pretendard Variable, sans-serif" textAnchor="middle">e{e.id}</text>;
+          return <text key={'et' + e.id} x={(a[0] + b[0]) / 2} y={-(a[1] + b[1]) / 2} fontSize={fs * 0.6} fill={C.ink3} fontFamily="Pretendard Variable, sans-serif" textAnchor="middle">e{e.id}</text>;
         })}
         {overlays.foldLabels && Object.keys(model.edu.creaseLabels).length <= 4 && Object.entries(model.edu.creaseLabels).filter(([k]) => !(selection?.kind === 'edge' && selection.id === +k)).map(([k, lab]) => {
           const [a, b] = edgePts(model, +k);
           return (
             <text key={'cl' + k} x={(a[0] + b[0]) / 2} y={-(a[1] + b[1]) / 2 - fs * 0.4} fontSize={fs * 0.75} fill={C.ink} fontFamily="Cambria Math, Times New Roman, serif" fontWeight={600} textAnchor="middle">
-              {lab}{rho.length ? ` ${toDeg(rho[+k]).toFixed(0)}°` : ''}
+              {lab}{rho.length ? ` ${fmtDeg(rho[+k] ?? 0, 1)}` : ''}
             </text>
           );
         })}
         <text x={bounds.x} y={-(bounds.y - sc * 0.06)} fontSize={fs * 0.65} fill={C.ink3} fontFamily="Barlow Semi Condensed, Pretendard Variable, sans-serif" letterSpacing="0.04em">
-          전개도 {bounds.w.toFixed(2)} × {bounds.h.toFixed(2)}{model.edu.layout2D?.periodX ? ' · 원통을 펼친 그림 (x 방향 주기)' : ''}{!model.metadata.developable ? ' · 평면 전개 불가 조립체의 개략 전개도' : ''}
+          <tspan x={bounds.x}>전개도 {bounds.w.toFixed(2)} × {bounds.h.toFixed(2)}</tspan>
+          {model.edu.layout2D?.periodX && <tspan x={bounds.x} dy="1.35em">원통을 펼친 그림 (x 방향 주기)</tspan>}
+          {!model.metadata.developable && <tspan x={bounds.x} dy="1.35em">평면 전개가 안 되는 조립체의 개략 전개도</tspan>}
         </text>
       </svg>
-      <div className="pointer-events-none absolute bottom-[15px] left-[15px] text-[11.5px] text-ink-3">크리스를 가로질러 끌기: 접기 · 휠: 확대/축소 · Shift+드래그: 이동</div>
+      {viewMode === '2d' && <div className="pointer-events-none absolute bottom-[15px] left-[15px] hidden max-w-[45%] text-[12px] leading-snug text-ink-3 sm:block">크리스를 가로질러 끌기: 접기 · 휠: 확대/축소 · Shift+드래그: 이동</div>}
       {viewMode === '2d' && <Legend compact position="top" />}
       <div key={'carriage' + modelVersion} className="plot-carriage pointer-events-none absolute inset-y-[8px] w-[3px] -translate-x-1/2 bg-ink/70 shadow-[0_0_0_3px_rgb(23_32_42/0.08)]" aria-hidden />
 

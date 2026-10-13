@@ -22,7 +22,8 @@ function collect(page: Page, where: { step: string }) {
 
 async function clickIf(page: Page, name: string | RegExp, opts: { role?: 'button' | 'radio' | 'tab'; exact?: boolean } = {}) {
   const loc = page.getByRole(opts.role ?? 'button', { name, exact: opts.exact ?? true }).first();
-  if (await loc.count() && await loc.isVisible() && await loc.isEnabled()) { await loc.click(); return true; }
+  // controls inside a folded (inert) disclosure are out of reach for a user too
+  if (await loc.count() && await loc.isVisible() && await loc.isEnabled() && await loc.evaluate((e) => !e.closest('[inert]'))) { await loc.click(); return true; }
   return false;
 }
 
@@ -117,7 +118,9 @@ test('audit: phone layout, drawers and cover', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.keyboard.press('Escape');
   where.step = 'phone: cover';
-  await page.getByRole('button', { name: '도면 목록 (표지) 열기' }).click();
+  await page.getByRole('button', { name: '도면 목록 열기' }).click();
+  await page.getByRole('button', { name: '표지 보기' }).last().click();
+  await expect(page.getByRole('dialog', { name: '도면 목록' }).last()).toBeVisible();
   await page.waitForTimeout(600);
   await page.keyboard.press('Escape');
   expect(errors).toEqual([]);

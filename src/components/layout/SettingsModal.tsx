@@ -40,8 +40,8 @@ export function SettingsModal() {
               if (!err) useUI.getState().setSettingsOpen(false);
             }} />
           </div>
-          {msg && <p className="mt-1 text-[12px] text-ink-2">{msg}</p>}
-          <p className="mt-1 text-[11px] text-ink-3">표준 FOLD 필드: vertices_coords, edges_vertices, edges_assignment, edges_foldAngle (도 단위, 골접기 +), faces_vertices. 앱 데이터는 "oel:" 네임스페이스 아래에 저장된다. 가져오기에는 faces_vertices가 필요하다.</p>
+          {msg && <p className="mt-1 text-[13px] text-ink-2">{msg}</p>}
+          <p className="mt-1 text-[12px] text-ink-3">표준 FOLD 필드: vertices_coords, edges_vertices, edges_assignment, edges_foldAngle (도 단위, 골접기 +), faces_vertices. 앱 데이터는 "oel:" 네임스페이스 아래에 저장된다. 가져오기에는 faces_vertices가 필요하다.</p>
         </Section>
         <Section title="수치 허용오차 (src/core/numerics/tolerances.ts)">
           <KV k="구속 수렴 ‖C‖" v={TOL.constraint.toExponential(0)} />
@@ -52,7 +52,7 @@ export function SettingsModal() {
           <KV k="충돌 허용오차" v={TOL.collision.toExponential(0)} />
         </Section>
         <Section title="규약">
-          <p className="text-[12px] text-ink-2">ρ = 0 평탄, ρ &gt; 0 골접기, ρ &lt; 0 산접기, |ρ| → 180° 완전히 접힘. 산접기 = 빨강, 골접기 = 파랑, 면/내부 = 연회색, 경계 = 어두운 중립색.</p>
+          <p className="text-[13px] text-ink-2">ρ = 0 평탄, ρ &gt; 0 골접기, ρ &lt; 0 산접기, |ρ| → 180° 완전히 접힘. 산접기 = 빨강, 골접기 = 파랑, 면/내부 = 연회색, 경계 = 어두운 중립색.</p>
         </Section>
       </div>
     </div>

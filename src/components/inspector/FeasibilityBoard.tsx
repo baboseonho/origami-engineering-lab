@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { analyzeVertex } from '../../core/analysis/metrics';
 import type { OrigamiModel } from '../../core/topology/types';
+import { lessonById } from '../../curriculum/lessons';
 import { useModel } from '../../state/modelStore';
 import { useSim } from '../../state/simulationStore';
-import { StatusRow, fmt, type Status } from '../controls/ui';
+import { Badge, fmt, type Status } from '../controls/ui';
+import { Rich } from '../controls/Rich';
 
 export interface FlatFoldSummary {
   checked: number;
@@ -31,11 +34,26 @@ export function flatFoldSummary(model: OrigamiModel): FlatFoldSummary {
   return { checked, failing, ok: failing.length === 0 && checked > 0, maekawaOnly };
 }
 
+interface VerdictRow {
+  key: string;
+  /** short label for the strip */
+  label: string;
+  /** what the stamp says — the word matches the question (성립, 있음, 없음 …) */
+  word: string;
+  status: Status;
+  /** the measured value behind it */
+  detail: string;
+  /** one sentence: what this row checks */
+  explain: string;
+}
+
 /**
- * Keep the five properties separate — collapsing them into one "valid
- * origami" label would destroy the educational distinction.
+ * The five separate properties of the current state. They are never merged
+ * into one "valid origami" label: flat-foldable, infinitesimally mobile,
+ * currently rigid-feasible, collision-free and elastically feasible are
+ * different statements.
  */
-export function FeasibilityBoard() {
+function useVerdict(): { rows: VerdictRow[]; maekawaOnly: number } | null {
   const model = useModel((s) => s.model);
   const modelVersion = useModel((s) => s.modelVersion);
   const result = useSim((s) => s.result);
@@ -48,29 +66,86 @@ export function FeasibilityBoard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const ff = useMemo(() => (model ? flatFoldSummary(model) : null), [model, modelVersion]);
   if (!model || !ff) return null;
+  const rigid = solverMode === 'rigid';
+  const rows: VerdictRow[] = [
+    {
+      key: 'flat', label: '평탄 접힘 조건',
+      status: ff.checked === 0 ? 'na' : ff.ok ? 'ok' : 'bad',
+      word: ff.checked === 0 ? '해당 없음' : ff.ok ? '성립' : '위반',
+      detail: ff.checked ? `${ff.checked - ff.failing.length}/${ff.checked} 꼭짓점` : '내부 꼭짓점 없음',
+      explain: '모든 내부 꼭짓점에서 Kawasaki(교대합)·Maekawa·크림프 검사. 평탄하게 접히기 위한 필요조건이다.',
+    },
+    {
+      key: 'rigid', label: '현재 강체 해',
+      status: !rigid ? 'na' : shownState ? 'ok' : !result ? (dof ? 'ok' : 'na') : result.success ? 'ok' : 'bad',
+      word: !rigid ? 'Rigid에서' : shownState ? '있음' : !result ? (dof ? '있음' : '—') : result.success ? '있음' : '없음',
+      detail: rigid && result ? (result.residualNorm < 1e-8 ? '닫힘 오차 ≈ 0' : `닫힘 오차 ${fmt(result.residualNorm)}`) : '',
+      explain: '지금 요청한 접힘각에서 면을 변형하지 않고 모든 꼭짓점이 닫히는 배치가 있는가.',
+    },
+    {
+      key: 'mobility', label: '1차(무한소) 가동성',
+      status: !rigid || !dof ? 'na' : dof.dofLocal > 0 ? 'info' : 'warn',
+      word: !rigid || !dof ? 'Rigid에서' : dof.dofLocal > 0 ? `있음 (${dof.dofLocal})` : '없음 (0)',
+      detail: rigid && dof ? `N − rank J = ${dof.dofLocal}` : '',
+      explain: '현재 배치에서 아주 조금 움직일 수 있는 방향의 수. 있다고 해서 끝까지 접힌다는 뜻은 아니다.',
+    },
+    {
+      key: 'collide', label: '자기 교차',
+      status: collisions === 0 ? 'ok' : 'bad',
+      word: collisions === 0 ? '없음' : `있음 (${collisions}쌍)`,
+      detail: '',
+      explain: '서로 이웃하지 않은 면이 관통하는가. 겹쳐 맞닿은 층은 교차로 세지 않는다.',
+    },
+    {
+      key: 'elastic', label: '면 변형 (Energy)',
+      status: rigid ? 'na' : diverged ? 'bad' : maxStrain < 0.02 ? 'ok' : maxStrain < 0.08 ? 'warn' : 'bad',
+      word: rigid ? 'Energy에서' : diverged ? '발산' : maxStrain < 0.02 ? '작음' : maxStrain < 0.08 ? '보통' : '큼',
+      detail: rigid ? '' : `최대 변형률 ${(maxStrain * 100).toFixed(1)}%`,
+      explain: 'Energy 솔버에서 면이 얼마나 늘어났는가 (막대 길이 변화율).',
+    },
+  ];
+  return { rows, maekawaOnly: ff.maekawaOnly.length };
+}
 
-  const flatStatus: Status = ff.checked === 0 ? 'na' : ff.ok ? 'ok' : 'bad';
-  const mobility: Status = solverMode === 'energy' || !dof ? 'na' : dof.dofLocal > 0 ? (result && !result.success && result.reasons.some((r) => r.startsWith('1차 가동성')) ? 'warn' : 'ok') : 'bad';
-  const rigidNow: Status = solverMode === 'energy' ? 'na' : shownState ? 'ok' : !result ? (dof ? 'ok' : 'na') : result.success ? 'ok' : 'bad';
-  const elastic: Status = solverMode !== 'energy' ? 'na' : diverged ? 'bad' : maxStrain < 0.02 ? 'ok' : maxStrain < 0.08 ? 'warn' : 'bad';
+/**
+ * The verdict, pinned at the top of the inspector: one stamp per property
+ * with a word that answers its own question, a lesson note when the lesson
+ * needs one, and the details on demand.
+ */
+export function VerdictStrip() {
+  const v = useVerdict();
+  const lessonId = useModel((s) => s.lessonId);
+  const note = lessonById(lessonId)?.verdictNote;
+  const [open, setOpen] = useState(false);
+  if (!v) return null;
   return (
-    <div className="space-y-0.5">
-      <StatusRow
-        label="평탄 접힘 (꼭짓점 조건)"
-        status={flatStatus}
-        value={ff.checked ? `${ff.checked - ff.failing.length}/${ff.checked} 꼭짓점` : '내부 꼭짓점 없음'}
-        title="모든 내부 꼭짓점에서 Kawasaki/일반화 교대합 + (일반화) Maekawa + 크림프 검사. 전역 평탄 접힘의 필요조건."
-      />
-      <StatusRow
-        label="강체 이동성 (1차)"
-        status={mobility}
-        value={solverMode === 'energy' ? 'Rigid 모드에서' : dof ? `DoF_local = ${dof.dofLocal}` : '—'}
-        title="현재 배치에서 N − rank J. 경고 = 유한 운동으로 이어지지 않는 미소 이동성."
-      />
-      <StatusRow label="현재 강체 해" status={rigidNow} value={result ? `‖C‖ = ${fmt(result.residualNorm)}` : undefined} />
-      <StatusRow label="자기 충돌 없음" status={collisions === 0 ? 'ok' : 'bad'} value={`${collisions}쌍`} />
-      <StatusRow label="탄성 해 (Energy)" status={elastic} value={solverMode === 'energy' ? `최대 변형률 ${(maxStrain * 100).toFixed(2)}%` : 'Energy 모드에서'} />
-      {ff.maekawaOnly.length > 0 && <p className="pt-2 text-[12.5px] leading-relaxed text-warn">꼭짓점 {ff.maekawaOnly.length}개에서 Kawasaki는 성립하지만 Maekawa가 실패한다 → 이 꼭짓점들은 평탄하게 접히지 않는다.</p>}
-    </div>
+    <section aria-label="판정" className="sticky top-0 z-10 border-b border-rule-2 bg-paper/95 px-4 pb-2.5 pt-3 backdrop-blur-[2px]">
+      <div className="flex items-center justify-between">
+        <h3 className="lettering text-[12px] text-ink-3">판정</h3>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex items-center gap-0.5 rounded px-1 text-[13px] text-ink-3 hover:bg-paper-2 hover:text-ink">
+          근거 {open ? '접기' : '보기'}<ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      <ul className="mt-1.5 grid grid-cols-1 gap-x-3 gap-y-1 min-[1500px]:grid-cols-2">
+        {v.rows.map((r) => (
+          <li key={r.key} className={`flex items-center justify-between gap-2 ${r.status === 'na' ? 'opacity-60' : ''}`} title={r.explain}>
+            <span className="text-[14px] text-ink-2">{r.label}</span>
+            <Badge key={r.status + r.word} status={r.status}>{r.word}</Badge>
+          </li>
+        ))}
+      </ul>
+      {note && <p className="mt-2 rounded-[3px] bg-paper-2 px-2.5 py-1.5 text-[13px] leading-relaxed text-ink-2"><Rich text={note} /></p>}
+      {open && (
+        <dl className="mt-2 space-y-1.5 border-t border-dashed border-rule-2 pt-2 text-[13px]">
+          {v.rows.map((r) => (
+            <div key={r.key}>
+              <dt className="flex justify-between gap-2 text-ink"><span className="font-medium">{r.label}</span><span className="tnum text-ink-3">{r.detail}</span></dt>
+              <dd className="text-ink-3">{r.explain}</dd>
+            </div>
+          ))}
+          {v.maekawaOnly > 0 && <p className="text-warn">꼭짓점 {v.maekawaOnly}개에서 Kawasaki는 성립하지만 Maekawa가 실패한다 → 이 꼭짓점들은 평탄하게 접히지 않는다.</p>}
+        </dl>
+      )}
+    </section>
   );
 }

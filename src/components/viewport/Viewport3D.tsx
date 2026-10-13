@@ -384,7 +384,7 @@ function Labels({ model }: { model: OrigamiModel }) {
   const rho = useSim((s) => s.rho);
   useEffect(() => {
     const specs: LabelSpec[] = [];
-    const style = 'rounded-[2px] px-1 lbl-greek text-[12px]';
+    const style = 'rounded-[2px] px-1 lbl-greek text-[13px]';
     const nLabels = Object.keys(model.edu.creaseLabels).length;
     if (overlays.foldLabels && nLabels <= 4)
       for (const [k, lab] of Object.entries(model.edu.creaseLabels)) {
@@ -399,7 +399,7 @@ function Labels({ model }: { model: OrigamiModel }) {
     if (selection?.kind === 'edge' && model.edges[selection.id]) {
       const e = model.edges[selection.id];
       const lab = model.edu.creaseLabels[e.id];
-      specs.push({ id: 'sel', text: `${lab ? lab + ' · ' : ''}e${e.id} ${e.assignment}  ρ = ${fmtDeg(rho[e.id] ?? 0, 2)}`, cls: 'lbl-greek rounded-[2px] bg-mark/85 px-1.5 py-0.5 text-[13px] font-semibold text-ink', at: eAnchor(e.vertices[0], e.vertices[1]), dx: 64, dy: -104, leader: true });
+      specs.push({ id: 'sel', text: `${lab ?? 'e' + e.id} ${fmtDeg(rho[e.id] ?? 0, 1)}`, cls: 'lbl-greek rounded-[2px] bg-mark/85 px-1.5 py-0.5 text-[14px] font-semibold text-ink', at: eAnchor(e.vertices[0], e.vertices[1]), dx: 64, dy: -104, leader: true });
     }
     publishLabels('main', specs);
   }, [model, overlays, selection, rho]);
@@ -601,8 +601,8 @@ export function Viewport3D() {
       <ViewToolbar />
       <Legend />
       <div className="pointer-events-none absolute right-[15px] top-[56px] flex max-w-[60%] flex-col items-end gap-1">
-        {shownState && <span className="max-w-[320px] rounded-[3px] border border-rule-2 bg-paper/95 px-2 py-1 text-[12px] text-ink-2">구성된 상태 표시: {shownState} — 정확한 강체 배치이며 솔버 경로가 아님</span>}
-        {experiment && <span className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[12px] text-warn">실험 프레임 u = {experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'} (에너지 최소화 결과)</span>}
+        {shownState && <span className="max-w-[320px] rounded-[3px] border border-rule-2 bg-paper/95 px-2 py-1 text-[13px] text-ink-2">구성된 상태 표시: {shownState} — 정확한 강체 배치이며 솔버 경로가 아님</span>}
+        {experiment && <span className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[13px] text-warn">실험 프레임 u = {experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'} (에너지 최소화 결과)</span>}
       </div>
       {!model && <div className="absolute inset-0 grid place-items-center text-ink-3">이 레슨에는 3D 모델이 없다</div>}
       </DrawingFrame>

@@ -82,5 +82,6 @@ export function fmtDeg(r: number, digits = 1): string {
   if (!Number.isFinite(r)) return '—';
   const d = toDeg(r);
   const s = d.toFixed(digits);
+  if (Number(s) === 0) return (0).toFixed(digits) + '°'; // no "−0.000°"
   return (d > 0 ? '+' : '') + s + '°';
 }

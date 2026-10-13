@@ -19,11 +19,11 @@ export class SheetBoundary extends Component<{ children: ReactNode; label: strin
     if (!this.state.error) return this.props.children;
     return (
       <div role="alert" className="grid h-full min-h-[160px] place-items-center p-4">
-        <div className="max-w-[420px] rounded-[3px] border border-bad/40 bg-bad-soft px-4 py-3 text-[13px] text-ink-2">
+        <div className="max-w-[420px] rounded-[3px] border border-bad/40 bg-bad-soft px-4 py-3 text-[14px] text-ink-2">
           <div className="font-semibold text-ink">{this.props.label}을(를) 그리는 중 오류가 났다</div>
-          <div className="mt-1 break-words font-mono text-[11.5px] text-ink-3">{this.state.error.message}</div>
+          <div className="mt-1 break-words font-mono text-[12px] text-ink-3">{this.state.error.message}</div>
           <button type="button" onClick={() => this.setState({ error: null })}
-            className="mt-2 rounded-[3px] border border-ink px-2.5 py-1 text-[12.5px] font-medium text-ink hover:bg-paper">다시 그리기</button>
+            className="mt-2 rounded-[3px] border border-ink px-2.5 py-1 text-[13px] font-medium text-ink hover:bg-paper">다시 그리기</button>
         </div>
       </div>
     );
