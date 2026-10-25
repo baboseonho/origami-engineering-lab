@@ -1,9 +1,11 @@
-import { Check, StepBack, StepForward } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
-import { analyzeStrip, applyOp, describeOp, solveStrip, stripPolyline, type Strip, type StripOp } from '../../core/constraints/strip1D';
-import { ASSIGN_COLOR, Badge, Button, Section } from '../controls/ui';
+import { Check, Pause, Play, RotateCcw, StepBack, StepForward } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { analyzeStrip, applyOp, segments, solveStrip, stripPolyline, type Strip, type StripOp } from '../../core/constraints/strip1D';
+import { Badge, Button, SpeedControl } from '../controls/ui';
+import { Rich } from '../controls/Rich';
 import { C, withAlpha } from '../../theme/tokens';
 import { tr } from '../../i18n';
+import { useUI } from '../../state/uiStore';
 
 const PRESETS: Record<string, Strip> = {
   foldable: { length: 12, creases: [{ pos: 2, mv: 'V', id: 0 }, { pos: 5, mv: 'M', id: 1 }, { pos: 6, mv: 'V', id: 2 }, { pos: 9, mv: 'M', id: 3 }] },
@@ -12,163 +14,376 @@ const PRESETS: Record<string, Strip> = {
   equal: { length: 9, creases: [{ pos: 3, mv: 'M', id: 0 }, { pos: 6, mv: 'M', id: 1 }] },
 };
 
-// a function, not a constant, so the labels follow the current language
+// functions, not constants, so the text follows the current language
 const presetLabels = (): Record<string, string> => ({
   foldable: tr('접힘 가능', 'Foldable'), collision: tr('충돌', 'Collision'), noEndFold: tr('엔드 폴드 없음', 'No end fold'), equal: tr('등간격', 'Equal spacing'),
 });
-
+const opName = (op: Step) => op.kind === 'endFold' ? tr('엔드 폴드', 'End fold') : op.kind === 'crimp' ? tr('크림프', 'Crimp') : tr('충돌', 'Collision');
 const label = (id: number) => `c${id + 1}`;
+
+/** An operation of the plan, or the collision we demonstrate when the plan gets stuck. */
+type Step = StripOp | { kind: 'collision'; creaseIds: [number, number] };
+
+/** Folded creases are drawn a few degrees short of 180° so stacked layers stay visible. */
+const SHORT = (7 * Math.PI) / 180;
+const ease = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, t)));
+
+/** What "Fold" plays: the solver's sequence, or the greedy ops until stuck plus the colliding pair. */
+function planFor(strip: Strip): { steps: Step[]; foldable: boolean } {
+  const solved = solveStrip(strip);
+  if (solved.foldable) return { steps: solved.sequence, foldable: true };
+  const steps: Step[] = [];
+  let s = strip;
+  for (let guard = 0; guard < 50; guard++) {
+    const a = analyzeStrip(s);
+    if (a.collisions.length) { steps.push({ kind: 'collision', creaseIds: a.collisions[0].creaseIds }); break; }
+    if (!a.ops.length) break;
+    steps.push(a.ops[0]);
+    s = applyOp(s, a.ops[0]);
+  }
+  return { steps, foldable: false };
+}
+
+/** Side-view polyline with the longest segment held still under its place on the pattern. */
+function sideView(strip: Strip, angles: number[], anchor: number): [number, number][] {
+  const pts = stripPolyline(strip, angles);
+  const [a, b] = [pts[anchor], pts[anchor + 1]];
+  const th = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  const x0 = anchor === 0 ? 0 : strip.creases[anchor - 1].pos;
+  const c = Math.cos(-th), s = Math.sin(-th);
+  return pts.map(([x, z]) => {
+    const dx = x - a[0], dz = z - a[1];
+    return [x0 + dx * c - dz * s, dx * s + dz * c];
+  });
+}
+
+/** First crossing of two non-neighbouring segments of a polyline (the paper passing through itself). */
+function crossing(p: [number, number][]): [number, number] | null {
+  const n = p.length - 1;
+  for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j++) {
+    const [a, b, c, d] = [p[i], p[i + 1], p[j], p[j + 1]];
+    const den = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0]);
+    if (Math.abs(den) < 1e-12) continue;
+    const t = ((c[0] - a[0]) * (d[1] - c[1]) - (c[1] - a[1]) * (d[0] - c[0])) / den;
+    const u = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / den;
+    if (t > 1e-3 && t < 1 - 1e-3 && u > 1e-3 && u < 1 - 1e-3) return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+  }
+  return null;
+}
+
+function useWidth<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(900);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(320, e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
+
+/** A crease marker for the legend and the pattern: a mountain ∧ or a valley ∨ glyph. */
+function MVGlyph({ mv, x, y, size = 9 }: { mv: 'M' | 'V'; x: number; y: number; size?: number }) {
+  const col = mv === 'M' ? C.mountain : C.valley;
+  const d = mv === 'M' ? `M${x - size},${y + size / 2} L${x},${y - size / 2} L${x + size},${y + size / 2}` : `M${x - size},${y - size / 2} L${x},${y + size / 2} L${x + size},${y - size / 2}`;
+  return <path d={d} fill="none" stroke={col} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />;
+}
 
 export function Strip1DLab() {
   const [strip, setStrip] = useState<Strip>(PRESETS.foldable);
-  const [executed, setExecuted] = useState<StripOp[]>([]);
-  const [plan, setPlan] = useState<ReturnType<typeof solveStrip> | null>(null);
+  const [done, setDone] = useState(0); // steps finished
+  const [anim, setAnim] = useState<{ k: number; p: number } | null>(null);
+  const [auto, setAuto] = useState(false);
+  /** the moment a colliding pair first touches: the fold stays frozen there */
+  const [stuck, setStuck] = useState<{ k: number; p: number } | null>(null);
   const svg = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: number; moved: boolean } | null>(null);
+  const [box, W] = useWidth<HTMLDivElement>();
 
-  // current reduced strip after the executed operations
-  const current = useMemo(() => executed.reduce((s, op) => applyOp(s, op), strip), [strip, executed]);
+  const plan = useMemo(() => planFor(strip), [strip]);
+  const steps = plan.steps;
+  const current = useMemo(() => steps.slice(0, done).filter((s): s is StripOp => s.kind !== 'collision').reduce((s, op) => applyOp(s, op), strip), [strip, steps, done]);
   const analysis = useMemo(() => analyzeStrip(current), [current]);
-  const full = useMemo(() => solveStrip(strip), [strip]);
-  const W = 540, pad = 26, sx = (x: number) => pad + (x / strip.length) * (W - 2 * pad);
+  const segs0 = useMemo(() => segments(strip), [strip]);
+  const anchor = useMemo(() => segs0.indexOf(Math.max(...segs0)), [segs0]);
 
-  const edit = (s: Strip) => { setStrip({ ...s, creases: [...s.creases].sort((a, b) => a.pos - b.pos) }); setExecuted([]); setPlan(null); };
-  const execute = (op: StripOp) => setExecuted((e) => [...e, op]);
-  const firstOp = (kind: 'endFold' | 'crimp') => analysis.ops.find((o) => o.kind === kind);
+  const reset = () => { setDone(0); setAnim(null); setAuto(false); setStuck(null); };
+  const edit = (s: Strip) => { setStrip({ ...s, creases: [...s.creases].sort((a, b) => a.pos - b.pos) }); reset(); };
 
-  // side view of the ORIGINAL strip with executed creases folded (schematic layering)
-  const foldedIds = new Set(executed.flatMap((o) => o.creaseIds));
-  const angles = strip.creases.map((c) => (foldedIds.has(c.id) ? (c.mv === 'V' ? 1 : -1) * (Math.PI - 0.12) : 0));
-  const poly = stripPolyline(strip, angles);
-  const xs = poly.map((p) => p[0]), zs = poly.map((p) => p[1]);
-  const bx0 = Math.min(...xs), bx1 = Math.max(...xs), bz0 = Math.min(...zs), bz1 = Math.max(...zs);
-  const segs = analysis.segments;
+  // the animation clock: one step at a time, at the shared fold speed
+  useEffect(() => {
+    if (!anim) return;
+    let raf = 0, last = performance.now();
+    const tick = (now: number) => {
+      const dt = now - last; last = now;
+      const speed = useUI.getState().foldSpeed;
+      setAnim((a) => {
+        if (!a) return a;
+        const p = a.p + (dt * speed) / 1400;
+        if (p >= 1) return { k: a.k, p: 1 };
+        return { k: a.k, p };
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [anim?.k]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // fold angles of the ORIGINAL strip at this moment
+  const sign = (id: number) => (strip.creases.find((c) => c.id === id)!.mv === 'V' ? 1 : -1);
+  const angleOf = new Map<number, number>();
+  for (let k = 0; k < done; k++) for (const id of steps[k].creaseIds) angleOf.set(id, sign(id) * (Math.PI - SHORT));
+  const moving = anim ?? stuck;
+  const animStep = moving ? steps[moving.k] : null;
+  if (animStep) for (const id of animStep.creaseIds) angleOf.set(id, sign(id) * (Math.PI - SHORT) * ease(moving!.p));
+  const angles = strip.creases.map((c) => angleOf.get(c.id) ?? 0);
+  const poly = sideView(strip, angles, anchor);
+  const cross = animStep?.kind === 'collision' ? crossing(poly) : null;
+  const hit = stuck ? cross : null;
+
+  // stop at the first contact of a colliding pair; finish ordinary steps
+  useEffect(() => {
+    if (!anim) return;
+    if (animStep?.kind === 'collision' && cross) { setStuck({ k: anim.k, p: anim.p }); setAnim(null); setAuto(false); return; }
+    if (anim.p >= 1) {
+      setAnim(null);
+      setDone((d) => d + 1);
+    }
+  }, [anim, cross, animStep]);
+  // auto: start the next step when one finishes
+  useEffect(() => {
+    if (auto && !anim && !stuck) {
+      if (done < steps.length) setAnim({ k: done, p: 0 });
+      else setAuto(false);
+    }
+  }, [auto, anim, done, steps.length, stuck]);
+
+  const stepOnce = () => { if (!anim && done < steps.length && !stuck) setAnim({ k: done, p: 0 }); };
+  const finished = done >= steps.length && plan.foldable;
+
+  // ── geometry in screen pixels
+  const pad = 36;
+  const sx = (x: number) => pad + (x / strip.length) * (W - 2 * pad);
+  const k = (W - 2 * pad) / strip.length;
+  const BAND_Y = 126, BAND_H = 26;
+  const cpH = 202;
+  // handles of creases closer than a handle's width sit one row higher
+  const level: number[] = [];
+  strip.creases.forEach((c, i) => { const dx = i ? sx(c.pos) - sx(strip.creases[i - 1].pos) : Infinity; level.push(dx < 56 && level[i - 1] === 0 ? 1 : 0); });
+  const maxSeg = Math.max(...segs0);
+  const s2 = Math.min(k, 120 / maxSeg);
+  const sideH = Math.max(200, 2 * maxSeg * s2 + 60);
+  const midX = (W) / 2;
+  const cxAnchor = (anchor === 0 ? 0 : strip.creases[anchor - 1].pos) + segs0[anchor] / 2;
+  const SX = (x: number) => midX + (x - cxAnchor) * s2 + (sx(cxAnchor) - midX);
+  const SZ = (z: number) => sideH / 2 - z * s2;
+  const foldedIds = new Set(steps.slice(0, done).flatMap((s) => s.creaseIds));
+  const showOps = done === 0 && !anim;
+
+  const group = 'flex flex-wrap items-center gap-1.5 rounded-[4px] border border-rule-2 bg-paper px-2 py-1.5';
+  const cap = 'lettering mr-1 text-[12px] text-ink-3';
 
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center gap-1">
-        {Object.keys(PRESETS).map((k) => <Button key={k} onClick={() => edit(PRESETS[k])}>{presetLabels()[k] ?? k}</Button>)}
-        <Button onClick={() => {
-          const n = 3 + Math.floor(Math.random() * 4);
-          const pos = Array.from({ length: n }, () => 1 + Math.random() * 10).sort((a, b) => a - b).map((p) => Math.round(p * 2) / 2);
-          edit({ length: 12, creases: [...new Set(pos)].map((p, i) => ({ pos: p, mv: Math.random() < 0.5 ? 'M' : 'V', id: i })) });
-        }}>{tr('무작위', 'Random')}</Button>
-        <Button onClick={() => {
-          const id = Math.max(-1, ...strip.creases.map((c) => c.id)) + 1;
-          edit({ ...strip, creases: [...strip.creases, { pos: strip.length * (0.3 + 0.4 * Math.random()), mv: 'V', id }] });
-        }}>{tr('+ 크리스', '+ Crease')}</Button>
-        <Button onClick={() => edit({ ...strip, creases: strip.creases.slice(0, -1) })} disabled={!strip.creases.length}>{tr('− 크리스', '− Crease')}</Button>
-        <span className="mx-2 h-4 w-px bg-paper-3" />
-        <Button disabled={!firstOp('endFold')} onClick={() => execute(firstOp('endFold')!)}>{tr('엔드 폴드 실행', 'Do end fold')}</Button>
-        <Button disabled={!firstOp('crimp')} onClick={() => execute(firstOp('crimp')!)}>{tr('크림프 실행', 'Do crimp')}</Button>
-        <Button kind="primary" onClick={() => { setExecuted([]); setPlan(solveStrip(strip)); }}>{tr('자동 풀이', 'Auto solve')}</Button>
-        <Button disabled={!plan || executed.length >= (plan?.sequence.length ?? 0)} onClick={() => plan && execute(plan.sequence[executed.length])}>{tr('단계', 'Step')} <StepForward size={14} /></Button>
-        <Button disabled={!executed.length} onClick={() => setExecuted((e) => e.slice(0, -1))}><StepBack size={14} />{tr('연산 취소', 'Undo')}</Button>
-        <Button onClick={() => { setExecuted([]); setPlan(null); }}>{tr('펼치기', 'Unfold')}</Button>
-      </div>
-      <div className="grid grid-cols-[1fr_330px] gap-3">
-        <div>
-          <Section title={tr('크리스 패턴 (크리스 클릭: M/V 전환, 끌기: 이동)', 'Crease pattern (click a crease: toggle M/V, drag: move)')}>
-            <svg ref={svg} viewBox={`0 0 ${W} 110`} className="w-full touch-none select-none"
-              onPointerMove={(e) => {
-                if (!drag.current) return;
-                drag.current.moved = true;
-                const r = svg.current!.getBoundingClientRect();
-                const x = ((((e.clientX - r.left) / r.width) * W - pad) / (W - 2 * pad)) * strip.length;
-                const pos = Math.max(0.1, Math.min(strip.length - 0.1, Math.round(x * 20) / 20));
-                const id = drag.current.id;
-                setStrip((s) => ({ ...s, creases: s.creases.map((c) => (c.id === id ? { ...c, pos } : c)).sort((a, b) => a.pos - b.pos) }));
-                setExecuted([]); setPlan(null);
-              }}
-              onPointerUp={() => {
-                if (drag.current && !drag.current.moved) {
-                  const id = drag.current.id;
-                  edit({ ...strip, creases: strip.creases.map((c) => (c.id === id ? { ...c, mv: c.mv === 'M' ? 'V' : 'M' } : c)) });
-                }
-                drag.current = null;
-              }}>
-              <rect x={sx(0)} y={44} width={sx(strip.length) - sx(0)} height={16} fill={C.kraft} stroke={C.rule2} strokeWidth={1} rx={1} />
-              {/* segment lengths of the ORIGINAL strip */}
-              {segments(strip).map((s, i) => {
-                const x0 = i === 0 ? 0 : strip.creases[i - 1].pos;
-                return <text key={i} x={sx(x0 + s / 2)} y={84} fontSize={14} fill={C.ink2} textAnchor="middle" fontFamily="Pretendard Variable, sans-serif">{s.toFixed(2)}</text>;
-              })}
-              {/* highlights from the CURRENT (reduced) analysis, shown on executed=0 only */}
-              {executed.length === 0 && analysis.ops.map((o, k) => {
-                const cs = o.creaseIds.map((id) => strip.creases.find((c) => c.id === id)!);
-                const x0 = sx(Math.min(...cs.map((c) => c.pos))) - (o.kind === 'endFold' ? 8 : 4), x1 = sx(Math.max(...cs.map((c) => c.pos))) + (o.kind === 'endFold' ? 8 : 4);
-                return <rect key={'op' + k} x={x0} y={36} width={x1 - x0} height={32} fill="none" stroke={C.ok} strokeWidth={2} rx={4} />;
-              })}
-              {executed.length === 0 && analysis.collisions.map((c, k) => {
-                const cs = c.creaseIds.map((id) => strip.creases.find((q) => q.id === id)!);
-                return <rect key={'col' + k} x={sx(cs[0].pos) - 5} y={33} width={sx(cs[1].pos) - sx(cs[0].pos) + 10} height={38} fill={withAlpha(C.bad, 0.13)} stroke={C.bad} strokeWidth={2} rx={4} />;
-              })}
-              {executed.length === 0 && analysis.degenerate.map((c, k) => {
-                const cs = c.creaseIds.map((id) => strip.creases.find((q) => q.id === id)!);
-                return <rect key={'dg' + k} x={sx(cs[0].pos) - 5} y={33} width={sx(cs[1].pos) - sx(cs[0].pos) + 10} height={38} fill="none" stroke={C.warn} strokeDasharray="4 3" strokeWidth={1.5} rx={4} />;
-              })}
-              {strip.creases.map((c) => (
-                <g key={c.id} onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); drag.current = { id: c.id, moved: false }; }} style={{ cursor: 'ew-resize' }}>
-                  <line x1={sx(c.pos)} x2={sx(c.pos)} y1={38} y2={66} stroke={ASSIGN_COLOR[c.mv]} strokeWidth={foldedIds.has(c.id) ? 1.5 : 3.5} strokeDasharray={c.mv === 'M' ? '6 3 2 3' : '5 3'} opacity={foldedIds.has(c.id) ? 0.4 : 1} />
-                  <rect x={sx(c.pos) - 8} y={30} width={16} height={44} fill="transparent" />
-                  <text x={sx(c.pos)} y={24} fontSize={14} fontWeight={600} fill={ASSIGN_COLOR[c.mv]} textAnchor="middle" fontFamily="Pretendard Variable, sans-serif">{label(c.id)} {c.mv}</text>
-                </g>
-              ))}
-            </svg>
-            <div className="flex flex-wrap gap-3 text-[12px] text-ink-3">
-              <span><span className="text-ok">▭</span> {tr('가능한 연산', 'Possible operation')}</span>
-              <span><span className="text-bad">▭</span> {tr('충돌 (엄격히 더 짧은 구간 양쪽이 같은 방향)', 'Collision (same direction on both sides of a strictly shorter segment)')}</span>
-              <span><span className="text-warn">┄</span> {tr('등거리 퇴화 경우', 'Degenerate equal-length case')}</span>
-            </div>
-          </Section>
-          <Section title={tr(`연산 ${executed.length}회 후 측면도 (개략적 층 간격)`, `Side view after ${executed.length} operation${executed.length === 1 ? '' : 's'} (schematic layer spacing)`)}>
-            <svg viewBox={`${bx0 - 1} ${-bz1 - 1} ${bx1 - bx0 + 2} ${bz1 - bz0 + 2}`} className="h-40 w-full" preserveAspectRatio="xMidYMid meet">
-              <polyline points={poly.map(([x, z]) => `${x},${-z}`).join(' ')} fill="none" stroke={C.kraft} strokeWidth={0.12} strokeLinejoin="round" />
-              {poly.slice(1, -1).map(([x, z], i) => <circle key={i} cx={x} cy={-z} r={0.14} fill={ASSIGN_COLOR[strip.creases[i].mv]} />)}
-            </svg>
-            <p className="text-[12px] text-ink-3">{tr('겹친 층이 보이도록 접힌 크리스를 ±172°로 그린다. 이는 층 적층의 개략도이며 축척 도면이 아니다.', 'Folded creases are drawn at ±172° so the stacked layers stay visible. This is a schematic of the layer stack, not a scale drawing.')}</p>
-          </Section>
+    <div className="grid gap-3">
+      {/* controls: what pattern, then fold it */}
+      <div className="flex flex-wrap items-stretch gap-2">
+        <div className={group}>
+          <span className={cap}>{tr('패턴', 'Pattern')}</span>
+          {Object.keys(PRESETS).map((key) => <Button key={key} size="sm" onClick={() => edit(PRESETS[key])}>{presetLabels()[key]}</Button>)}
+          <Button size="sm" onClick={() => {
+            const n = 3 + Math.floor(Math.random() * 4);
+            const pos = Array.from({ length: n }, () => 1 + Math.random() * 10).sort((a, b) => a - b).map((p) => Math.round(p * 2) / 2);
+            edit({ length: 12, creases: [...new Set(pos)].map((p, i) => ({ pos: p, mv: Math.random() < 0.5 ? 'M' : 'V', id: i })) });
+          }}>{tr('무작위', 'Random')}</Button>
+          <Button size="sm" onClick={() => {
+            const id = Math.max(-1, ...strip.creases.map((c) => c.id)) + 1;
+            edit({ ...strip, creases: [...strip.creases, { pos: Math.round(strip.length * (0.3 + 0.4 * Math.random()) * 2) / 2, mv: 'V', id }] });
+          }}>{tr('+ 크리스', '+ Crease')}</Button>
+          <Button size="sm" onClick={() => edit({ ...strip, creases: strip.creases.slice(0, -1) })} disabled={!strip.creases.length}>{tr('− 크리스', '− Crease')}</Button>
         </div>
-        <div>
-          <Section title={tr('판정', 'Verdict')}>
-            {full.foldable ? <Badge status="ok">{tr('평탄 접힘 가능: 완전한 엔드 폴드 / 크림프 순서가 존재한다', 'Flat-foldable: a full end-fold / crimp sequence exists')}</Badge> : <Badge status="bad">{tr('이 M/V 배정으로는 평탄 접힘 불가능', 'Not flat-foldable with this M/V assignment')}</Badge>}
-            {!full.foldable && analysis.collisions.length > 0 && (
-              <p className="mt-1 text-[12px] text-bad">{tr('충돌 위치', 'Collision at')} {analysis.collisions.map((c) => `(${label(c.creaseIds[0])}, ${label(c.creaseIds[1])})`).join(', ')}: {tr('양쪽 이웃보다 짧은 구간의 두 크리스가 같은 방향이다.', 'the two creases of a segment shorter than both neighbours have the same direction.')}</p>
+        <div className={group}>
+          <span className={cap}>{tr('접기', 'Fold')}</span>
+          <Button kind="primary" size="sm" disabled={finished || !!stuck || steps.length === 0} onClick={() => setAuto((a) => !a)}>
+            {auto ? <><Pause size={14} />{tr('멈춤', 'Pause')}</> : <><Play size={14} />{tr('끝까지 접기', 'Fold all the way')}</>}
+          </Button>
+          <Button size="sm" disabled={!!anim || done >= steps.length || !!stuck} onClick={stepOnce}>{tr('한 단계', 'One step')}<StepForward size={14} /></Button>
+          <Button size="sm" disabled={!!anim || (!done && !stuck)} onClick={() => { if (stuck) setStuck(null); else setDone((d) => Math.max(0, d - 1)); }}><StepBack size={14} />{tr('되돌리기', 'Back')}</Button>
+          <Button size="sm" onClick={reset}><RotateCcw size={14} />{tr('펼치기', 'Unfold')}</Button>
+          <SpeedControl />
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        <div ref={box} className="min-w-0 rounded-[3px] border border-rule-2 bg-paper">
+          {/* ── the pattern, seen from above */}
+          <div className="flex items-baseline justify-between px-4 pt-3">
+            <span className="lettering text-[12px] text-ink-3">{tr('전개도 · 위에서 본 띠', 'Crease pattern · the strip from above')}</span>
+            <span className="text-[13px] text-ink-3">{tr('크리스를 누르면 산 ↔ 골, 끌면 이동', 'Click a crease to swap M ↔ V, drag to move it')}</span>
+          </div>
+          <svg ref={svg} width={W} height={cpH} className="block touch-none select-none"
+            onPointerMove={(e) => {
+              if (!drag.current) return;
+              drag.current.moved = true;
+              const r = svg.current!.getBoundingClientRect();
+              const x = ((e.clientX - r.left - pad) / (W - 2 * pad)) * strip.length;
+              const pos = Math.max(0.25, Math.min(strip.length - 0.25, Math.round(x * 4) / 4));
+              const id = drag.current.id;
+              setStrip((s) => ({ ...s, creases: s.creases.map((c) => (c.id === id ? { ...c, pos } : c)).sort((a, b) => a.pos - b.pos) }));
+              reset();
+            }}
+            onPointerUp={() => {
+              if (drag.current && !drag.current.moved) {
+                const id = drag.current.id;
+                edit({ ...strip, creases: strip.creases.map((c) => (c.id === id ? { ...c, mv: c.mv === 'M' ? 'V' : 'M' } : c)) });
+              }
+              drag.current = null;
+            }}>
+            <defs>
+              <linearGradient id="strip-paper" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor={C.paperFront} />
+                <stop offset="1" stopColor={withAlpha(C.kraft, 0.55)} />
+              </linearGradient>
+            </defs>
+            {/* operation highlights, before folding starts */}
+            {showOps && analysis.ops.map((o, i) => {
+              const cs = o.creaseIds.map((id) => strip.creases.find((c) => c.id === id)!);
+              const x0 = sx(Math.min(...cs.map((c) => c.pos))) - 14, x1 = sx(Math.max(...cs.map((c) => c.pos))) + 14;
+              return (
+                <g key={'op' + i}>
+                  <rect x={x0} y={BAND_Y - 12} width={x1 - x0} height={BAND_H + 24} fill={withAlpha(C.ok, 0.07)} stroke={C.ok} strokeWidth={1.6} rx={6} />
+                  <text x={(x0 + x1) / 2} y={BAND_Y + BAND_H + 28} fontSize={12} fill={C.ok} textAnchor="middle" fontWeight={600}>{opName(o)}</text>
+                </g>
+              );
+            })}
+            {(showOps || stuck) && analysis.collisions.map((c, i) => {
+              const cs = c.creaseIds.map((id) => strip.creases.find((q) => q.id === id)!);
+              const x0 = sx(cs[0].pos) - 14, x1 = sx(cs[1].pos) + 14;
+              return (
+                <g key={'col' + i}>
+                  <rect x={x0} y={BAND_Y - 12} width={x1 - x0} height={BAND_H + 24} fill={withAlpha(C.bad, 0.1)} stroke={C.bad} strokeWidth={1.8} rx={6} />
+                  <text x={(x0 + x1) / 2} y={BAND_Y + BAND_H + 28} fontSize={12} fill={C.bad} textAnchor="middle" fontWeight={700}>{tr('충돌', 'Collision')}</text>
+                </g>
+              );
+            })}
+            {/* the paper */}
+            <rect x={sx(0)} y={BAND_Y} width={sx(strip.length) - sx(0)} height={BAND_H} fill="url(#strip-paper)" stroke={C.ink3} strokeWidth={1} rx={2} />
+            {/* dimension line of every segment */}
+            {segs0.map((s, i) => {
+              const a = i === 0 ? 0 : strip.creases[i - 1].pos;
+              const y = BAND_Y + BAND_H + 48;
+              const x0 = sx(a) + 3, x1 = sx(a + s) - 3;
+              return (
+                <g key={'dim' + i} opacity={0.95}>
+                  <line x1={x0} x2={x1} y1={y} y2={y} stroke={C.ink3} strokeWidth={1} />
+                  <path d={`M${x0},${y} l6,-3 v6 Z M${x1},${y} l-6,-3 v6 Z`} fill={C.ink3} />
+                  {x1 - x0 > 30 && <text x={(x0 + x1) / 2} y={y - 5} fontSize={13} fill={C.ink2} textAnchor="middle" className="tnum">{x1 - x0 > 86 ? `s${i} = ${s.toFixed(2)}` : s.toFixed(x1 - x0 > 44 ? 2 : 1)}</text>}
+                </g>
+              );
+            })}
+            {/* the creases: a line across the band and a handle above */}
+            {strip.creases.map((c, ci) => {
+              const x = sx(c.pos);
+              const up = level[ci] * 34;
+              const col = c.mv === 'M' ? C.mountain : C.valley;
+              const folded = foldedIds.has(c.id);
+              return (
+                <g key={c.id} onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); drag.current = { id: c.id, moved: false }; }} style={{ cursor: 'ew-resize' }} opacity={folded ? 0.45 : 1}>
+                  <line x1={x} x2={x} y1={BAND_Y} y2={BAND_Y + BAND_H} stroke={col} strokeWidth={2.6} strokeDasharray={c.mv === 'M' ? '7 2.5 1.5 2.5' : '5 3'} />
+                  <line x1={x} x2={x} y1={BAND_Y - 26 - up} y2={BAND_Y} stroke={col} strokeWidth={1} />
+                  <rect x={x - 25} y={BAND_Y - 56 - up} width={50} height={30} rx={15} fill={C.paper} stroke={col} strokeWidth={1.6} />
+                  <text x={x - 6} y={BAND_Y - 36 - up} fontSize={13} fontWeight={700} fill={col} textAnchor="middle">{label(c.id)}</text>
+                  <MVGlyph mv={c.mv} x={x + 12} y={BAND_Y - 41 - up} size={6} />
+                  {folded && <path d={`M${x + 18},${BAND_Y - 62 - up} l4,4 l8,-8`} fill="none" stroke={C.ok} strokeWidth={2} />}
+                  <rect x={x - 26} y={BAND_Y - 58 - up} width={52} height={BAND_H + 62 + up} fill="transparent" />
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* ── the side view, folding */}
+          <div className="flex items-baseline justify-between border-t border-dashed border-rule-2 px-4 pt-3">
+            <span className="lettering text-[12px] text-ink-3">{tr('측면도 · 접는 모습', 'Side view · folding')}</span>
+            <span className="text-[13px] text-ink-3">
+              {anim && animStep ? `${opName(animStep)} (${animStep.creaseIds.map(label).join(', ')})` : hit ? tr('여기서 종이가 서로 부딪힌다', 'Here the paper runs into itself') : finished ? tr('완전히 접혔다', 'Folded flat') : tr(`${done}/${steps.length} 단계`, `step ${done} of ${steps.length}`)}
+            </span>
+          </div>
+          <svg width={W} height={sideH} className="block">
+            <line x1={pad} x2={W - pad} y1={SZ(0)} y2={SZ(0)} stroke={C.rule} strokeWidth={1} strokeDasharray="2 5" />
+            {/* the strip: an ink outline with the paper inside */}
+            <polyline points={poly.map(([x, z]) => `${SX(x)},${SZ(z)}`).join(' ')} fill="none" stroke={C.ink2} strokeWidth={7} strokeLinejoin="round" strokeLinecap="round" />
+            <polyline points={poly.map(([x, z]) => `${SX(x)},${SZ(z)}`).join(' ')} fill="none" stroke={C.kraft} strokeWidth={4} strokeLinejoin="round" strokeLinecap="round" />
+            {poly.slice(1, -1).map(([x, z], i) => {
+              const c = strip.creases[i];
+              return (
+                <g key={i}>
+                  <circle cx={SX(x)} cy={SZ(z)} r={6} fill={C.paper} stroke={c.mv === 'M' ? C.mountain : C.valley} strokeWidth={2.4} />
+                  <text x={SX(x)} y={SZ(z) - 12} fontSize={12} fontWeight={600} fill={c.mv === 'M' ? C.mountain : C.valley} textAnchor="middle" stroke={C.paper} strokeWidth={3} paintOrder="stroke">{label(c.id)}</text>
+                </g>
+              );
+            })}
+            {hit && (
+              <g>
+                <circle cx={SX(hit[0])} cy={SZ(hit[1])} r={16} fill={withAlpha(C.bad, 0.18)} stroke={C.bad} strokeWidth={2.4} className="animate-pulse" />
+                <text x={SX(hit[0])} y={SZ(hit[1]) + 34} fontSize={14} fontWeight={700} fill={C.bad} textAnchor="middle" stroke={C.paper} strokeWidth={3} paintOrder="stroke">{tr('충돌!', 'Collision!')}</text>
+              </g>
             )}
-            <div className="mt-2 tnum text-[12px] text-ink-3">{tr('현재 적층의 구간 길이', 'Segment lengths of the current stack')}: [{segs.map((s) => s.toFixed(2)).join(', ')}]</div>
-            <div className="mt-1 text-[12px]">{tr('현재 가능한 연산', 'Possible operations now')}: {analysis.ops.length ? analysis.ops.map((o) => describeOp(o, label)).join(', ') : current.creases.length ? tr('없음', 'none') : tr('완전히 접힘', 'fully folded')}</div>
-          </Section>
-          <Section title={tr('접기 순서', 'Folding sequence')}>
-            {plan ? (
-              plan.foldable ? (
-                <ol className="space-y-0.5 tnum text-[13px]">
-                  {plan.sequence.map((op, i) => (
-                    <li key={i} className={i < executed.length ? 'text-ok' : i === executed.length ? 'text-mark-ink' : 'text-ink-3'}>
-                      {tr('단계', 'Step')} {i + 1}: {describeOp(op, label)} {i < executed.length && <Check size={13} className="inline" />}
+          </svg>
+          <p className="px-4 pb-3 text-[13px] leading-relaxed text-ink-3">{tr('겹친 층이 보이도록 접힌 크리스를 180°보다 조금 덜 접어 그린다. 길이는 실제 비율이다.', 'Folded creases are drawn a little short of 180° so the stacked layers stay visible. Lengths are to scale.')}</p>
+        </div>
+
+        {/* ── verdict, sequence, rules */}
+        <div className="grid content-start gap-3 text-[14px] lg:grid-cols-3">
+          <section className="rounded-[3px] border border-rule-2 bg-paper px-4 py-3">
+            <h3 className="lettering text-[12px] text-ink-3">{tr('판정', 'Verdict')}</h3>
+            <div className="mt-1.5">{plan.foldable ? <Badge status="ok">{tr('평탄하게 접힌다', 'Folds flat')}</Badge> : <Badge status="bad">{tr('평탄하게 접히지 않는다', 'Does not fold flat')}</Badge>}</div>
+            <p className="mt-2 leading-relaxed text-ink-2">
+              {plan.foldable
+                ? tr('엔드 폴드와 크림프만으로 끝까지 접는 순서가 있다.', 'There is an order that folds it completely with end folds and crimps alone.')
+                : analysis.collisions.length || steps.some((s) => s.kind === 'collision')
+                  ? tr('양옆보다 짧은 구간의 두 크리스가 같은 방향이다. 접으면 양쪽 종이가 서로 부딪힌다.', 'Two creases around a segment shorter than both neighbours point the same way. Folding them makes the paper run into itself.')
+                  : tr('더 할 수 있는 연산이 없다.', 'No operation is left to do.')}
+            </p>
+          </section>
+          <section className="rounded-[3px] border border-rule-2 bg-paper px-4 py-3">
+            <h3 className="lettering text-[12px] text-ink-3">{tr('접는 순서', 'Folding order')}</h3>
+            {steps.length ? (
+              <ol className="mt-1.5 space-y-1">
+                {steps.map((s, i) => {
+                  const state = i < done ? 'done' : anim?.k === i ? 'now' : 'todo';
+                  return (
+                    <li key={i} className={`flex items-center gap-2 rounded-[3px] px-1.5 py-0.5 ${state === 'now' ? 'bg-mark/60' : ''} ${s.kind === 'collision' ? 'text-bad' : state === 'todo' ? 'text-ink-3' : 'text-ink'}`}>
+                      <span className="tnum w-5 text-[13px] text-ink-3">{i + 1}</span>
+                      <span className="font-medium">{opName(s)}</span>
+                      <span className="tnum text-[13px]">{s.creaseIds.map(label).join(', ')}</span>
+                      {state === 'done' && <Check size={14} className="ml-auto text-ok" />}
                     </li>
-                  ))}
-                </ol>
-              ) : <div className="text-bad">{tr('유효한 순서 없음: 이 M/V 배정으로는 평탄 접힘 불가능하다.', 'No valid sequence: this M/V assignment cannot fold flat.')}</div>
-            ) : <div className="text-[12px] text-ink-3">{tr('자동 풀이를 누른 뒤 "단계" 버튼으로 연산을 하나씩 실행한다.', 'Press Auto solve, then run the operations one at a time with the "Step" button.')}</div>}
-          </Section>
-          <Section title={tr('규칙 (부등식)', 'Rules (inequalities)')}>
-            <ul className="space-y-1 text-[12px] text-ink-2">
-              <li>{tr(<><b>엔드 폴드(end fold)</b> c₁: s₀ ≤ s₁ (플랩이 다음 구간 안에 놓인다)</>, <><b>End fold</b> c₁: s₀ ≤ s₁ (the flap lies within the next segment)</>)}</li>
-              <li>{tr(<><b>크림프(crimp)</b> (cᵢ, cᵢ₊₁): M/V가 반대이고 sᵢ₋₁ ≥ sᵢ ≤ sᵢ₊₁</>, <><b>Crimp</b> (cᵢ, cᵢ₊₁): opposite M/V and sᵢ₋₁ ≥ sᵢ ≤ sᵢ₊₁</>)}</li>
-              <li>{tr(<><b>충돌</b>: M/V가 같고 sᵢ₋₁ &gt; sᵢ &lt; sᵢ₊₁ (엄격)</>, <><b>Collision</b>: same M/V and sᵢ₋₁ &gt; sᵢ &lt; sᵢ₊₁ (strict)</>)}</li>
-              <li>{tr(<><b>등거리 경우</b>: M/V가 같고 sᵢ가 이웃 하나와 같음 — 강제 충돌이 아니며 탐색으로 처리한다.</>, <><b>Equal-length case</b>: same M/V and sᵢ equals one neighbour — not a forced collision; handled by search.</>)}</li>
-            </ul>
-          </Section>
+                  );
+                })}
+              </ol>
+            ) : <p className="mt-1.5 text-ink-3">{tr('크리스가 없다.', 'No creases.')}</p>}
+          </section>
+          <section className="rounded-[3px] border border-rule-2 bg-paper px-4 py-3">
+            <h3 className="lettering text-[12px] text-ink-3">{tr('규칙', 'Rules')}</h3>
+            <dl className="mt-1.5 space-y-2.5 leading-relaxed">
+              <div>
+                <dt className="font-semibold text-ink">{tr('엔드 폴드', 'End fold')}</dt>
+                <dd className="text-ink-2"><Rich text={tr('끝 구간이 다음 구간보다 짧으면 접어 넘길 수 있다: $s_0 \\le s_1$', 'The end segment folds over if it is no longer than the next: $s_0 \\le s_1$')} /></dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-ink">{tr('크림프', 'Crimp')}</dt>
+                <dd className="text-ink-2"><Rich text={tr('방향이 반대인 두 크리스 사이 구간이 양옆보다 길지 않으면 함께 접는다: $s_{i-1} \\ge s_i \\le s_{i+1}$', 'Two creases of opposite direction fold together if the segment between them is no longer than its neighbours: $s_{i-1} \\ge s_i \\le s_{i+1}$')} /></dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-bad">{tr('충돌', 'Collision')}</dt>
+                <dd className="text-ink-2"><Rich text={tr('같은 방향의 두 크리스 사이 구간이 양옆보다 엄격히 짧으면 절대 접히지 않는다: $s_{i-1} > s_i < s_{i+1}$', 'Two creases of the same direction around a segment strictly shorter than both neighbours can never fold: $s_{i-1} > s_i < s_{i+1}$')} /></dd>
+              </div>
+            </dl>
+            <p className="mt-2.5 text-[13px] leading-relaxed text-ink-3">{tr('Arkin 외(2004): 1D 패턴은 엔드 폴드와 크림프로 접을 수 있을 때, 그리고 그때에만 평탄하게 접힌다.', 'Arkin et al. (2004): a 1D pattern folds flat exactly when end folds and crimps can fold it.')}</p>
+          </section>
         </div>
       </div>
     </div>
   );
-}
-
-function segments(s: Strip) {
-  const out: number[] = [];
-  let prev = 0;
-  for (const c of s.creases) { out.push(c.pos - prev); prev = c.pos; }
-  out.push(s.length - prev);
-  return out;
 }

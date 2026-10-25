@@ -74,9 +74,9 @@ const STAMP: Record<Status, string> = {
 const STAMP_ICON: Record<Status, typeof Check> = { ok: Check, warn: AlertTriangle, bad: X, na: Minus, info: Info };
 /** default word carried by every stamp, so a stamp never reads as a checkbox */
 export const STAMP_WORD: Record<Status, string> = {
-  get ok() { return tr('가능', 'pass'); },
+  get ok() { return tr('통과', 'pass'); },
   get warn() { return tr('주의', 'caution'); },
-  get bad() { return tr('불가', 'fail'); },
+  get bad() { return tr('실패', 'fail'); },
   get na() { return tr('해당 없음', 'n/a'); },
   get info() { return tr('참고', 'note'); },
 };
@@ -171,14 +171,16 @@ export function AngleSlider({ value, onChange, onStart, min = -180, max = 180, s
     <div>
       <input type="range" aria-label={label} className="w-full" min={min} max={max} step={step} value={toDeg(value)}
         onPointerDown={onStart} onKeyDown={onStart} onChange={(e) => onChange(toRad(parseFloat(e.target.value)))} />
-      <div className="relative mx-[7px] h-4" aria-hidden>
+      <div className="relative mx-[7px] h-5" aria-hidden>
         {ticks.map((t) => {
           const x = ((t - min) / (max - min)) * 100;
           const major = t % 90 === 0;
+          // the end labels sit inside the track instead of hanging over its edges
+          const align = t === min ? 'translate-x-0' : t === max ? '-translate-x-full' : '-translate-x-1/2';
           return (
-            <span key={t} className="absolute top-0 -translate-x-1/2" style={{ left: `${x}%` }}>
-              <span className={`mx-auto block w-px ${major ? 'h-2 bg-ink-3' : 'h-1 bg-rule-2'}`} />
-              {major && <span className="tnum block text-[12px] leading-3 text-ink-3">{t > 0 ? `+${t}` : t}</span>}
+            <span key={t}>
+              <span className={`absolute top-0 block w-px -translate-x-1/2 ${major ? 'h-2 bg-ink-3' : 'h-1 bg-rule-2'}`} style={{ left: `${x}%` }} />
+              {major && <span className={`tnum absolute top-2 whitespace-nowrap text-[12px] leading-3 text-ink-3 ${align}`} style={{ left: `${x}%` }}>{t > 0 ? `+${t}` : t < 0 ? `−${-t}` : t}</span>}
             </span>
           );
         })}

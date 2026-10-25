@@ -1,4 +1,4 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -12,10 +12,10 @@ import { useUI } from '../../state/uiStore';
 import { tr } from '../../i18n';
 import { C } from '../../theme/tokens';
 import { Button, SpeedControl } from '../controls/ui';
+import { Rich } from '../controls/Rich';
+import { EVEN, ODD, Sci, ThetaText } from './labKit';
 
-/** odd sectors (θ1, θ3, …) and even sectors (θ2, θ4, …): kept apart from the M/V red/blue */
-const ODD = '#0e7490';
-const EVEN = '#a3541c';
+/* odd sectors (θ1, θ3, …) and even sectors (θ2, θ4, …) keep apart from the M/V red/blue: ODD, EVEN in labKit */
 const colorOf = (i: number) => (i % 2 === 0 ? ODD : EVEN);
 const rad = (d: number) => (d * Math.PI) / 180;
 const deg1 = (d: number) => `${Math.round(d * 10) / 10}°`;
@@ -42,11 +42,11 @@ function Status({ r, shape }: { r: SectorReport; shape: VertexShape | null }) {
   return (
     <div className="grid overflow-hidden rounded-[3px] border border-rule-2 bg-paper md:grid-cols-[1.2fr_1fr_1fr]" role="status" aria-live="polite">
       <div className={`px-3.5 py-2.5 ${r.pass ? 'bg-ok-soft' : 'bg-bad-soft'}`}>
-        <div className="lettering text-[12px] text-ink-3">{tr('일반화 Kawasaki (generalized)', 'Generalized Kawasaki')}</div>
+        <div className="lettering text-[12px] text-ink-3">{tr('일반화 Kawasaki 조건', 'Generalized Kawasaki')}</div>
         <div className="flex flex-wrap items-baseline gap-x-2.5">
-          <span className={`text-[22px] font-bold tracking-tight ${r.pass ? 'text-ok' : 'text-bad'}`}>{r.pass ? tr('PASS · 성립', 'PASS · holds') : tr('FAIL · 위반', 'FAIL · violated')}</span>
+          <span className={`text-[22px] font-bold tracking-tight ${r.pass ? 'text-ok' : 'text-bad'}`}>{r.pass ? tr('성립', 'Holds') : tr('위반', 'Violated')}</span>
         </div>
-        <div className="text-[13px] leading-snug text-ink-2">{r.pass ? tr('S ∈ {0°, ±360°}: 접힌 경로가 시작 광선으로 돌아온다 (층 순서는 별도 문제)', 'S ∈ {0°, ±360°}: the folded path returns to the first ray (layer order is a separate question)') : r.reason}</div>
+        <div className="text-[13px] leading-snug text-ink-2">{r.pass ? <Rich text={tr('$S \\in \\{0^\\circ, \\pm 360^\\circ\\}$: 접힌 경로가 시작 광선으로 돌아온다 (층 순서는 별도 문제)', '$S \\in \\{0^\\circ, \\pm 360^\\circ\\}$: the folded path returns to the first ray (layer order is a separate question)')} /> : r.reason}</div>
         {shape?.flatLocked && <div className="mt-0.5 text-[13px] font-medium text-ink">{tr('강체 패널은 3D로 열리지 않는다 (평탄 잠금). ① 설명 참고.', 'Rigid panels cannot open in 3D (flat-locked). See ①.')}</div>}
       </div>
       <div className="border-t border-rule-2 px-3.5 py-2.5 md:border-l md:border-t-0">
@@ -138,12 +138,12 @@ function SectorDiagram({ theta, r }: { theta: number[]; r: SectorReport }) {
         })()}
         {wedges.map((w) => {
           const p = pt((w.a0 + w.a1) / 2, w.R * (w.i % 2 === 0 ? 0.55 : 0.8));
-          return <text key={'l' + w.i} x={p[0]} y={p[1] + 4 * u} fontSize={13 * u} textAnchor="middle" fill={colorOf(w.i)} fontWeight={700} stroke={C.paper} strokeWidth={3 * u} paintOrder="stroke">θ{w.i + 1} {deg1(theta[w.i])}</text>;
+          return <ThetaText key={'l' + w.i} x={p[0]} y={p[1] + 4 * u} i={w.i + 1} value={deg1(theta[w.i])} size={14 * u} halo={3.5 * u} fill={colorOf(w.i)} />;
         })}
       </svg>
       <p className="mt-1 text-center text-[13px] leading-snug text-ink-3">{tr('종이를 자르지 않고 펼친 순서대로 섹터를 이어 붙인 그림. 한 바퀴(360°)를 넘는 부분이 겹치면 각 초과 = 안장, 모자라면 각 부족 = 원뿔.', 'The sectors laid side by side in order, without cutting the paper. Overlap past one turn (360°) is an angle surplus = saddle; a shortfall is an angle deficit = cone.')}</p>
       <div className="mt-2 space-y-1.5 px-1 text-[13px]">
-        {[[tr('O (홀수 θ)', 'O (odd θ)'), r.odd, ODD, theta.filter((_, i) => i % 2 === 0)], [tr('E (짝수 θ)', 'E (even θ)'), r.even, EVEN, theta.filter((_, i) => i % 2 === 1)]].map(([label, v, col, parts]) => (
+        {[[tr('O (홀수 섹터)', 'O (odd sectors)'), r.odd, ODD, theta.filter((_, i) => i % 2 === 0)], [tr('E (짝수 섹터)', 'E (even sectors)'), r.even, EVEN, theta.filter((_, i) => i % 2 === 1)]].map(([label, v, col, parts]) => (
           <div key={label as string}>
             <div className="flex flex-wrap justify-between gap-x-2"><span style={{ color: col as string }} className="whitespace-nowrap font-semibold">{label as string}</span><span className="tnum text-right text-ink">{(parts as number[]).map((p) => deg1(p)).join(' + ')} = <b>{deg1(v as number)}</b></span></div>
             <div className="mt-0.5 h-2.5 rounded-[2px] bg-paper-2"><div className="h-full rounded-[2px]" style={{ width: `${((v as number) / maxBar) * 100}%`, background: col as string }} /></div>
@@ -263,25 +263,41 @@ function AngularWalk({ r }: { r: SectorReport }) {
 
 // ───────────────────────────────────────────── left: 3D
 
-function labelTexture(text: string, color: string) {
+/** A label drawn as page text over the 3D view, so it stays 14px whatever the zoom. */
+/** "θ₁" / "c₁" drawn on a canvas: the symbol, then its index as a real (smaller, lowered) subscript. */
+function labelTexture(sym: string, i: number, color: string) {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 96;
   const g = c.getContext('2d')!;
-  g.font = '600 46px Pretendard Variable, sans-serif';
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.lineWidth = 10; g.strokeStyle = 'rgba(255,255,255,0.92)'; g.strokeText(text, 128, 50);
-  g.fillStyle = color; g.fillText(text, 128, 50);
+  const big = `${sym === 'θ' ? 'italic ' : ''}700 50px "Pretendard Variable", Pretendard, sans-serif`;
+  const small = '700 34px "Pretendard Variable", Pretendard, sans-serif';
+  g.font = big; const w1 = g.measureText(sym).width;
+  g.font = small; const w2 = g.measureText(String(i)).width;
+  const x0 = 128 - (w1 + 2 + w2) / 2;
+  g.textBaseline = 'alphabetic';
+  g.lineJoin = 'round';
+  g.lineWidth = 10; g.strokeStyle = 'rgba(255,255,255,0.95)';
+  g.font = big; g.strokeText(sym, x0, 62);
+  g.font = small; g.strokeText(String(i), x0 + w1 + 2, 74);
+  g.fillStyle = color;
+  g.font = big; g.fillText(sym, x0, 62);
+  g.font = small; g.fillText(String(i), x0 + w1 + 2, 74);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 
-function Label({ position, text, color }: { position: V3; text: string; color: string }) {
-  const tex = useMemo(() => labelTexture(text, color), [text, color]);
+/** A label of constant screen size (about 15px text) whatever the zoom. */
+function Label({ position, sym, i, color }: { position: V3; sym: string; i: number; color: string }) {
+  const tex = useMemo(() => labelTexture(sym, i, color), [sym, i, color]);
   useEffect(() => () => tex.dispose(), [tex]);
+  const { size, camera } = useThree();
+  // with sizeAttenuation off a sprite is sized as if 1 unit from the camera
+  const fov = (camera as THREE.PerspectiveCamera).fov ?? 38;
+  const h = (30 / Math.max(120, size.height)) * 2 * Math.tan(((fov / 2) * Math.PI) / 180);
   return (
-    <sprite position={position} scale={[0.42, 0.158, 1]}>
-      <spriteMaterial map={tex} depthTest={false} transparent />
+    <sprite position={position} scale={[h * (256 / 96), h, 1]}>
+      <spriteMaterial map={tex} depthTest={false} transparent sizeAttenuation={false} />
     </sprite>
   );
 }
@@ -329,7 +345,7 @@ function VertexPanels({ rays, theta, lift = 0 }: { rays: V3[]; theta: number[]; 
                 <lineBasicMaterial color={C.ink3} />
               </lineSegments>
             )}
-            <Label position={[r[0] * 1.13, r[1] * 1.13, r[2] * 1.13 + zA]} text={`c${i + 1}`} color={C.ink2} />
+            <Label position={[r[0] * 1.13, r[1] * 1.13, r[2] * 1.13 + zA]} sym="c" i={i + 1} color={C.ink2} />
           </group>
         );
       })}
@@ -338,7 +354,7 @@ function VertexPanels({ rays, theta, lift = 0 }: { rays: V3[]; theta: number[]; 
         const m = new THREE.Vector3(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
         if (m.length() < 1e-6) m.set(-a[1], a[0], 0);
         m.normalize().multiplyScalar(0.62);
-        return <Label key={'t' + i} position={[m.x, m.y, m.z + lift * i]} text={`θ${i + 1}`} color={colorOf(i)} />;
+        return <Label key={'t' + i} position={[m.x, m.y, m.z + lift * i]} sym="θ" i={i + 1} color={colorOf(i)} />;
       })}
     </group>
   );
@@ -363,6 +379,10 @@ function Scene({ children }: { children: React.ReactNode }) {
 
 type View3D = 'vertex' | 'flat';
 
+const dotTex = '$\\mathbf{r}_i \\cdot \\mathbf{r}_{i+1} = \\cos\\theta_i$';
+const closure = '$\\sum_{i \\in I} \\theta_i - \\sum_{i \\notin I} \\theta_i \\le (|I| - 1) \\cdot 180^\\circ$';
+const notIn = '$S \\notin \\{0^\\circ, \\pm 360^\\circ\\}$';
+
 function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; shape: VertexShape | null }) {
   const [view, setView] = useState<View3D>('vertex');
   const [eps, setEps] = useState(6);
@@ -374,6 +394,8 @@ function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; 
     return { theta: th, shape: solveVertex3D(th), report: analyzeSectors(th) };
   }, [shape, theta, eps, cm]);
   const flatRays = useMemo(() => flatFoldedRays(theta), [theta]);
+  const subsetList = `$${cm.subset.map((i) => `\\theta_{${i}}`).join(', ')}$`;
+  const subsetTex = `$I = \\{${cm.subset.map((i) => `\\theta_{${i}}`).join(', ')}\\}$`;
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div role="tablist" aria-label={tr('3D 보기', '3D view')} className="flex flex-wrap gap-1">
@@ -391,26 +413,26 @@ function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; 
       </div>
       <div className="mt-1.5 space-y-1 text-[13px] leading-snug text-ink-2">
         {view === 'vertex' && shape && !shape.flatLocked && (
-          <p>{tr(<><b className="text-ink">정확한 강체 기하.</b> 각 패널은 θi를 그대로 유지한다 (ri·ri+1 = cos θi, 잔차 {shape.residual.toExponential(1)}).</>, <><b className="text-ink">Exact rigid geometry.</b> Each panel keeps its θi exactly (ri·ri+1 = cos θi, residual {shape.residual.toExponential(1)}).</>)} {r.intrinsic === 'flat' ? tr('T = 360°: 평평한 종이 그대로.', 'T = 360°: plain flat paper.') : r.intrinsic === 'saddle' ? tr('T > 360°: 평면에 놓일 수 없어 위아래로 물결치는 안장 모양.', 'T > 360°: it cannot lie in a plane, so it forms a saddle that waves up and down.') : tr('T < 360°: 원뿔 모양.', 'T < 360°: a cone.')} {tr('마우스로 돌려 볼 수 있다.', 'Drag to rotate.')}
+          <p>{tr(<><b className="text-ink">정확한 강체 기하.</b> 각 패널은 섹터각을 그대로 유지한다 (<Rich text={dotTex} />, 잔차 <Sci x={shape.residual} d={1} />).</>, <><b className="text-ink">Exact rigid geometry.</b> Each panel keeps its sector angle exactly (<Rich text={dotTex} />, residual <Sci x={shape.residual} d={1} />).</>)} {r.intrinsic === 'flat' ? tr('T = 360°: 평평한 종이 그대로.', 'T = 360°: plain flat paper.') : r.intrinsic === 'saddle' ? tr('T > 360°: 평면에 놓일 수 없어 위아래로 물결치는 안장 모양.', 'T > 360°: it cannot lie in a plane, so it forms a saddle that waves up and down.') : tr('T < 360°: 원뿔 모양.', 'T < 360°: a cone.')} {tr('마우스로 돌려 볼 수 있다.', 'Drag to rotate.')}
             {shape.crossings > 0 && <b className="text-bad">{tr(<> 이 형상에서는 패널 {shape.crossings}쌍이 서로 통과한다.</>, <> In this shape, {shape.crossings} panel pair(s) pass through each other.</>)}</b>}</p>
         )}
         {view === 'vertex' && shape?.flatLocked && near && (
           <>
-            <p className="rounded-[3px] border border-warn/50 bg-warn-soft px-2 py-1.5">{tr(<><b className="text-ink">평탄 잠금: 이 강체 패널들은 3D로 열릴 수 없다.</b> 닫힘 조건 Σ<sub>I</sub>θ − Σ<sub>나머지</sub>θ ≤ (|I|−1)·180°에서 I = {'{'}θ{cm.subset.join(', θ')}{'}'}가 정확히 등호(여유 {deg1(cm.margin)})다. 그래서 유일한 닫힌 모양은 한 평면 위의 상태, 즉 한 바퀴 감긴 평탄 접힘뿐이다. 6장짜리 꼭짓점에서 S = ±360°는 S가 가질 수 있는 최댓값이다.</>,
-              <><b className="text-ink">Flat-locked: these rigid panels cannot open in 3D.</b> In the closure condition Σ<sub>I</sub>θ − Σ<sub>rest</sub>θ ≤ (|I|−1)·180°, I = {'{'}θ{cm.subset.join(', θ')}{'}'} is exactly at equality (margin {deg1(cm.margin)}). So the only closed shape lies in one plane: the flat fold wound once around. For a 6-panel vertex, S = ±360° is the largest value S can take.</>)}</p>
+            <p className="rounded-[3px] border border-warn/50 bg-warn-soft px-2 py-1.5">{tr(<><b className="text-ink">평탄 잠금: 이 강체 패널들은 3D로 열릴 수 없다.</b> 닫힘 조건 <Rich text={closure} />에서 <Rich text={subsetTex} />가 정확히 등호(여유 {deg1(cm.margin)})다. 그래서 유일한 닫힌 모양은 한 평면 위의 상태, 즉 한 바퀴 감긴 평탄 접힘뿐이다. 6장짜리 꼭짓점에서 S = ±360°는 S가 가질 수 있는 최댓값이다.</>,
+              <><b className="text-ink">Flat-locked: these rigid panels cannot open in 3D.</b> In the closure condition <Rich text={closure} />, <Rich text={subsetTex} /> is exactly at equality (margin {deg1(cm.margin)}). So the only closed shape lies in one plane: the flat fold wound once around. For a 6-panel vertex, S = ±360° is the largest value S can take.</>)}</p>
             <label className="block">
-              <span className="flex justify-between"><span>{tr(<>가까운 꼭짓점 열어 보기: θ{cm.subset.join(', θ')}를 ε만큼 줄임</>, <>Open a nearby vertex: shrink θ{cm.subset.join(', θ')} by ε</>)}</span><b className="tnum text-ink">ε = {eps.toFixed(1)}°</b></span>
+              <span className="flex justify-between"><span>{tr(<>가까운 꼭짓점 열어 보기: <Rich text={subsetList} />를 ε만큼 줄임</>, <>Open a nearby vertex: shrink <Rich text={subsetList} /> by ε</>)}</span><b className="tnum text-ink">ε = {eps.toFixed(1)}°</b></span>
               <input type="range" className="w-full" min={0.2} max={12} step={0.1} value={eps} onChange={(e) => setEps(parseFloat(e.target.value))} aria-label="ε" />
             </label>
-            <p className="tnum">{tr(<>지금 보이는 것은 <b className="text-ink">다른 꼭짓점</b> θ′ = [{near.theta.map((x) => deg1(x)).join(', ')}] (S′ = {fmtSigned(near.report.S)}, 잔차 {near.shape.residual.toExponential(1)}). ε → 0이면 안장이 납작해지며 한 바퀴 감긴 평탄 상태로 수렴한다.</>,
-              <>What you see is a <b className="text-ink">different vertex</b> θ′ = [{near.theta.map((x) => deg1(x)).join(', ')}] (S′ = {fmtSigned(near.report.S)}, residual {near.shape.residual.toExponential(1)}). As ε → 0 the saddle flattens and approaches the flat state wound once around.</>)}</p>
+            <p className="tnum">{tr(<>지금 보이는 것은 <b className="text-ink">다른 꼭짓점</b> θ′ = [{near.theta.map((x) => deg1(x)).join(', ')}] (S′ = {fmtSigned(near.report.S)}, 잔차 <Sci x={near.shape.residual} d={1} />). ε → 0이면 안장이 납작해지며 한 바퀴 감긴 평탄 상태로 수렴한다.</>,
+              <>What you see is a <b className="text-ink">different vertex</b> θ′ = [{near.theta.map((x) => deg1(x)).join(', ')}] (S′ = {fmtSigned(near.report.S)}, residual <Sci x={near.shape.residual} d={1} />). As ε → 0 the saddle flattens and approaches the flat state wound once around.</>)}</p>
           </>
         )}
         {view === 'flat' && (
           <p className="rounded-[3px] border border-rule-2 bg-paper px-2 py-1.5">
-            <b className="text-ink">Flat-fold angular map.</b> {tr(<>광선 k를 평면의 방향 φ<sub>k−1</sub>에 놓은 정확한 평탄 접힘 배치다 (각 패널 = θi, 방향이 번갈아 뒤집힘). 층은 보기 좋게 순서대로 띄워 그렸다.</>, <>The exact flat-folded layout with ray k at direction φ<sub>k−1</sub> in the plane (each panel = θi, orientation alternating). Layers are drawn spaced apart in order for clarity.</>)}{' '}
-            {r.pass ? tr('마지막 패널이 첫 광선으로 돌아와 닫힌다.', 'The last panel returns to the first ray and closes.') : <b className="text-bad">{tr(<>마지막 패널이 첫 광선으로 돌아오지 않는다 (S ∉ {'{'}0°, ±360°{'}'}): 닫힌 평탄 상태가 없다.</>, <>The last panel does not return to the first ray (S ∉ {'{'}0°, ±360°{'}'}): there is no closed flat state.</>)}</b>}
-            <br /><i>Angular closure visualization. This view illustrates the generalized Kawasaki winding condition; it does not independently verify global layer ordering or collision.</i>
+            <b className="text-ink">{tr('평탄 접힘 각도 지도.', 'Flat-fold angle map.')}</b> {tr(<>광선 k를 평면의 방향 φ<sub>k−1</sub>에 놓은 정확한 평탄 접힘 배치다 (각 패널 = θi, 방향이 번갈아 뒤집힘). 층은 보기 좋게 순서대로 띄워 그렸다.</>, <>The exact flat-folded layout with ray k at direction φ<sub>k−1</sub> in the plane (each panel = θi, orientation alternating). Layers are drawn spaced apart in order for clarity.</>)}{' '}
+            {r.pass ? tr('마지막 패널이 첫 광선으로 돌아와 닫힌다.', 'The last panel returns to the first ray and closes.') : <b className="text-bad">{tr(<>마지막 패널이 첫 광선으로 돌아오지 않는다 (<Rich text={notIn} />): 닫힌 평탄 상태가 없다.</>, <>The last panel does not return to the first ray (<Rich text={notIn} />): there is no closed flat state.</>)}</b>}
+            <span className="mt-1 block text-ink-3">{tr('각도가 닫히는지만 보여 준다. 층의 순서나 충돌은 따로 검증하지 않는다.', 'This shows only whether the angles close. It does not check the layer order or collisions.')}</span>
           </p>
         )}
         <p className="text-[13px] text-ink-3">{tr('3D 꼭짓점과 평탄 접힘 상태 사이의 접는 동작(경로)은 계산하지 않는다: 각 창은 그 자체로 정확한 배치이며, 두 상태를 잇는 움직임을 꾸며 넣지 않았다.', 'The folding motion (path) between the 3D vertex and the flat-folded state is not computed: each view is an exact layout on its own, and no motion connecting them is invented.')}</p>

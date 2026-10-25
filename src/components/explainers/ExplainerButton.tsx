@@ -40,16 +40,16 @@ export function ExplainerButton({ lessonId, variant = 'card' }: { lessonId: stri
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
   if (!entry) return null;
-  const label = tr('애니메이션으로 이해하기', 'Watch the animation');
+  const label = tr('애니메이션으로 보기', 'Watch it animated');
   return (
     <>
       {variant === 'card' ? (
-        <button type="button" onClick={() => setOpen(true)}
-          className="group mt-3 flex w-full items-center gap-3 rounded-[3px] border border-ink bg-paper px-3 py-2.5 text-left transition-colors hover:bg-paper-2">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper"><Clapperboard size={17} /></span>
-          <span className="min-w-0">
-            <span className="block text-[15px] font-semibold text-ink">{label}</span>
-            <span className="block text-[13px] leading-snug text-ink-3">{entry.title()} · {tr(`약 ${minutes(entry)}분`, `about ${minutes(entry)} min`)}</span>
+        <button type="button" onClick={() => setOpen(true)} title={entry.title()}
+          className="group mt-3 flex w-full items-center gap-2.5 rounded-[3px] border border-ink bg-paper px-2.5 py-2 text-left transition-colors hover:bg-paper-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper"><Clapperboard size={15} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-semibold leading-tight text-ink">{label}</span>
+            <span className="block truncate text-[12px] text-ink-3">{tr(`약 ${minutes(entry)}분 · 단계별 설명`, `about ${minutes(entry)} min · step by step`)}</span>
           </span>
         </button>
       ) : (

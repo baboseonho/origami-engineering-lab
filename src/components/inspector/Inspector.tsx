@@ -1,7 +1,7 @@
 import { useMemo, useRef, type ReactNode } from 'react';
 import { Anchor, ArrowLeft, ArrowRight, Lock, LockOpen, MousePointerClick, Play, Rewind } from 'lucide-react';
 import { analyzeVertex } from '../../core/analysis/metrics';
-import { fmtDeg, toDeg, toRad } from '../../core/geometry/angles';
+import { toDeg, toRad } from '../../core/geometry/angles';
 import { creaseName } from '../../core/topology/names';
 import { isCrease, type Assignment } from '../../core/topology/types';
 import { DEG } from '../../core/numerics/tolerances';
@@ -12,15 +12,17 @@ import { useUI } from '../../state/uiStore';
 import { animatePatternFold, applyParams, cancelPatternFold, driveSelected, foldDriveFully, patternFoldMode, patternFoldProgress, setPatternFold, pushHistory, setAssignment, setDriveEdge, setEnforceMV, setUseSymmetry, toggleLock } from '../../state/actions';
 import { lessonById } from '../../curriculum/lessons';
 import { TUBE_SYMMETRY_NOTE } from '../../models/generators/waterbombTube';
-import { ASSIGN_COLOR, ASSIGN_LABEL, AngleSlider, Badge, Button, KV, NumberField, Section, SpeedControl, Toggle, fmt } from '../controls/ui';
+import { ASSIGN_COLOR, ASSIGN_LABEL, AngleSlider, Badge, Button, KV, NumberField, Section, SpeedControl, Toggle } from '../controls/ui';
 import { VerdictStrip } from './FeasibilityBoard';
 import { layersFor } from '../viewport/layerCache';
 import { getLang, tr } from '../../i18n';
+import { Rich } from '../controls/Rich';
+import { CreaseLabel, Num, deg, num, plainNum } from '../analysis/num';
 
 /** Closure error in words: an exact rigid solution reads "≈ 0", the number stays in the tooltip. */
 function Residual({ value }: { value: number }) {
   const exact = value < 1e-8;
-  return <span title={`‖C‖ = ${fmt(value)}`}>{exact ? tr('≈ 0 (정확한 강체 해)', '≈ 0 (exact rigid solution)') : fmt(value)}</span>;
+  return <span title={`‖C‖ = ${plainNum(value)}`}>{exact ? tr('≈ 0 (정확한 강체 해)', '≈ 0 (exact rigid solution)') : <Num value={value} />}</span>;
 }
 
 /** Shown only when the rigid solver refused: what was asked, where it stopped, why. */
@@ -34,8 +36,8 @@ function SolverFailure() {
     <div className="mt-3 rounded-[3px] border border-bad/40 bg-bad-soft px-3 py-2.5 text-[14px]" role="status">
       <Badge status="bad">{tr('강체 해 없음', 'no rigid solution')}</Badge>
       <p className="mt-2 leading-relaxed text-ink">
-        {tr(<>요청한 <span className="greek">ρ</span> = {fmtDeg(result.requestedAngle ?? 0, 1)} 에서 면을 변형하지 않는 배치를 찾지 못했다. 마지막으로 가능했던 <span className="greek">ρ</span> = {fmtDeg(result.reachedAngle ?? 0, 1)} 에서 멈췄다.</>,
-          <>No configuration without facet deformation was found at the requested <span className="greek">ρ</span> = {fmtDeg(result.requestedAngle ?? 0, 1)}. Stopped at <span className="greek">ρ</span> = {fmtDeg(result.reachedAngle ?? 0, 1)}, the last reachable angle.</>)}
+        {tr(<>요청한 <span className="greek">ρ</span> = {deg(result.requestedAngle ?? 0, 1, true)} 에서 면을 변형하지 않는 배치를 찾지 못했다. 마지막으로 가능했던 <span className="greek">ρ</span> = {deg(result.reachedAngle ?? 0, 1, true)} 에서 멈췄다.</>,
+          <>No configuration without facet deformation was found at the requested <span className="greek">ρ</span> = {deg(result.requestedAngle ?? 0, 1, true)}. Stopped at <span className="greek">ρ</span> = {deg(result.reachedAngle ?? 0, 1, true)}, the last reachable angle.</>)}
       </p>
       {result.reasons.length > 0 && (
         <ul className="mt-1.5 list-disc space-y-1 pl-5 leading-relaxed text-ink-2">
@@ -60,10 +62,10 @@ function SolverNumbers() {
   if (solverMode !== 'rigid' || !result) return null;
   return (
     <Section title={tr('풀이 수치', 'Solver numbers')} foldable defaultOpen={false}>
-      <KV k={tr('닫힘 오차 ‖C‖', 'Closure error ‖C‖')} v={<Residual value={result.residualNorm} />} />
+      <KV k={<Rich text={tr('닫힘 오차 $\\|C\\|$', 'Closure error $\\|C\\|$')} />} v={<Residual value={result.residualNorm} />} />
       <KV k={tr('반복 횟수', 'Iterations')} v={result.iterations} />
-      {result.jacobianRank !== undefined && <KV k={tr('야코비안 계수 rank J', 'Jacobian rank J')} v={result.jacobianRank} />}
-      {result.conditionEstimate !== undefined && Number.isFinite(result.conditionEstimate) && <KV k={tr('조건수 κ (클수록 불안정)', 'Condition number κ (larger = less stable)')} v={fmt(result.conditionEstimate, 1)} />}
+      {result.jacobianRank !== undefined && <KV k={<Rich text={tr('야코비안 계수 $\\operatorname{rank} J$', 'Jacobian rank $\\operatorname{rank} J$')} />} v={result.jacobianRank} />}
+      {result.conditionEstimate !== undefined && Number.isFinite(result.conditionEstimate) && <KV k={<Rich text={tr('조건수 $\\kappa$ (클수록 불안정)', 'Condition number $\\kappa$ (larger = less stable)')} />} v={<Num value={result.conditionEstimate} d={1} />} />}
     </Section>
   );
 }
@@ -89,7 +91,7 @@ function CreaseControls({ id }: { id: number }) {
       <NumberField label={tr('목표 접힘각 (도)', 'Target fold angle (degrees)')} value={+toDeg(value).toFixed(3)} suffix="°" onCommit={(d) => { pushHistory(); driveSelected(id, toRad(d), true); }} />
       <div className="mt-1 grid grid-cols-5 gap-1">
         {[-90, -45, 0, 45, 90].map((d) => (
-          <button key={d} type="button" className="tnum h-8 rounded-[3px] border border-rule-2 text-[13px] text-ink-2 hover:border-ink hover:text-ink" onClick={() => { pushHistory(); driveSelected(id, d * DEG, true); }}>{d > 0 ? '+' : ''}{d}°</button>
+          <button key={d} type="button" className="tnum h-8 rounded-[3px] border border-rule-2 text-[13px] text-ink-2 hover:border-ink hover:text-ink" onClick={() => { pushHistory(); driveSelected(id, d * DEG, true); }}>{d > 0 ? `+${d}` : d < 0 ? `−${-d}` : d}°</button>
         ))}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-1.5">
@@ -137,18 +139,18 @@ function CreaseInspector({ id, patternFold }: { id: number; patternFold: boolean
       <div className="border-b border-rule-2 px-4 py-3">
         <div className="lettering text-[12px] text-ink-3">{tr('선택한 크리스', 'Selected crease')}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          <span className={`text-[22px] font-bold leading-tight text-ink ${labelled ? 'greek' : 'tnum'}`}>{name}</span>
+          <CreaseLabel name={name} className="text-[22px] font-bold leading-tight text-ink" />
           <span className="inline-flex items-center gap-1.5 text-[14px] text-ink-2">
             <span className="h-[3px] w-5 rounded" style={{ background: ASSIGN_COLOR[e.assignment] }} />{ASSIGN_LABEL[e.assignment]}
           </span>
           {drive === id && <span className="rounded-[3px] border border-ink px-1.5 text-[13px] font-semibold text-ink">{tr('구동 중', 'Driving')}</span>}
         </div>
-        <div className="tnum mt-1 text-[13px] text-ink-3">{labelled && <>e{id} · </>}v{e.vertices[0]}–v{e.vertices[1]} · {tr('길이', 'length')} {e.restLength.toFixed(3)}</div>
+        <div className="tnum mt-1 text-[13px] text-ink-3">{labelled && <>e{id} · </>}v{e.vertices[0]}–v{e.vertices[1]} · {tr('길이', 'length')} {num(e.restLength, 3)}</div>
         <div className="mt-2.5 flex items-baseline justify-between">
           <span className="text-[14px] text-ink-3">{tr('현재 접힘각', 'Current fold angle')} <span className="greek">ρ</span></span>
-          <span className="tnum text-[22px] font-semibold leading-tight text-ink">{fmtDeg(rho[id] ?? 0, 1)}</span>
+          <span className="tnum text-[22px] font-semibold leading-tight text-ink">{deg(rho[id] ?? 0, 1, true)}</span>
         </div>
-        {e.referenceFoldAngle !== 0 && <KV k={tr('기준 형상 ρ⁰', 'Reference shape ρ⁰')} v={fmtDeg(e.referenceFoldAngle, 1)} />}
+        {e.referenceFoldAngle !== 0 && <KV k={<Rich text={tr('기준 형상의 접힘각 $\\rho^0$', 'Reference fold angle $\\rho^0$')} />} v={deg(e.referenceFoldAngle, 1, true)} />}
         {boundary && <p className="mt-1 text-[13px] text-ink-3">{tr('경계선은 접히지 않는다.', 'Boundary edges do not fold.')}</p>}
         <SolverFailure />
       </div>
@@ -186,10 +188,10 @@ function CreaseInspector({ id, patternFold }: { id: number; patternFold: boolean
                 const d = toDeg(x.after - x.before);
                 return (
                   <tr key={x.edge} className="cursor-pointer border-t border-rule hover:bg-paper-2" onClick={() => useUI.getState().select({ kind: 'edge', id: x.edge })}>
-                    <td className="py-1" style={{ color: ASSIGN_COLOR[model.edges[x.edge].assignment] }}><span className={n.startsWith('e') ? '' : 'greek'}>{n}</span></td>
-                    <td className="py-1 text-right text-ink-3">{toDeg(x.before).toFixed(1)}°</td>
-                    <td className="py-1 text-right text-ink">{toDeg(x.after).toFixed(1)}°</td>
-                    <td className="py-1 text-right font-medium text-ink-2">{Math.abs(d) < 0.005 ? '0.00' : (d > 0 ? '+' : '') + d.toFixed(2)}°</td>
+                    <td className="py-1" style={{ color: ASSIGN_COLOR[model.edges[x.edge].assignment] }}><CreaseLabel name={n} /></td>
+                    <td className="py-1 text-right text-ink-3">{deg(x.before, 1)}</td>
+                    <td className="py-1 text-right text-ink">{deg(x.after, 1)}</td>
+                    <td className="py-1 text-right font-medium text-ink-2">{num(d, 1, true)}°</td>
                   </tr>
                 );
               })}
@@ -224,21 +226,21 @@ function VertexInspector({ id }: { id: number }) {
           <>
             <ul className="space-y-1.5 text-[14px]">
               <li className="flex items-center justify-between gap-2">
-                <span className="min-w-0 text-ink-2">{tr('Kawasaki (교대합 = 0)', 'Kawasaki (alternating sum = 0)')}</span>
+                <span className="min-w-0 text-ink-2"><Rich text={tr('Kawasaki: 교대합 $A = 0$', 'Kawasaki: alternating sum $A = 0$')} /></span>
                 <Badge status={r.kawasaki.satisfied ? 'ok' : sumIs360 ? 'bad' : 'na'}>{r.kawasaki.satisfied ? tr('성립', 'holds') : sumIs360 ? tr('위반', 'violated') : tr('해당 없음', 'n/a')}</Badge>
               </li>
               <li className="flex items-center justify-between gap-2">
-                <span className="min-w-0 text-ink-2">{tr('일반화 Kawasaki', 'Generalized Kawasaki')} (A ∈ {'{0, ±360°}'})</span>
-                <Badge status={r.generalized.satisfied ? 'ok' : 'bad'}>{r.generalized.windingClass === null ? tr('위반', 'violated') : r.generalized.windingClass === 0 ? 'A = 0' : r.generalized.windingClass > 0 ? 'A = +360°' : 'A = −360°'}</Badge>
+                <span className="min-w-0 text-ink-2"><Rich text={tr('일반화 Kawasaki: $A \\in \\{0, \\pm 360^\\circ\\}$', 'Generalized Kawasaki: $A \\in \\{0, \\pm 360^\\circ\\}$')} /></span>
+                <Badge status={r.generalized.satisfied ? 'ok' : 'bad'}>{r.generalized.windingClass === null ? tr('위반', 'violated') : r.generalized.windingClass === 0 ? tr('성립 (A = 0)', 'holds (A = 0)') : r.generalized.windingClass > 0 ? tr('성립 (A = +360°)', 'holds (A = +360°)') : tr('성립 (A = −360°)', 'holds (A = −360°)')}</Badge>
               </li>
               <li className="flex items-center justify-between gap-2">
-                <span className="min-w-0 text-ink-2">Maekawa (M − V = {r.generalizedMaekawa.expected})</span>
-                <Badge status={r.generalizedMaekawa.satisfied ? 'ok' : 'bad'}>{r.generalizedMaekawa.satisfied ? tr('성립', 'holds') : tr(`위반 (${r.maekawa.M}−${r.maekawa.V})`, `violated (${r.maekawa.M}−${r.maekawa.V})`)}</Badge>
+                <span className="min-w-0 text-ink-2"><Rich text={`Maekawa: ${r.generalized.windingClass === null ? tr('해당 없음', 'n/a') : r.generalized.windingClass === 0 ? '$|M - V| = 2$' : '$M = V$'}`} /></span>
+                <Badge status={r.generalizedMaekawa.satisfied ? 'ok' : 'bad'}>{r.generalizedMaekawa.satisfied ? tr('성립', 'holds') : tr(`위반 (M ${r.maekawa.M}, V ${r.maekawa.V})`, `violated (M ${r.maekawa.M}, V ${r.maekawa.V})`)}</Badge>
               </li>
               {r.mvCheck && (
                 <li className="flex items-center justify-between gap-2">
                   <span className="min-w-0 text-ink-2">{tr('M/V 배정 (크림프 검사)', 'M/V assignment (crimp check)')}</span>
-                  <Badge status={r.mvCheck.valid ? 'ok' : 'bad'}>{r.mvCheck.valid ? tr('유효', 'valid') : tr('무효', 'invalid')}</Badge>
+                  <Badge status={r.mvCheck.valid ? 'ok' : 'bad'}>{r.mvCheck.valid ? tr('성립', 'holds') : tr('위반', 'violated')}</Badge>
                 </li>
               )}
             </ul>
@@ -250,7 +252,7 @@ function VertexInspector({ id }: { id: number }) {
       {r.interior && r.edges.length > 0 && (
         <Section title={tr('섹터 각과 접힘각', 'Sector and fold angles')} foldable defaultOpen={false}>
           <table className="tnum w-full text-[13px]">
-            <thead><tr className="text-ink-3"><th className="pb-1 text-left font-normal">i</th><th className="pb-1 text-left font-normal">{tr('크리스', 'Crease')}</th><th className="pb-1 text-left font-normal">M/V</th><th className="pb-1 text-right font-normal"><span className="greek">θ</span>ᵢ</th><th className="pb-1 text-right font-normal">{tr('현재', 'Current')} <span className="greek">ρ</span></th></tr></thead>
+            <thead><tr className="text-ink-3"><th className="pb-1 text-left font-normal">i</th><th className="pb-1 text-left font-normal">{tr('크리스', 'Crease')}</th><th className="pb-1 text-left font-normal">M/V</th><th className="pb-1 text-right font-normal"><Rich text="$\theta_i$" /></th><th className="pb-1 text-right font-normal">{tr('현재', 'Current')} <span className="greek">ρ</span></th></tr></thead>
             <tbody>
               {r.edges.map((eid, i) => {
                 const n = creaseName(model, eid);
@@ -258,18 +260,18 @@ function VertexInspector({ id }: { id: number }) {
                   <tr key={eid} className="cursor-pointer border-t border-rule hover:bg-paper-2" onClick={() => useUI.getState().select({ kind: 'edge', id: eid })}
                     onMouseEnter={() => useUI.getState().setTheoryHover(`θ${i + 1}`)} onMouseLeave={() => useUI.getState().setTheoryHover(null)}>
                     <td className="py-1 text-ink-3">{i + 1}</td>
-                    <td className={`py-1 ${n.startsWith('e') ? '' : 'greek'}`}>{n}</td>
+                    <td className="py-1"><CreaseLabel name={n} /></td>
                     <td className="py-1 font-semibold" style={{ color: ASSIGN_COLOR[r.assignments[i]] }}>{r.assignments[i]}</td>
-                    <td className="py-1 text-right">{toDeg(r.sectors[i]).toFixed(2)}°</td>
-                    <td className="py-1 text-right text-ink-2">{fmtDeg(rho[eid] ?? 0, 1)}</td>
+                    <td className="py-1 text-right">{deg(r.sectors[i], 1)}</td>
+                    <td className="py-1 text-right text-ink-2">{deg(rho[eid] ?? 0, 1, true)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
           <div className="mt-2">
-            <KV k={<>{tr('섹터 각 합', 'Sector angle sum')} Σ<span className="greek">θ</span></>} v={`${toDeg(r.generalized.total).toFixed(2)}°`} />
-            <KV k={tr('교대합 A = Σodd − Σeven', 'Alternating sum A = Σodd − Σeven')} v={`${toDeg(r.generalized.alternating).toFixed(2)}°`} />
+            <KV k={<Rich text={tr('섹터 각 합 $\\sum \\theta_i$', 'Sector angle sum $\\sum \\theta_i$')} />} v={deg(r.generalized.total, 1)} />
+            <KV k={<Rich text={tr('교대합 $A = \\theta_1 - \\theta_2 + \\theta_3 - \\cdots$', 'Alternating sum $A = \\theta_1 - \\theta_2 + \\theta_3 - \\cdots$')} />} v={deg(r.generalized.alternating, 1)} />
           </div>
         </Section>
       )}
@@ -288,7 +290,7 @@ function FaceInspector({ id }: { id: number }) {
       </div>
       <Section title={tr('면 정보', 'Facet info')}>
         <KV k={tr('꼭짓점', 'Vertices')} v={f.vertices.map((v) => 'v' + v).join(' ')} />
-        <KV k={tr('면적', 'Area')} v={f.area.toFixed(4)} />
+        <KV k={tr('면적', 'Area')} v={num(f.area, 3)} />
         <KV k={tr('기준면 (강체 풀이의 고정 면)', 'Base facet (held fixed by the rigid solve)')} v={(engine.rigid?.sys.tree.baseFace ?? -1) === id ? tr('예', 'yes') : tr('아니오', 'no')} mono={false} />
       </Section>
     </>
@@ -308,7 +310,7 @@ function ModelSummary() {
       <KV k={tr('꼭짓점 / 모서리 / 면', 'Vertices / edges / facets')} v={`${model.vertices.length} / ${model.edges.length} / ${model.faces.length}`} />
       <KV k={tr('접히는 크리스', 'Folding creases')} v={model.edges.filter((e) => e.faces[1] >= 0 && isCrease(e.assignment)).length} />
       <KV k={tr('기준 형상', 'Reference shape')} v={model.metadata.developable ? tr('평면 종이', 'flat paper') : tr('3D 조립체', '3D assembly')} mono={false} />
-      <KV k={tr('구동 크리스', 'Driving crease')} v={drive === null ? tr('없음', 'none') : creaseName(model, drive)} />
+      <KV k={tr('구동 크리스', 'Driving crease')} v={drive === null ? tr('없음', 'none') : <CreaseLabel name={creaseName(model, drive)} />} />
       <KV k={tr('고정', 'Locked')} v={locked.length ? locked.map((l) => creaseName(model, l)).join(', ') : tr('없음', 'none')} />
       <div className="mt-2">
         <Toggle checked={enforceMV} onChange={setEnforceMV} label={tr('M/V 배정 준수 (Rigid)', 'Respect M/V assignment (Rigid)')} title={tr('M 크리스는 ρ ≤ 0, V 크리스는 ρ ≥ 0', 'M creases ρ ≤ 0, V creases ρ ≥ 0')} />
@@ -412,7 +414,7 @@ function PatternFoldCard({ mode }: { mode: 'rigid' | 'energy' }) {
       <div className="mt-2.5 border-t border-dashed border-rule-2 pt-1.5">
         {mode === 'rigid' && result && <KV k={tr('닫힘 오차', 'Closure error')} v={<Residual value={result.residualNorm} />} />}
         {mode === 'energy' && solverMode === 'energy' && p > 0 && (
-          <KV k={tr('면 늘어남 (지금 / 경로 중 최대)', 'Facet stretch (now / path max)')} v={`${(maxStrain * 100).toFixed(1)}% / ${(Math.max(peak, maxStrain) * 100).toFixed(1)}%`} />
+          <KV k={tr('면 늘어남 (지금 / 경로 중 최대)', 'Facet stretch (now / path max)')} v={`${num(maxStrain * 100, 1)}% / ${num(Math.max(peak, maxStrain) * 100, 1)}%`} />
         )}
         {stack > 1 && <KV k={tr('한 지점에 겹친 종이', 'Paper layers at one point')} v={tr(`최대 ${stack}장`, `up to ${stack}`)} />}
         {mode === 'energy' && collisions > 0 && (

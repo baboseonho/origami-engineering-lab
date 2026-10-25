@@ -11,7 +11,8 @@ import { useModel } from '../../state/modelStore';
 import { useSim } from '../../state/simulationStore';
 import { useUI } from '../../state/uiStore';
 import { applyParams, setDriveEdge, setSolverMode, setTarget } from '../../state/actions';
-import { Badge, Button, KV, Section, SpeedControl, fmt } from '../controls/ui';
+import { Badge, Button, KV, Section, SpeedControl } from '../controls/ui';
+import { Group, Sci, degTxt, num } from './labKit';
 import { Rich } from '../controls/Rich';
 import { tr } from '../../i18n';
 import { Viewport3D } from '../viewport/Viewport3D';
@@ -76,25 +77,33 @@ export function ConceptLab() {
       <div className="relative min-h-0 min-w-0"><Viewport3D /></div>
       <div className="border-t border-rule bg-paper lg:overflow-y-auto lg:border-l lg:border-t-0">
         <Section title={tr('형상 (Rigid 솔버, 1 DoF)', 'Shape (Rigid solver, 1 DoF)')}>
-          <div className="flex justify-between text-[12px] text-ink-3"><span>{tr('펼침 (평탄)', 'Unfolded (flat)')}</span><span>{tr('중간', 'Middle')}</span><span>{tr('수납 (압축)', 'Stowed (compact)')}</span></div>
+          <Group caption={tr('접기', 'Fold')} className="mb-3">
+            <Button kind="primary" size="sm" onClick={() => animate(1)}><Play size={14} />{tr('수납', 'Stow')}</Button>
+            <Button size="sm" onClick={() => animate(0.5)}>{tr('중간', 'Middle')}</Button>
+            <Button size="sm" onClick={() => animate(0)}><Play size={14} className="-scale-x-100" />{tr('펼치기', 'Unfold')}</Button>
+            <SpeedControl className="w-full pt-1" />
+          </Group>
+          <div className="flex justify-between text-[13px] text-ink-3"><span>{tr('펼침 (평탄)', 'Unfolded (flat)')}</span><span>{tr('수납 (압축)', 'Stowed (compact)')}</span></div>
           <input type="range" className="w-full" min={0} max={1} step={0.002} value={pct} aria-label={tr('형상 (펼침 → 수납)', 'Shape (unfolded → stowed)')} onChange={(e) => { cancelAnimationFrame(anim.current); go(parseFloat(e.target.value)); }} />
-          <div className="mt-1 flex gap-1">
-            <Button onClick={() => animate(1)}><Play size={14} />{tr('수납', 'Stow')}</Button>
-            <Button onClick={() => animate(0.5)}>{tr('중간', 'Middle')}</Button>
-            <Button onClick={() => animate(0)}><Play size={14} />{tr('펼치기', 'Unfold')}</Button>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-[3px] border border-rule-2 px-3 py-2">
+              <div className="text-[13px] text-ink-3">{tr('점유 면적 W·L / 평탄', 'Footprint W·L / flat')}</div>
+              <div className="tnum text-[22px] font-semibold leading-tight text-ink">{dims ? `${Math.round(dims.areaRatio * 100)}%` : '—'}</div>
+            </div>
+            <div className="rounded-[3px] border border-rule-2 px-3 py-2">
+              <div className="text-[13px] text-ink-3">{tr('두께 T', 'Thickness T')}</div>
+              <div className="tnum text-[22px] font-semibold leading-tight text-ink">{dims ? dims.T.toFixed(3) : '—'}</div>
+            </div>
           </div>
-          <SpeedControl className="mt-2" />
-          <div className="mt-2 text-[13px]">
-            <KV k={tr('구동 접힘각', 'Driven fold angle')} v={drive !== null ? `${toDeg(rho[drive] ?? 0).toFixed(1)}°` : '—'} />
-            <KV k={tr('점유 면적 W·L / 평탄', 'Footprint W·L / flat')} v={dims ? dims.areaRatio.toFixed(3) : '—'} />
-            <KV k={tr('두께 T', 'Thickness T')} v={dims ? dims.T.toFixed(3) : '—'} />
-            <KV k={tr('닫힘 잔차', 'Closure residual')} v={fmt(result?.residualNorm)} />
+          <div className="mt-2">
+            <KV k={tr('구동 접힘각', 'Driven fold angle')} v={drive !== null ? degTxt(toDeg(rho[drive] ?? 0), 1) : '—'} />
+            <KV k={tr('닫힘 잔차', 'Closure residual')} v={<Sci x={result?.residualNorm} d={1} />} />
           </div>
-          <p className="mt-1 text-[12px] text-ink-3">{tr('애니메이션의 모든 프레임은 보간이 아니라 정확한 강체 해(기구학 솔버의 연속법)이다.', 'Every animation frame is an exact rigid solution (continuation with the kinematic solver), not an interpolation.')}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-3">{tr('애니메이션의 모든 프레임은 보간이 아니라 정확한 강체 해(기구학 솔버의 연속법)이다.', 'Every animation frame is an exact rigid solution (continuation with the kinematic solver), not an interpolation.')}</p>
         </Section>
         <Section title={tr('하나의 사상, 다양한 응용', 'One idea, many applications')}>
-          <ul className="space-y-1 text-[13px]">
-            {applications().map(([t, d]) => <li key={t}><b className="text-ink">{t}</b> <span className="text-ink-3">— {d}</span></li>)}
+          <ul className="space-y-1.5 text-[14px] leading-snug">
+            {applications().map(([t, d]) => <li key={t}><b className="font-semibold text-ink">{t}</b> <span className="text-ink-2">— {d}</span></li>)}
           </ul>
         </Section>
       </div>
@@ -116,51 +125,54 @@ export function StepwiseLab() {
   const r1 = e1 >= 0 ? Math.abs(rho[e1] ?? 0) : 0;
   const d = miuraStepwise(alpha * DEG, r1);
   const solver2 = e2 >= 0 ? Math.abs(rho[e2] ?? 0) : NaN;
-  const rows: [string, string, string][] = [
-    [tr('1. 기준 면', '1. Reference facet'), tr('c1과 c2 사이의 면을 고정한다 (강체 트리의 루트)', 'Fix the facet between c1 and c2 (root of the rigid tree)'), ''],
-    [tr('2. c1에서의 코사인 법칙', '2. Law of cosines at c1'), '$\\cos\\delta = \\cos^2\\alpha - \\sin^2\\alpha\\,\\cos\\rho_1$', `δ = ${toDeg(d.delta).toFixed(4)}°`],
-    [tr('3. 대칭', '3. Symmetry'), tr('c2와 c4는 c1, c3를 포함하는 평면 M에 대해 거울상이다', 'c2 and c4 are mirror images across the plane M containing c1 and c3'), ''],
-    [tr('4. 사영 + 직교성', '4. Projection + orthogonality'), '$p = \\operatorname{proj}_M(c_2)$, $|p| = \\cos(\\delta/2)$, $\\cos\\theta_1 = \\cos\\alpha / \\cos(\\delta/2)$', `θ1 = ${toDeg(d.theta1).toFixed(4)}°`],
-    [tr('5. 대칭', '5. Symmetry'), '$\\gamma = \\angle(c_1, c_3) = \\pi - 2\\theta_1$', `γ = ${toDeg(d.gamma).toFixed(4)}°`],
-    [tr('6. c2에서의 코사인 법칙', '6. Law of cosines at c2'), '$\\cos\\rho_2 = -(\\cos\\gamma + \\cos^2\\alpha)/\\sin^2\\alpha$', `|ρ2| = ${toDeg(d.rho2Magnitude).toFixed(4)}°`],
-    [tr('7. 배정 / 대칭', '7. Assignment / symmetry'), '$\\rho_3 = -\\rho_1$ (c1 V, c3 M), $\\rho_4 = \\rho_2$', ''],
+  // [step, statement, symbol of the result (TeX), value]
+  const rows: [string, string, string, string][] = [
+    [tr('1. 기준 면', '1. Reference facet'), tr('$c_1$과 $c_2$ 사이의 면을 고정한다 (강체 트리의 뿌리)', 'Fix the facet between $c_1$ and $c_2$ (root of the rigid tree)'), '', ''],
+    [tr('2. $c_1$에서 코사인 법칙', '2. Law of cosines at $c_1$'), '$\\cos\\delta = \\cos^2\\alpha - \\sin^2\\alpha\\,\\cos\\rho_1$', '$\\delta$', degTxt(toDeg(d.delta), 4)],
+    [tr('3. 대칭', '3. Symmetry'), tr('$c_2$와 $c_4$는 $c_1$, $c_3$를 포함하는 평면 $M$에 대해 거울상이다', '$c_2$ and $c_4$ are mirror images across the plane $M$ containing $c_1$ and $c_3$'), '', ''],
+    [tr('4. 사영 + 직교성', '4. Projection + orthogonality'), '$p = \\operatorname{proj}_M(c_2)$, $|p| = \\cos(\\delta/2)$, $\\cos\\theta_1 = \\cos\\alpha / \\cos(\\delta/2)$', '$\\theta_1$', degTxt(toDeg(d.theta1), 4)],
+    [tr('5. 대칭', '5. Symmetry'), '$\\gamma = \\angle(c_1, c_3) = \\pi - 2\\theta_1$', '$\\gamma$', degTxt(toDeg(d.gamma), 4)],
+    [tr('6. $c_2$에서 코사인 법칙', '6. Law of cosines at $c_2$'), '$\\cos\\rho_2 = -(\\cos\\gamma + \\cos^2\\alpha)/\\sin^2\\alpha$', '$|\\rho_2|$', degTxt(toDeg(d.rho2Magnitude), 4)],
+    [tr('7. 배정 / 대칭', '7. Assignment / symmetry'), tr('$\\rho_3 = -\\rho_1$ ($c_1$ 골, $c_3$ 산), $\\rho_4 = \\rho_2$', '$\\rho_3 = -\\rho_1$ ($c_1$ valley, $c_3$ mountain), $\\rho_4 = \\rho_2$'), '', ''],
   ];
+  const agree = Math.abs(solver2 - d.rho2Magnitude) < 1e-6;
   return (
     <div className="grid h-full grid-rows-[minmax(300px,1fr)_auto] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-1 lg:overflow-hidden min-[1500px]:grid-cols-[minmax(0,1fr)_460px]">
       <div className="relative min-h-0 min-w-0"><Viewport3D /></div>
       <div className="border-t border-rule bg-paper lg:overflow-y-auto lg:border-l lg:border-t-0">
         <Section title={tr('입력', 'Input')}>
-          <label className="block text-[13px]">α = {alpha}° {tr('(섹터 α, 180−α, 180−α, α)', '(sectors α, 180−α, 180−α, α)')}
+          <label className="block text-[14px] text-ink-2"><b className="tnum font-semibold text-ink">α = {alpha}°</b> <span className="text-[13px] text-ink-3">{tr('(섹터 α, 180° − α, 180° − α, α)', '(sectors α, 180° − α, 180° − α, α)')}</span>
             <input type="range" className="w-full" min={30} max={85} step={1} value={alpha} onChange={(e) => setAlpha(parseInt(e.target.value))} />
           </label>
-          <label className="block text-[13px]">|ρ1| = {toDeg(Math.abs(target)).toFixed(1)}° {tr('(구동 크리스 c1, 골접기)', '(driven crease c1, valley)')}
+          <label className="mt-2 block text-[14px] text-ink-2"><b className="tnum font-semibold text-ink"><Rich text="$|\rho_1|$" /> = {toDeg(Math.abs(target)).toFixed(1)}°</b> <span className="text-[13px] text-ink-3">{tr('(구동 크리스 ', '(driven crease ')}<Rich text="$c_1$" />{tr(', 골접기)', ', valley)')}</span>
             <input type="range" className="w-full" min={0} max={175} step={0.5} value={Math.abs(toDeg(target))} disabled={drive === null}
               onChange={(e) => setTarget(parseFloat(e.target.value) * DEG)} />
           </label>
         </Section>
         <Section title={tr('실시간 유도', 'Live derivation')}>
-          <table className="w-full text-[12px]">
-            <tbody>
-              {rows.map(([a, b, c]) => (
-                <tr key={a} className="border-b border-rule align-top">
-                  <td className="py-1 pr-2 font-semibold text-ink-2">{a}</td>
-                  <td className="py-1 pr-2 text-ink-2"><Rich text={b} /></td>
-                  <td className="py-1 text-right tnum text-warn">{c}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ol className="space-y-0">
+            {rows.map(([a, b, sym, val]) => (
+              <li key={a} className="border-b border-rule py-1.5 last:border-b-0">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] font-semibold text-ink-2"><Rich text={a} /></span>
+                  {sym && <span className="tnum whitespace-nowrap text-[14px] font-semibold text-ink"><Rich text={sym} /> = {val}</span>}
+                </div>
+                <div className="mt-0.5 text-[14px] leading-relaxed text-ink-2"><Rich text={b} /></div>
+              </li>
+            ))}
+          </ol>
         </Section>
         <Section title={tr('해석해 vs 범용 수치 솔버', 'Analytic solution vs general numerical solver')}>
-          <div className="space-y-0.5 tnum text-[13px]">
-            <KV k={tr('|ρ2| 해석해', '|ρ2| analytic')} v={`${toDeg(d.rho2Magnitude).toFixed(6)}°`} />
-            <KV k={tr('|ρ2| 솔버', '|ρ2| solver')} v={`${toDeg(solver2).toFixed(6)}°`} />
-            <KV k={tr('ρ3 솔버 vs −ρ1', 'ρ3 solver vs −ρ1')} v={e3 >= 0 ? `${toDeg(rho[e3]).toFixed(4)}° vs ${toDeg(-(rho[e1] ?? 0)).toFixed(4)}°` : '—'} />
-            <KV k={tr('ρ4 솔버 vs ρ2', 'ρ4 solver vs ρ2')} v={e4 >= 0 ? `${toDeg(rho[e4]).toFixed(4)}° vs ${toDeg(rho[e2]).toFixed(4)}°` : '—'} />
-            <KV k="tan(|ρ1|/2) / tan(|ρ2|/2)" v={`${(Math.tan(r1 / 2) / Math.tan(solver2 / 2)).toFixed(6)} (cos α = ${Math.cos(alpha * DEG).toFixed(6)})`} />
+          <div className="space-y-0.5 tnum">
+            <KV k={<>{tr('해석해', 'Analytic')} <Rich text="$|\rho_2|$" /></>} v={degTxt(toDeg(d.rho2Magnitude), 6)} />
+            <KV k={<>{tr('솔버', 'Solver')} <Rich text="$|\rho_2|$" /></>} v={degTxt(toDeg(solver2), 6)} />
+            <KV k={<>{tr('솔버', 'Solver')} <Rich text="$\rho_3$" /> vs <Rich text="$-\rho_1$" /></>} v={e3 >= 0 ? `${degTxt(toDeg(rho[e3]), 4)} vs ${degTxt(toDeg(-(rho[e1] ?? 0)), 4)}` : '—'} />
+            <KV k={<>{tr('솔버', 'Solver')} <Rich text="$\rho_4$" /> vs <Rich text="$\rho_2$" /></>} v={e4 >= 0 ? `${degTxt(toDeg(rho[e4]), 4)} vs ${degTxt(toDeg(rho[e2]), 4)}` : '—'} />
+            <KV k={<Rich text="$\tan(|\rho_1|/2) \,/\, \tan(|\rho_2|/2)$" />} v={num(Math.tan(r1 / 2) / Math.tan(solver2 / 2), 6)} />
+            <KV k={<Rich text="$\cos\alpha$" />} v={num(Math.cos(alpha * DEG), 6)} />
           </div>
-          <div className="mt-1">{Math.abs(solver2 - d.rho2Magnitude) < 1e-6 ? <Badge status="ok">{tr('< 1e-6 rad 이내로 일치', 'Agree within < 1e-6 rad')}</Badge> : r1 < 1e-6 ? <Badge status="na">{tr('비교하려면 ρ1을 구동한다', 'Drive ρ1 to compare')}</Badge> : <Badge status="warn">Δ = {fmt(Math.abs(solver2 - d.rho2Magnitude))} rad</Badge>}</div>
-          <p className="mt-1 text-[12px] text-ink-3">{tr('설명되지 않은 상수는 없다. 모든 값은 위 단계에 따라 α와 ρ1로부터 계산되며, 오른쪽 열은 범용 Levenberg–Marquardt 닫힘 솔버의 결과이다.', 'There are no unexplained constants. Every value is computed from α and ρ1 by the steps above; the right column is the result of the general Levenberg–Marquardt closure solver.')}</p>
+          <div className="mt-1.5">{agree ? <Badge status="ok">{tr('일치', 'Agree')} · Δ &lt; 10<sup>−6</sup> rad</Badge> : r1 < 1e-6 ? <Badge status="na">{tr('비교하려면 c1을 접는다', 'Fold c1 to compare')}</Badge> : <Badge status="warn">{tr('불일치', 'Differ')} · Δ = <Sci x={Math.abs(solver2 - d.rho2Magnitude)} d={1} /> rad</Badge>}</div>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">{tr('설명되지 않은 상수는 없다. 모든 값은 위 단계에 따라 α와 ρ1로부터 계산되며, 오른쪽 열은 범용 Levenberg–Marquardt 닫힘 솔버의 결과이다.', 'There are no unexplained constants. Every value is computed from α and ρ1 by the steps above; the right column is the result of the general Levenberg–Marquardt closure solver.')}</p>
         </Section>
       </div>
     </div>
@@ -174,19 +186,19 @@ function TubeCard({ title, sub, model, tube, fallback }: { title: string; sub: s
   return (
     <div className="min-w-0 rounded-[3px] border border-rule-2 bg-paper">
       <div className="flex items-baseline justify-between gap-2 border-b border-rule px-3 py-1.5">
-        <div className="min-w-0"><b className="text-[14px] text-ink">{title}</b> <span className="text-[12px] text-ink-3">{sub}</span></div>
+        <div className="min-w-0"><b className="text-[15px] text-ink">{title}</b> <span className="text-[13px] text-ink-3">{sub}</span></div>
         {tube && tube.collisions > 0 && <Badge status="warn">{tr('자기 교차', 'Self-intersections')} {tube.collisions}</Badge>}
       </div>
       <MiniView model={model} positions={tube?.positions ?? fallback} height="min(44vh, 400px)" />
       <dl className="grid grid-cols-3 border-t border-rule text-[13px]">
         {[
-          [tr('에너지 V', 'Energy V'), tube ? fmt(tube.energy) : '—'],
-          [tr('상판 비틀림', 'Top twist'), tube ? `${toDeg(tube.twist).toFixed(1)}°` : '—'],
+          [tr('에너지 V', 'Energy V'), tube ? <Sci x={tube.energy} d={2} zero={1e-9} /> : '—'],
+          [tr('상판 비틀림', 'Top twist'), tube ? degTxt(toDeg(tube.twist), 1) : '—'],
           [tr('최대 변형률', 'Max strain'), tube ? `${(tube.maxStrain * 100).toFixed(1)}%` : '—'],
         ].map(([k, v]) => (
-          <div key={k} className="border-l border-rule px-3 py-1.5 first:border-l-0">
+          <div key={k as string} className="border-l border-rule px-3 py-1.5 first:border-l-0">
             <dt className="lettering text-[12px] text-ink-3">{k}</dt>
-            <dd className="tnum text-[15px] font-semibold text-ink">{v}</dd>
+            <dd className="tnum text-[18px] font-semibold text-ink">{v}</dd>
           </div>
         ))}
       </dl>
@@ -267,11 +279,11 @@ export function KreslingVsYoshimuraLab() {
       <div className="rounded-[3px] border border-rule-2 bg-paper-2/60 p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div className="lettering text-[12px] text-ink-3">{tr('공통 하중 · 강체 상판, 매 프레임 에너지 최소(FIRE)', 'Shared load · rigid top plate, energy minimized every frame (FIRE)')}</div>
-          <span className={`tnum text-[12px] ${busy ? 'text-ink-2' : 'text-ink-3'}`}>{busy ? tr('계산 중…', 'Computing…') : error ? '' : tr('평형 상태', 'At equilibrium')}</span>
+          <span className={`tnum text-[13px] ${busy ? 'text-ink-2' : 'text-ink-3'}`}>{busy ? tr('계산 중…', 'Computing…') : error ? '' : tr('평형 상태', 'At equilibrium')}</span>
         </div>
         <div className="grid gap-4 text-[13px] md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <div>
-            <div className="flex items-baseline justify-between"><span className="font-medium text-ink">{tr('축 압축 u', 'Axial compression u')}</span><span className="tnum text-[15px] font-semibold text-ink">{u.toFixed(3)} <span className="text-[12px] font-normal text-ink-3">/ H = 1.2 ({Math.round((u / 1.2) * 100)}%)</span></span></div>
+            <div className="flex items-baseline justify-between"><span className="font-medium text-ink">{tr('축 압축 u', 'Axial compression u')}</span><span className="tnum text-[18px] font-semibold text-ink">{u.toFixed(3)} <span className="text-[13px] font-normal text-ink-3">/ H = 1.2 ({Math.round((u / 1.2) * 100)}%)</span></span></div>
             <input type="range" className="mt-1 w-full" min={0} max={PAIR_U_MAX} step={0.005} value={u} aria-label={tr('축 압축 u', 'Axial compression u')}
               onChange={(e) => { stop(); setU(parseFloat(e.target.value)); }} />
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -287,7 +299,7 @@ export function KreslingVsYoshimuraLab() {
               <input type="checkbox" checked={free} onChange={(e) => setFree(e.target.checked)} /> {tr('상판 회전 자유', 'Top plate free to rotate')}
             </label>
             <div className={`mt-2 ${free ? 'opacity-40' : ''}`}>
-              <div className="flex justify-between"><span>{tr('규정 비틀림', 'Prescribed twist')}</span><span className="tnum">{twist}°</span></div>
+              <div className="flex justify-between"><span>{tr('규정 비틀림', 'Prescribed twist')}</span><span className="tnum">{degTxt(twist, 0)}</span></div>
               <input type="range" className="w-full" min={-45} max={45} step={1} value={twist} disabled={free} aria-label={tr('규정 비틀림', 'Prescribed twist')}
                 onChange={(e) => setTwist(parseInt(e.target.value))} />
             </div>
@@ -295,7 +307,7 @@ export function KreslingVsYoshimuraLab() {
           </div>
         </div>
         {error && <p className="mt-2 text-[13px] text-bad">{tr('계산 실패', 'Computation failed')}: {error}</p>}
-        <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
           {tr(<>
           반지름, 높이, 다각형, 강성은 같다. 상판은 강체 판으로 축 방향으로 눌리며, "회전 자유"이면 토크가 0이 되는 각까지 스스로 돈다.
           Kresling은 압축되며 비틀린다(카이랄성에서 오는 압축–비틀림 연성). Yoshimura는 비틀리지 않는다: 강체로 접히지 않아 처음에는 면이 압축되며 에너지를 쌓다가, 약 34% 압축에서 다이아몬드 모양으로 좌굴하며(스냅) 에너지가 급감한다. 다시 펴면 한참 동안 좌굴 상태가 유지된다(쌍안정·히스테리시스).

@@ -84,7 +84,7 @@ export const useUI = create<UIState>((set) => ({
   notify: (text) => set((st) => ({ notice: { text, n: (st.notice?.n ?? 0) + 1 } })),
   setCoverOpen: (coverOpen) => set({ coverOpen }),
   exaggeration: 1,
-  bottomHeight: 270,
+  bottomHeight: 340,
   bottomFolded: true,
   drawer: null,
   setDrawer: (drawer) => set({ drawer }),

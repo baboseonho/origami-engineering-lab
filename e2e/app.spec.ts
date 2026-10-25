@@ -32,9 +32,9 @@ test('Miura: driving one crease gives a rigid 1-DoF solution', async ({ page }) 
   await expect(verdict.getByText('있음 (1)', { exact: true })).toBeVisible();
   // single-crease controls sit behind a disclosure when the sheet folds as a whole
   await page.getByRole('button', { name: '이 크리스 하나만 움직이기' }).click();
-  await page.getByRole('button', { name: '-90°', exact: true }).click();
+  await page.getByRole('button', { name: '−90°', exact: true }).click();
   await expect(ok).toBeVisible();
-  await expect(page.getByText('-90.0°').first()).toBeVisible();
+  await expect(page.getByText('−90.0°').first()).toBeVisible();
 });
 
 test('Shopping bag: flat state closes, no crease can move rigidly', async ({ page }) => {
@@ -42,7 +42,8 @@ test('Shopping bag: flat state closes, no crease can move rigidly', async ({ pag
   await page.getByRole('tab', { name: '형상', exact: true }).click();
   await page.getByRole('button', { name: '모든 크리스 ±5° 시험' }).click();
   await expect(page.getByText('0/19 크리스 이동 가능')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/‖C‖ = 1\.\d+e-15|‖C‖ = 0\.000/)).toBeVisible();
+  // a residual at machine precision reads "≈ 0" (the exact value is in the tooltip)
+  await expect(page.getByText(/‖C‖ ≈ 0|‖C‖ = 1\.\d+e[-−]15/)).toBeVisible();
 });
 
 test('Kawasaki explorer: break and repair the theorem', async ({ page }) => {
@@ -53,13 +54,16 @@ test('Kawasaki explorer: break and repair the theorem', async ({ page }) => {
   await expect(page.getByText('평탄 접힘 가능한 섹터각', { exact: true })).toBeVisible();
 });
 
-test('1D strip: collision preset is reported as not flat-foldable', async ({ page }) => {
+test('1D strip: collision is shown by folding, a foldable pattern folds flat', async ({ page }) => {
   await open(page, 'l2-strip');
   await page.getByRole('button', { name: '충돌', exact: true }).click();
-  await expect(page.getByText('이 M/V 배정으로는 평탄 접힘 불가능', { exact: true })).toBeVisible();
+  await expect(page.getByText('평탄하게 접히지 않는다', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '끝까지 접기' }).click();
+  await expect(page.getByText('여기서 종이가 서로 부딪힌다')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: '접힘 가능', exact: true }).click();
-  await page.getByRole('button', { name: '자동 풀이' }).click();
-  await expect(page.getByText(/단계 1:/)).toBeVisible();
+  await expect(page.getByText('평탄하게 접힌다', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '끝까지 접기' }).click();
+  await expect(page.getByText('완전히 접혔다')).toBeVisible({ timeout: 30_000 });
 });
 
 test('Square twist: rigid drive is infeasible with an explicit reason', async ({ page }) => {
@@ -111,7 +115,7 @@ test('Motion explainers: open, step through scenes, close', async ({ page }) => 
   const errors = collectErrors(page);
   for (const id of ['l2-kawasaki', 'l2-maekawa', 'l3-bag', 'l6-hypar']) {
     await open(page, id);
-    await page.getByRole('button', { name: /애니메이션으로 이해하기/ }).first().click();
+    await page.getByRole('button', { name: /애니메이션으로 보기/ }).first().click();
     const dialog = page.getByRole('dialog').last();
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: '다음 장면' }).click();

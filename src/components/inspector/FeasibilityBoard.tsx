@@ -5,7 +5,8 @@ import type { OrigamiModel } from '../../core/topology/types';
 import { lessonById } from '../../curriculum/lessons';
 import { useModel } from '../../state/modelStore';
 import { useSim } from '../../state/simulationStore';
-import { Badge, fmt, type Status } from '../controls/ui';
+import { Badge, type Status } from '../controls/ui';
+import { plainNum } from '../analysis/num';
 import { Rich } from '../controls/Rich';
 import { tr } from '../../i18n';
 
@@ -80,14 +81,14 @@ function useVerdict(): { rows: VerdictRow[]; maekawaOnly: number } | null {
       key: 'rigid', label: tr('현재 강체 해', 'Current rigid solution'),
       status: !rigid ? 'na' : shownState ? 'ok' : !result ? (dof ? 'ok' : 'na') : result.success ? 'ok' : 'bad',
       word: !rigid ? tr('Rigid에서', 'in Rigid') : shownState ? tr('있음', 'yes') : !result ? (dof ? tr('있음', 'yes') : '—') : result.success ? tr('있음', 'yes') : tr('없음', 'none'),
-      detail: rigid && result ? (result.residualNorm < 1e-8 ? tr('닫힘 오차 ≈ 0', 'closure error ≈ 0') : tr(`닫힘 오차 ${fmt(result.residualNorm)}`, `closure error ${fmt(result.residualNorm)}`)) : '',
+      detail: rigid && result ? (result.residualNorm < 1e-8 ? tr('닫힘 오차 ≈ 0', 'closure error ≈ 0') : tr(`닫힘 오차 ${plainNum(result.residualNorm)}`, `closure error ${plainNum(result.residualNorm)}`)) : '',
       explain: tr('지금 요청한 접힘각에서 면을 변형하지 않고 모든 꼭짓점이 닫히는 배치가 있는가.', 'Is there a configuration at the requested fold angles where every vertex closes without deforming the facets?'),
     },
     {
       key: 'mobility', label: tr('1차(무한소) 가동성', 'First-order (infinitesimal) mobility'),
       status: !rigid || !dof ? 'na' : dof.dofLocal > 0 ? 'info' : 'warn',
       word: !rigid || !dof ? tr('Rigid에서', 'in Rigid') : dof.dofLocal > 0 ? tr(`있음 (${dof.dofLocal})`, `yes (${dof.dofLocal})`) : tr('없음 (0)', 'none (0)'),
-      detail: rigid && dof ? `N − rank J = ${dof.dofLocal}` : '',
+      detail: rigid && dof ? `$N - \\operatorname{rank} J = ${dof.dofLocal}$` : '',
       explain: tr('현재 배치에서 아주 조금 움직일 수 있는 방향의 수. 있다고 해서 끝까지 접힌다는 뜻은 아니다.', 'The number of directions the current configuration can move a tiny amount. Having some does not mean it folds all the way.'),
     },
     {
@@ -140,7 +141,7 @@ export function VerdictStrip() {
         <dl className="mt-2 space-y-1.5 border-t border-dashed border-rule-2 pt-2 text-[13px]">
           {v.rows.map((r) => (
             <div key={r.key}>
-              <dt className="flex justify-between gap-2 text-ink"><span className="font-medium">{r.label}</span><span className="tnum text-ink-3">{r.detail}</span></dt>
+              <dt className="flex justify-between gap-2 text-ink"><span className="font-medium">{r.label}</span><span className="tnum shrink-0 text-ink-3"><Rich text={r.detail} /></span></dt>
               <dd className="text-ink-3">{r.explain}</dd>
             </div>
           ))}
