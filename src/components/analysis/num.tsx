@@ -1,4 +1,5 @@
 import { toDeg } from '../../core/geometry/angles';
+import { Sym } from '../controls/sym';
 
 /**
  * Number display for the analysis sheets and the inspector. Only how a value
@@ -41,7 +42,7 @@ export function plainNum(x: number | null | undefined, d = 3): string {
 export function Num({ value, d = 3, zero, className = '' }: { value: number | null | undefined; d?: number; zero?: number; className?: string }) {
   if (value === null || value === undefined || !Number.isFinite(value)) return <span className={className}>—</span>;
   if (zero !== undefined && Math.abs(value) < zero) {
-    return <span className={`tnum ${className}`} title={value.toExponential(3).replace('-', MINUS)}>≈ 0</span>;
+    return <span className={`tnum ${className}`} title={value.toExponential(3).replace(/-/g, MINUS)}>≈ 0</span>;
   }
   if (value !== 0 && (Math.abs(value) >= 1e4 || Math.abs(value) < 1e-3)) {
     const [m, e] = value.toExponential(2).split('e');
@@ -54,9 +55,7 @@ export function Num({ value, d = 3, zero, className = '' }: { value: number | nu
   return <span className={`tnum ${className}`}>{num(value, d)}</span>;
 }
 
-/** Crease names such as "ρ1" are written with a real subscript (ρ₁ set as ρ<sub>1</sub>). */
+/** Crease names such as "ρ1" with a real subscript (ρ₁); edge ids such as "e12" stay as written. */
 export function CreaseLabel({ name, className = '' }: { name: string; className?: string }) {
-  const m = /^(\D+?)(\d+)$/.exec(name);
-  if (!m || m[1] === 'e') return <span className={`tnum ${className}`}>{name}</span>;
-  return <span className={`greek ${className}`}>{m[1]}<sub className="text-[0.75em]">{m[2]}</sub></span>;
+  return <Sym text={name} className={`tnum ${className}`} />;
 }

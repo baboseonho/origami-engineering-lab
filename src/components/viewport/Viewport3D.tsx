@@ -777,7 +777,7 @@ export function Viewport3D() {
       <Legend />
       <div className="pointer-events-none absolute right-[15px] top-[56px] flex max-w-[60%] flex-col items-end gap-1">
         {shownState && <span className="max-w-[320px] rounded-[3px] border border-rule-2 bg-paper/95 px-2 py-1 text-[13px] text-ink-2">{tr(`구성된 상태 표시: ${shownState} — 정확한 강체 배치이며 솔버 경로가 아님`, `Showing constructed state: ${shownState} — an exact rigid configuration, not a solver path`)}</span>}
-        {experiment && <span className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[13px] text-warn">{tr('실험 프레임', 'Experiment frame')} u = {experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'} {tr('(에너지 최소화 결과)', '(energy-minimized result)')}</span>}
+        {experiment && <span className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[13px] text-warn">{tr('실험 프레임', 'Experiment frame')} <i className="greek">u</i> = {experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'} {tr('(에너지 최소화 결과)', '(energy-minimized result)')}</span>}
       </div>
       {!model && <div className="absolute inset-0 grid place-items-center text-ink-3">{tr('이 레슨에는 3D 모델이 없다', 'This lesson has no 3D model')}</div>}
       </DrawingFrame>

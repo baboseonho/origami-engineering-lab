@@ -16,6 +16,7 @@ import { Rich } from '../controls/Rich';
 import { PALETTE, Plot, type Series } from './Plot';
 import { Caption, Lead, More, Readout } from './parts';
 import { CreaseLabel, Num, TINY, deg, num } from './num';
+import { SymList } from '../controls/sym';
 import { C, SERIES } from '../../theme/tokens';
 import { tr } from '../../i18n';
 
@@ -44,7 +45,7 @@ export function AnglesTab() {
   return (
     <div>
       <Lead title={tr('크리스별 접힘각', 'Fold angle of each crease')}>
-        {tr('부호가 방향이다: ρ > 0 골접기, ρ < 0 산접기. 칸을 누르면 그 크리스가 선택된다.', 'The sign is the direction: ρ > 0 valley, ρ < 0 mountain. Click a cell to select its crease.')}
+        <Rich text={tr('부호가 방향이다: $\\rho > 0$ 골접기, $\\rho < 0$ 산접기. 칸을 누르면 그 크리스가 선택된다.', 'The sign is the direction: $\\rho > 0$ valley, $\\rho < 0$ mountain. Click a cell to select its crease.')} />
       </Lead>
       <div className="grid grid-cols-1 gap-5 @2xl:grid-cols-2">
         <div className="flex flex-wrap content-start gap-1">
@@ -104,7 +105,7 @@ export function ConstraintsTab() {
           </Readout>
           <KV k={tr('풀이 결과', 'Solve result')} v={result ? <Badge status={result.success ? 'ok' : 'bad'}>{statusWord(result.status)}</Badge> : '—'} />
           <KV k={tr('반복 횟수', 'Iterations')} v={result?.iterations ?? '—'} />
-          <KV k={tr('고정한 크리스', 'Locked creases')} v={locked.length ? locked.map((l) => creaseName(model, l)).join(', ') : tr('없음', 'none')} />
+          <KV k={tr('고정한 크리스', 'Locked creases')} v={locked.length ? <SymList items={locked.map((l) => creaseName(model, l))} /> : tr('없음', 'none')} />
           <KV k={tr('M/V 부호 조건', 'M/V sign condition')} v={enforceMV ? <Rich text={tr('적용 ($\\rho_M \\le 0,\\ \\rho_V \\ge 0$)', 'on ($\\rho_M \\le 0,\\ \\rho_V \\ge 0$)')} /> : tr('무시', 'ignored')} />
           <More>
             <p><Rich text={tr(

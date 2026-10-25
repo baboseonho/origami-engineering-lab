@@ -1,6 +1,7 @@
 import { ASSIGN_COLOR } from '../controls/ui';
 import { useModel } from '../../state/modelStore';
 import { tr } from '../../i18n';
+import { Rich } from '../controls/Rich';
 
 const items = (): [string, string, string | undefined][] => [
   ['M', tr('산접기 M', 'Mountain M'), '6 2.5 1.5 2.5'],
@@ -27,8 +28,8 @@ export function Legend({ compact, position = 'bottom' }: { compact?: boolean; po
       </div>
       {!compact && (
         <div className="tnum mt-1 text-[12px] text-ink-3">
-          {tr(<><span className="greek">ρ</span> = 0 평면 · <span className="greek">ρ</span> &gt; 0 골 · <span className="greek">ρ</span> &lt; 0 산 · |<span className="greek">ρ</span>| → 180° 완전 접힘</>,
-            <><span className="greek">ρ</span> = 0 flat · <span className="greek">ρ</span> &gt; 0 valley · <span className="greek">ρ</span> &lt; 0 mountain · |<span className="greek">ρ</span>| → 180° fully folded</>)}
+          <Rich text={tr('$\\rho = 0$ 평면 · $\\rho > 0$ 골 · $\\rho < 0$ 산 · $|\\rho| = 180^\\circ$ 완전 접힘',
+            '$\\rho = 0$ flat · $\\rho > 0$ valley · $\\rho < 0$ mountain · $|\\rho| = 180^\\circ$ fully folded')} />
         </div>
       )}
     </div>

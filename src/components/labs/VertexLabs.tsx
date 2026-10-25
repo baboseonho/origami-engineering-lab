@@ -194,7 +194,7 @@ export function KawasakiLab() {
       </div>
 
       <Stage caption={tr('꼭짓점 · 위에서 본 크리스 패턴', 'Vertex · crease pattern from above')} hint={tr('광선이나 손잡이를 끌어 움직이고, 섹터를 눌러 고른다', 'Drag a ray or its handle to move it; click a sector to select it')}>
-        <div className="grid items-center gap-4 px-4 pb-4 md:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-4 px-4 pb-4 md:grid-cols-[minmax(0,460px)_260px] md:justify-center">
           <VertexDiagram rays={v.rays} mv={v.mv} onDrag={(i, a) => { halt(); v.drag(i, a); }} onSectorClick={setSel} selectedSector={sel}
             highlightRays={moving ? [moving.ray] : undefined} ghostRays={moving ? [moving.from] : undefined} size={460} />
           <div className="grid content-center gap-4">
@@ -255,7 +255,7 @@ export function MaekawaLab() {
       </div>
 
       <Stage caption={tr('꼭짓점 · 산접기와 골접기', 'Vertex · mountains and valleys')} hint={tr('크리스나 손잡이를 누르면 산 ↔ 골이 바뀐다', 'Click a crease or its handle to swap mountain ↔ valley')}>
-        <div className="grid items-center gap-4 px-4 pb-4 md:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-4 px-4 pb-4 md:grid-cols-[minmax(0,460px)_260px] md:justify-center">
           <VertexDiagram rays={v.rays} mv={v.mv} onRayClick={v.toggle} size={460} />
           <div className="grid content-center gap-3">
             <div className="grid grid-cols-2 gap-2">
@@ -464,7 +464,7 @@ export function MVCrimpLab() {
       </div>
 
       <Stage caption={tr('꼭짓점과 펼친 띠', 'The vertex and its unrolled band')} hint={tr('크리스나 손잡이를 누르면 산 ↔ 골이 바뀐다', 'Click a crease or its handle to swap mountain ↔ valley')}>
-        <div className="grid items-center gap-2 px-4 pb-1 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-2 px-4 pb-1 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
           <VertexDiagram rays={v.rays} mv={v.mv} onRayClick={v.toggle} size={360} highlightRays={cur && kOk ? cur.removed : undefined} rayAlpha={rayAlpha} />
           <div className="text-[14px] leading-relaxed text-ink-2">
             {!kOk ? (
@@ -648,7 +648,7 @@ export function GeneralizedLab() {
       </div>
 
       <Stage caption={tr('평탄하게 접었을 때 각 크리스가 놓이는 방향', 'Where each crease lies when folded flat')} hint={tr('섹터를 차례로 놓되, 방향을 번갈아 뒤집는다', 'Lay the sectors down in turn, flipping direction each time')}>
-        <div className="grid items-center gap-4 px-4 pb-3 md:grid-cols-[minmax(0,1fr)_250px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-4 px-4 pb-3 md:grid-cols-[minmax(0,460px)_260px] md:justify-center">
           <WindingDiagram partials={g.partials} mv={mv} satisfied={g.satisfied} walk={walk} />
           <div className="grid content-center gap-4">
             <div>

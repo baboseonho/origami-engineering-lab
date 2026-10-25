@@ -14,6 +14,7 @@ import { DrawingFrame } from './DrawingFrame';
 import { C } from '../../theme/tokens';
 import { tr } from '../../i18n';
 import { HoverCard, PointerTip, edgeTip, vertexTip } from './HoverTip';
+import { SvgSym, symPlain } from '../controls/sym';
 
 /** Planar layout helpers: periodic unwrapping for unrolled cylinders. */
 function edgePts(model: OrigamiModel, eid: number): [Vec2, Vec2] {
@@ -202,37 +203,6 @@ export function CreasePattern2D() {
           })}
         </g>
         {/* text (unflipped) */}
-        {selection?.kind === 'edge' && model.edges[selection.id] && (() => {
-          // drafting dimension line parallel to the selected crease: extension lines, arrowheads, value on the line
-          const e = model.edges[selection.id];
-          const [a, b] = edgePts(model, e.id);
-          const dx = b[0] - a[0], dy = b[1] - a[1];
-          const L = Math.hypot(dx, dy) || 1;
-          const ux = dx / L, uy = dy / L;
-          let nx = -uy, ny = ux;
-          const off = sc * 0.1;
-          const A = [a[0] + nx * off, -(a[1] + ny * off)], B = [b[0] + nx * off, -(b[1] + ny * off)];
-          const ext = (p: number[], q: Vec2) => <line x1={q[0] + nx * off * 0.15} y1={-(q[1] + ny * off * 0.15)} x2={p[0] + nx * off * 0.2} y2={p[1] - ny * off * 0.2} stroke={C.ink} strokeWidth={0.6} vectorEffect="non-scaling-stroke" />;
-          const ah = lw * 2.4;
-          const sx2 = ux, sy2 = -uy; // screen-space direction a→b (y flipped)
-          const arrow = (p: number[], dir: number) => <path d={`M${p[0]},${p[1]} l${dir * sx2 * ah - sy2 * ah * 0.35},${dir * sy2 * ah + sx2 * ah * 0.35} l${sy2 * ah * 0.7},${-sx2 * ah * 0.7} Z`} fill={C.ink} />;
-          let ang = (Math.atan2(-(B[1] - A[1]), B[0] - A[0]) * 180) / Math.PI;
-          if (ang > 90) ang -= 180; else if (ang < -90) ang += 180;
-          const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
-          const txt = `${creaseName(model, e.id)} ${fmtDeg(rho[e.id] ?? 0, 1)}`;
-          void nx; void ny;
-          return (
-            <g key="dim" pointerEvents="none">
-              {ext(A, a)}{ext(B, b)}
-              <line x1={A[0]} y1={A[1]} x2={B[0]} y2={B[1]} stroke={C.ink} strokeWidth={0.75} vectorEffect="non-scaling-stroke" />
-              {arrow(A, 1)}{arrow(B, -1)}
-              <g transform={`translate(${mx},${my}) rotate(${-ang})`}>
-                <rect x={-txt.length * fs * 0.28} y={-fs * 1.05} width={txt.length * fs * 0.56} height={fs * 0.95} fill={C.mark} fillOpacity={0.9} rx={fs * 0.08} />
-                <text x={0} y={-fs * 0.3} fontSize={fs * 0.72} fontWeight={700} fill={C.ink} textAnchor="middle" fontFamily="Cambria Math, Pretendard Variable, serif">{txt}</text>
-              </g>
-            </g>
-          );
-        })()}
         {overlays.sectorLabels && highlightVs.slice(0, 8).map((v) => {
           const st = vertexStar(model, v);
           const p = model.vertices[v].initialPosition2D;
@@ -268,10 +238,43 @@ export function CreasePattern2D() {
           const [a, b] = edgePts(model, +k);
           return (
             <text key={'cl' + k} x={(a[0] + b[0]) / 2} y={-(a[1] + b[1]) / 2 - fs * 0.4} fontSize={fs * 0.75} fill={C.ink} fontFamily="Cambria Math, Times New Roman, serif" fontWeight={600} textAnchor="middle">
-              {lab}{rho.length ? ` ${fmtDeg(rho[+k] ?? 0, 1)}` : ''}
+              <SvgSym text={`${lab}${rho.length ? ` ${fmtDeg(rho[+k] ?? 0, 1)}` : ''}`} />
             </text>
           );
         })}
+        {/* the selected crease's dimension chip goes on top of the other labels */}
+        {selection?.kind === 'edge' && model.edges[selection.id] && (() => {
+          // drafting dimension line parallel to the selected crease: extension lines, arrowheads, value on the line
+          const e = model.edges[selection.id];
+          const [a, b] = edgePts(model, e.id);
+          const dx = b[0] - a[0], dy = b[1] - a[1];
+          const L = Math.hypot(dx, dy) || 1;
+          const ux = dx / L, uy = dy / L;
+          let nx = -uy, ny = ux;
+          const off = sc * 0.1;
+          const A = [a[0] + nx * off, -(a[1] + ny * off)], B = [b[0] + nx * off, -(b[1] + ny * off)];
+          const ext = (p: number[], q: Vec2) => <line x1={q[0] + nx * off * 0.15} y1={-(q[1] + ny * off * 0.15)} x2={p[0] + nx * off * 0.2} y2={p[1] - ny * off * 0.2} stroke={C.ink} strokeWidth={0.6} vectorEffect="non-scaling-stroke" />;
+          const ah = lw * 2.4;
+          const sx2 = ux, sy2 = -uy; // screen-space direction a→b (y flipped)
+          const arrow = (p: number[], dir: number) => <path d={`M${p[0]},${p[1]} l${dir * sx2 * ah - sy2 * ah * 0.35},${dir * sy2 * ah + sx2 * ah * 0.35} l${sy2 * ah * 0.7},${-sx2 * ah * 0.7} Z`} fill={C.ink} />;
+          let ang = (Math.atan2(-(B[1] - A[1]), B[0] - A[0]) * 180) / Math.PI;
+          if (ang > 90) ang -= 180; else if (ang < -90) ang += 180;
+          const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+          const txt = `${creaseName(model, e.id)} ${fmtDeg(rho[e.id] ?? 0, 1)}`;
+          const chars = [...symPlain(txt)].length;
+          void nx; void ny;
+          return (
+            <g key="dim" pointerEvents="none">
+              {ext(A, a)}{ext(B, b)}
+              <line x1={A[0]} y1={A[1]} x2={B[0]} y2={B[1]} stroke={C.ink} strokeWidth={0.75} vectorEffect="non-scaling-stroke" />
+              {arrow(A, 1)}{arrow(B, -1)}
+              <g transform={`translate(${mx},${my}) rotate(${-ang})`}>
+                <rect x={-chars * fs * 0.28} y={-fs * 1.05} width={chars * fs * 0.56} height={fs * 0.95} fill={C.mark} fillOpacity={0.9} rx={fs * 0.08} />
+                <text x={0} y={-fs * 0.3} fontSize={fs * 0.72} fontWeight={700} fill={C.ink} textAnchor="middle" fontFamily="Cambria Math, Pretendard Variable, serif"><SvgSym text={txt} /></text>
+              </g>
+            </g>
+          );
+        })()}
         <text x={bounds.x} y={-(bounds.y - sc * 0.06)} fontSize={fs * 0.65} fill={C.ink3} fontFamily="Barlow Semi Condensed, Pretendard Variable, sans-serif" letterSpacing="0.04em">
           <tspan x={bounds.x}>{tr('전개도', 'Crease pattern')} {bounds.w.toFixed(2)} × {bounds.h.toFixed(2)}</tspan>
           {model.edu.layout2D?.periodX && <tspan x={bounds.x} dy="1.35em">{tr('원통을 펼친 그림 (x 방향 주기)', 'Unrolled cylinder (periodic in x)')}</tspan>}

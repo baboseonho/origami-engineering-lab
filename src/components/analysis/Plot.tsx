@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { C, SERIES } from '../../theme/tokens';
 import { tr } from '../../i18n';
 import { Rich } from '../controls/Rich';
+import { Sym, symPlain } from '../controls/sym';
 
 export interface Series {
   label: string;
@@ -129,12 +130,12 @@ export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 36
           {!empty && series.map((s) => (
             <span key={s.label} className="inline-flex items-center gap-1.5">
               <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={s.color} strokeWidth="2.5" strokeDasharray={s.dashed ? '4 2' : undefined} /></svg>
-              <Rich text={s.label} />
+              {s.label.includes('$') ? <Rich text={s.label} /> : <Sym text={s.label} />}
             </span>
           ))}
         </figcaption>
       )}
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="tnum block max-w-full select-none" role="img" aria-label={`${yLabel}${tr(' 대 ', ' vs ')}${xLabel}${title ? ` · ${title}` : ''}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="tnum block max-w-full select-none" role="img" aria-label={`${yLabel}${tr(' 대 ', ' vs ')}${xLabel}${title ? ` · ${title}` : ''}${!empty && series.length ? `: ${series.map((s) => symPlain(s.label.replace(/\$/g, ''))).join(', ')}` : ''}`}>
         <rect x={pad.l} y={pad.t} width={W - pad.l - pad.r} height={H - pad.t - pad.b} fill={C.paper} stroke={C.rule} />
         {xt.map((t) => (
           <g key={'x' + t}>

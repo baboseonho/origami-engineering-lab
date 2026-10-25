@@ -18,6 +18,7 @@ import { layersFor } from '../viewport/layerCache';
 import { getLang, tr } from '../../i18n';
 import { Rich } from '../controls/Rich';
 import { CreaseLabel, Num, deg, num, plainNum } from '../analysis/num';
+import { SymList } from '../controls/sym';
 
 /** Closure error in words: an exact rigid solution reads "≈ 0", the number stays in the tooltip. */
 function Residual({ value }: { value: number }) {
@@ -231,7 +232,7 @@ function VertexInspector({ id }: { id: number }) {
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span className="min-w-0 text-ink-2"><Rich text={tr('일반화 Kawasaki: $A \\in \\{0, \\pm 360^\\circ\\}$', 'Generalized Kawasaki: $A \\in \\{0, \\pm 360^\\circ\\}$')} /></span>
-                <Badge status={r.generalized.satisfied ? 'ok' : 'bad'}>{r.generalized.windingClass === null ? tr('위반', 'violated') : r.generalized.windingClass === 0 ? tr('성립 (A = 0)', 'holds (A = 0)') : r.generalized.windingClass > 0 ? tr('성립 (A = +360°)', 'holds (A = +360°)') : tr('성립 (A = −360°)', 'holds (A = −360°)')}</Badge>
+                <Badge status={r.generalized.satisfied ? 'ok' : 'bad'}>{r.generalized.windingClass === null ? tr('위반', 'violated') : r.generalized.windingClass === 0 ? <span>{tr('성립', 'holds')} (<i className="greek">A</i> = 0)</span> : r.generalized.windingClass > 0 ? <span>{tr('성립', 'holds')} (<i className="greek">A</i> = +360°)</span> : <span>{tr('성립', 'holds')} (<i className="greek">A</i> = −360°)</span>}</Badge>
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span className="min-w-0 text-ink-2"><Rich text={`Maekawa: ${r.generalized.windingClass === null ? tr('해당 없음', 'n/a') : r.generalized.windingClass === 0 ? '$|M - V| = 2$' : '$M = V$'}`} /></span>
@@ -252,7 +253,7 @@ function VertexInspector({ id }: { id: number }) {
       {r.interior && r.edges.length > 0 && (
         <Section title={tr('섹터 각과 접힘각', 'Sector and fold angles')} foldable defaultOpen={false}>
           <table className="tnum w-full text-[13px]">
-            <thead><tr className="text-ink-3"><th className="pb-1 text-left font-normal">i</th><th className="pb-1 text-left font-normal">{tr('크리스', 'Crease')}</th><th className="pb-1 text-left font-normal">M/V</th><th className="pb-1 text-right font-normal"><Rich text="$\theta_i$" /></th><th className="pb-1 text-right font-normal">{tr('현재', 'Current')} <span className="greek">ρ</span></th></tr></thead>
+            <thead><tr className="text-ink-3"><th className="pb-1 text-left font-normal"><Rich text="$i$" /></th><th className="pb-1 text-left font-normal">{tr('크리스', 'Crease')}</th><th className="pb-1 text-left font-normal">M/V</th><th className="pb-1 text-right font-normal"><Rich text="$\theta_i$" /></th><th className="pb-1 text-right font-normal">{tr('현재', 'Current')} <span className="greek">ρ</span></th></tr></thead>
             <tbody>
               {r.edges.map((eid, i) => {
                 const n = creaseName(model, eid);
@@ -311,7 +312,7 @@ function ModelSummary() {
       <KV k={tr('접히는 크리스', 'Folding creases')} v={model.edges.filter((e) => e.faces[1] >= 0 && isCrease(e.assignment)).length} />
       <KV k={tr('기준 형상', 'Reference shape')} v={model.metadata.developable ? tr('평면 종이', 'flat paper') : tr('3D 조립체', '3D assembly')} mono={false} />
       <KV k={tr('구동 크리스', 'Driving crease')} v={drive === null ? tr('없음', 'none') : <CreaseLabel name={creaseName(model, drive)} />} />
-      <KV k={tr('고정', 'Locked')} v={locked.length ? locked.map((l) => creaseName(model, l)).join(', ') : tr('없음', 'none')} />
+      <KV k={tr('고정', 'Locked')} v={locked.length ? <SymList items={locked.map((l) => creaseName(model, l))} /> : tr('없음', 'none')} />
       <div className="mt-2">
         <Toggle checked={enforceMV} onChange={setEnforceMV} label={tr('M/V 배정 준수 (Rigid)', 'Respect M/V assignment (Rigid)')} title={tr('M 크리스는 ρ ≤ 0, V 크리스는 ρ ≥ 0', 'M creases ρ ≤ 0, V creases ρ ≥ 0')} />
         {model.edu.symmetryLinks.length > 0 && <Toggle checked={useSymmetry} onChange={setUseSymmetry} label={tr(`대칭 구속 (${model.edu.symmetryLinks.length})`, `Symmetry constraints (${model.edu.symmetryLinks.length})`)} />}

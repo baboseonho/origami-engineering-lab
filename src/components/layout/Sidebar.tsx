@@ -6,6 +6,7 @@ import { downloadCreasePattern, printCreasePattern } from '../pages/printCP';
 import { VideoGrid } from '../pages/Article';
 import { StructureIntro } from '../pages/StructurePicker';
 import { ExplainerButton } from '../explainers/ExplainerButton';
+import { useBriefInMain } from './LessonBrief';
 import { useSim } from '../../state/simulationStore';
 import { engine } from '../../state/engine';
 import { waterbombTubeMetrics } from '../../models/generators/waterbombTube';
@@ -17,7 +18,7 @@ import { applyParams, exportCurrentFold, loadLesson } from '../../state/actions'
 import { FoldBody, NumberField, Section } from '../controls/ui';
 import { Rich } from '../controls/Rich';
 
-function Navigator() {
+export function Navigator() {
   const lessonId = useModel((s) => s.lessonId);
   const lecture = useUI((s) => s.lecture);
   const [open, setOpen] = useState<Record<number, boolean>>({});
@@ -298,16 +299,20 @@ function ModeTabs() {
   );
 }
 
-export function Sidebar() {
+/** The lesson column. On the phone it is split: `hideNav` (the index is its own tab) and `hideLesson` (the explanation is shown above it). */
+export function Sidebar({ hideNav = false, hideLesson = false }: { hideNav?: boolean; hideLesson?: boolean } = {}) {
   const lessonId = useModel((s) => s.lessonId);
   const appMode = useUI((s) => s.appMode);
   const lesson = lessonById(lessonId);
+  const briefInMain = useBriefInMain();
   return (
     <aside className="sheet flex h-full flex-col overflow-hidden rounded-[3px]" aria-label={tr('도면 목록과 레슨', 'Sheets and lesson')}>
-      <div className="stable-gutter max-h-[36%] shrink-0 overflow-y-auto"><Navigator /></div>
+      {!hideNav && <div className="stable-gutter max-h-[36%] shrink-0 overflow-y-auto"><Navigator /></div>}
       <div className="stable-gutter min-h-0 flex-1 overflow-y-auto">
         {lesson && <ModeTabs />}
-        {lesson && appMode === 'learn' && <LessonContent lesson={lesson} />}
+        {lesson && appMode === 'learn' && !hideLesson && (briefInMain
+          ? <p className="border-b border-dashed border-rule-2 px-4 py-3 text-[14px] leading-relaxed text-ink-3">{tr('설명은 가운데 화면 위쪽에 있다. 여기서는 치수, 프리셋, 과제를 다룬다.', 'The explanation is at the top of the main view. Dimensions, presets and tasks are here.')}</p>
+          : <LessonContent lesson={lesson} />)}
         {lesson && appMode === 'challenge' && <Challenges lesson={lesson} prominent />}
         {lesson && <Presets lesson={lesson} />}
         <ParamsPanel />

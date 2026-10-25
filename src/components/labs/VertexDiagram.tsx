@@ -26,7 +26,8 @@ export function VertexDiagram({
   showLabels?: boolean;
 }) {
   const [box, w] = useBoxWidth<HTMLDivElement>(size);
-  const S = Math.max(260, Math.min(size, w));
+  // never wider than its box: on a phone the box is the limit
+  const S = Math.max(220, Math.min(size, w));
   const c = S / 2;
   const R = c - 56; // room for the handles outside the paper
   const svg = useRef<SVGSVGElement>(null);
@@ -51,7 +52,7 @@ export function VertexDiagram({
   };
   const interactive = !!(onDrag || onRayClick);
   return (
-    <div ref={box} className="w-full">
+    <div ref={box} className="w-full min-w-0 overflow-hidden">
       <svg ref={svg} width={S} height={S} viewBox={`0 0 ${S} ${S}`} className="mx-auto block touch-none select-none" role="img"
         onPointerMove={(e) => {
           if (!drag.current || !onDrag) return;

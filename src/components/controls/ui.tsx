@@ -142,16 +142,19 @@ export function Toggle({ checked, onChange, label, title }: { checked: boolean; 
 
 const inputCls = 'rounded-[4px] border border-rule-2 bg-paper px-2 py-1 tnum text-[14px] text-ink transition-colors focus:border-ink focus:outline-none';
 
-/** Numeric input that commits on Enter/blur. */
+/** Number as shown in an input: up to 6 decimals, Unicode minus. */
+const fieldText = (v: number) => (Number.isFinite(v) ? (+v.toFixed(6)).toString().replace('-', '−') : '');
+
+/** Numeric input that commits on Enter/blur; shows "−45" and accepts a typed "-45" or "−45". */
 export function NumberField({ value, onCommit, step = 1, min, max, suffix, width = 'w-20', label }: {
   value: number; onCommit: (v: number) => void; step?: number; min?: number; max?: number; suffix?: string; width?: string; label?: string;
 }) {
-  const [txt, setTxt] = useState(value.toString());
-  useEffect(() => setTxt(Number.isFinite(value) ? (+value.toFixed(6)).toString() : ''), [value]);
+  const [txt, setTxt] = useState(fieldText(value));
+  useEffect(() => setTxt(fieldText(value)), [value]);
   const commit = () => {
-    const v = parseFloat(txt);
+    const v = parseFloat(txt.replace(/[−–]/g, '-'));
     if (Number.isFinite(v)) onCommit(Math.max(min ?? -Infinity, Math.min(max ?? Infinity, v)));
-    else setTxt(value.toString());
+    else setTxt(fieldText(value));
   };
   return (
     <span className="inline-flex items-center gap-1">
@@ -204,7 +207,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
 }
 
 export const fmt = (x: number | undefined | null, d = 3) =>
-  x === undefined || x === null || !Number.isFinite(x) ? '—' : Math.abs(x) >= 1e4 || (Math.abs(x) < 1e-3 && x !== 0) ? x.toExponential(2) : x.toFixed(d);
+  x === undefined || x === null || !Number.isFinite(x) ? '—' : (Math.abs(x) >= 1e4 || (Math.abs(x) < 1e-3 && x !== 0) ? x.toExponential(2) : x.toFixed(d)).replace(/-/g, '−');
 
 export const FOLD_SPEEDS = [0.1, 0.25, 0.5, 1, 2] as const;
 

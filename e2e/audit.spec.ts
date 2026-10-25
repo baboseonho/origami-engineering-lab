@@ -109,17 +109,18 @@ test('audit: phone layout, drawers and cover', async ({ page }) => {
   // no horizontal page scroll
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
-  where.step = 'phone: index drawer';
-  await page.getByRole('button', { name: '도면 목록 열기' }).click();
-  await expect(page.getByRole('dialog', { name: '도면 목록' }).first()).toBeVisible();
-  await page.keyboard.press('Escape');
-  where.step = 'phone: inspector drawer';
-  await page.getByRole('button', { name: '검사' }).first().click();
+  // bottom tabs: explanation, model + fold, analysis, sheets
+  where.step = 'phone: tabs';
+  const tabs = page.getByRole('tablist', { name: '화면' });
+  await tabs.getByRole('tab', { name: '설명' }).click();
+  await expect(page.getByRole('region', { name: '설명' })).toBeVisible();
+  await tabs.getByRole('tab', { name: '분석' }).click();
   await page.waitForTimeout(400);
-  await page.keyboard.press('Escape');
-  where.step = 'phone: cover';
-  await page.getByRole('button', { name: '도면 목록 열기' }).click();
-  await page.getByRole('button', { name: '표지 보기' }).last().click();
+  await tabs.getByRole('tab', { name: '모델' }).click();
+  await expect(page.getByRole('region', { name: '판정' })).toBeVisible();
+  where.step = 'phone: sheets and cover';
+  await tabs.getByRole('tab', { name: '목록' }).click();
+  await page.getByRole('button', { name: '표지 보기' }).first().click();
   await expect(page.getByRole('dialog', { name: '도면 목록' }).last()).toBeVisible();
   await page.waitForTimeout(600);
   await page.keyboard.press('Escape');

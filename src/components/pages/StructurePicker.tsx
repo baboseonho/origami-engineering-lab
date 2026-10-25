@@ -95,13 +95,20 @@ export function StructurePicker({ search = false, limit }: { search?: boolean; l
   );
 }
 
+/** The everyday question that opens a structure's sheet. */
+export function StructureHook({ sheet }: { sheet: string }) {
+  const s = structureForSheet(sheet);
+  if (!s) return null;
+  return <p className="mt-3 rounded-[3px] border border-mark-deep/40 bg-mark/45 px-3.5 py-2.5 text-[16px] font-medium leading-relaxed text-ink">{bi(s.hook)}</p>;
+}
+
 /** On a structure's own sheet: the question, where it is used and the theory it teaches. */
-export function StructureIntro({ sheet }: { sheet: string }) {
+export function StructureIntro({ sheet, showHook = true }: { sheet: string; showHook?: boolean }) {
   const s = structureForSheet(sheet);
   if (!s) return null;
   return (
     <div className="mt-3 space-y-3">
-      <p className="rounded-[3px] border border-mark-deep/40 bg-mark/45 px-3 py-2 text-[15px] leading-relaxed text-ink">{bi(s.hook)}</p>
+      {showHook && <p className="rounded-[3px] border border-mark-deep/40 bg-mark/45 px-3 py-2 text-[15px] leading-relaxed text-ink">{bi(s.hook)}</p>}
       <div>
         <div className="lettering text-[12px] text-ink-3">{tr('어떻게 접히나', 'How it folds')}</div>
         <p className="mt-0.5 text-[14px] leading-relaxed text-ink-2">{bi(s.motion)}</p>

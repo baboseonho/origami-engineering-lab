@@ -77,52 +77,73 @@ function ConfigSpace({ path = 0, fail = 0 }: { path?: number; fail?: number }) {
   );
 }
 
+/** the bag's visual centre in the default placement, for moving it about */
+const BAG_C: [number, number] = [240 + 0.5 * 0.866 * 62, 190 - 62 + 0.75 * 62];
+const RIGID = () => tr('강체로는 여기까지', 'rigidly, this is as far as it goes');
+const bagNote = () => tr('개략도', 'schematic');
+
 export const bagScenes = (): Scene[] => [
   {
-    duration: 4200,
-    caption: () => tr('보통의 종이 쇼핑백. 옆면 가운데의 산접기(거싯)와 바닥 쪽 삼각형 주름 덕분에 납작하게 접혀서 운반된다.', 'An ordinary paper bag. A mountain fold down the middle of each side (the gusset) and triangle folds near the bottom let it ship flat.'),
+    duration: 4000, view: 'oblique', viewNote: bagNote,
+    caption: () => tr('보통의 종이 쇼핑백을 비스듬히 위에서 본 그림. 옆면 가운데의 산접기(거싯)와 바닥 쪽 삼각형 주름 덕분에 납작하게 접혀서 운반된다.', 'An ordinary paper bag, seen from above at an angle. A mountain fold down the middle of each side (the gusset) and triangle folds near the bottom let it ship flat.'),
     draw: (t) => <g opacity={seg(t, 0, 0.4)}><Bag s={0} /></g>,
   },
   {
-    duration: 5200,
+    duration: 5000, view: 'oblique', viewNote: bagNote,
     caption: () => tr('그런데 면을 휘지 않는 단단한 판이라고 해 보자. 백은 아주 조금 흔들릴 뿐(1차 가동성), 그 이상은 한 걸음도 접히지 않는다.', 'Now suppose every face is a rigid panel that cannot bend. The bag only wiggles a tiny bit (first-order mobility) and cannot fold any further.'),
     draw: (t) => (
       <g>
         <Bag s={0} wobble={0.04 * Math.sin(t * Math.PI * 6) * (1 - seg(t, 0.7, 1))} />
-        <Label x={240} y={282} size={16} weight={700} color={BAD} opacity={seg(t, 0.6, 0.85)}>{tr('강체로는 여기까지', 'rigidly, this is as far as it goes')}</Label>
+        <Label x={240} y={282} size={16} weight={700} color={BAD} opacity={seg(t, 0.6, 0.85)}>{RIGID()}</Label>
       </g>
     ),
   },
   {
-    duration: 5600,
-    caption: () => tr('가능한 모든 모양을 점 하나로 찍은 "형상 공간"으로 보면: 열린 백과 납작한 백은 둘 다 존재하는 모양이지만, 면을 휘지 않고는 둘을 잇는 길이 없는 외딴 점이다.', 'Picture every possible shape as one point in a "configuration space". The open bag and the flat bag both exist, but they are isolated points: no path joins them without bending a face.'),
-    draw: (t) => <ConfigSpace fail={seg(t, 0.35, 0.65)} />,
-  },
-  {
-    duration: 6500,
-    caption: () => tr('실제 종이는 조금 휜다. 면이 휘는 것을 허용하면 길이 생기고 백이 납작해진다. 붉을수록 많이 휘는 면: 시작과 끝은 평평하고, 중간에서만 휜다.', 'Real paper bends a little. Allow faces to bend and a path appears: the bag flattens. Redder means more bending: none at the start or end, only on the way.'),
+    duration: 5800, view: 'diagram',
+    caption: () => tr('이제 그림을 개념도로 바꾼다. 가능한 모든 모양을 점 하나로 찍은 "형상 공간"으로 보면: 열린 백과 납작한 백은 둘 다 존재하는 모양이지만, 면을 휘지 않고는 둘을 잇는 길이 없는 외딴 점이다.', 'Now the picture becomes a diagram. Picture every possible shape as one point in a "configuration space". The open bag and the flat bag both exist, but they are isolated points: no path joins them without bending a face.'),
     draw: (t) => {
-      const s = seg(t, 0.1, 0.9);
+      const k = seg(t, 0.05, 0.3);
+      const [x, y] = [BAG_C[0] + (120 - BAG_C[0]) * k, BAG_C[1] + (160 - BAG_C[1]) * k];
       return (
         <g>
-          <g transform="translate(145 190) scale(0.82) translate(-240 -190)"><Bag s={s} bend={Math.sin(Math.PI * s)} /></g>
-          <g transform="translate(250 30) scale(0.42)"><ConfigSpace path={s} /></g>
+          <g opacity={seg(t, 0.08, 0.3)}><ConfigSpace fail={seg(t, 0.45, 0.72)} /></g>
+          <g opacity={1 - seg(t, 0.22, 0.34)} transform={`translate(${x} ${y}) scale(${1 - 0.85 * k}) translate(${-BAG_C[0]} ${-BAG_C[1]})`}><Bag s={0} /></g>
+          <Label x={240} y={282} size={16} weight={700} color={BAD} opacity={1 - seg(t, 0, 0.1)}>{RIGID()}</Label>
         </g>
       );
     },
   },
   {
-    duration: 5200,
+    duration: 6500, view: 'oblique', viewNote: () => tr('오른쪽 위 작은 그림은 개념도', 'inset: diagram'),
+    caption: () => tr('다시 비스듬히 위에서 본 백으로 돌아온다. 실제 종이는 조금 휜다. 면이 휘는 것을 허용하면 길이 생기고 백이 납작해진다. 붉을수록 많이 휘는 면: 시작과 끝은 평평하고, 중간에서만 휜다.', 'Back to the bag, seen from above at an angle. Real paper bends a little. Allow faces to bend and a path appears: the bag flattens. Redder means more bending: none at the start or end, only on the way.'),
+    draw: (t) => {
+      const k = seg(t, 0, 0.2);
+      const s = seg(t, 0.32, 0.92);
+      return (
+        <g>
+          <g opacity={seg(t, 0.14, 0.3)} transform="translate(145 190) scale(0.82) translate(-240 -190)"><Bag s={s} bend={Math.sin(Math.PI * s)} /></g>
+          <g transform={`translate(${250 * k} ${30 * k}) scale(${1 - 0.58 * k})`}><ConfigSpace path={s} fail={1 - k} /></g>
+        </g>
+      );
+    },
+  },
+  {
+    duration: 5200, view: 'oblique', viewNote: bagNote,
     caption: () => tr('Balkcom, Demaine, Demaine(2004)의 결과다: 키 큰 종이 쇼핑백은 강체로 접을 수 없다. 우리가 매일 쇼핑백을 접을 수 있는 건 종이가 휘기 때문이다.', 'This is the result of Balkcom, Demaine and Demaine (2004): a tall paper bag cannot be folded rigidly. We fold shopping bags every day only because paper bends.'),
-    draw: (t) => (
-      <g>
-        <g transform="translate(120 200) scale(0.7) translate(-240 -190)"><Bag s={0} /></g>
-        <g transform="translate(360 200) scale(0.7) translate(-240 -190)"><Bag s={1} /></g>
-        <Label x={240} y={140} size={30} weight={700} opacity={seg(t, 0.1, 0.4)}>→</Label>
-        <Label x={240} y={170} size={14} color={BAD} weight={600} opacity={seg(t, 0.2, 0.5)}>{tr('면이 휘어야 함', 'faces must bend')}</Label>
-        <Label x={240} y={282} size={13} color={INK3} opacity={seg(t, 0.4, 0.7)}>{tr('그림은 개념도다. 정확한 계산은 이 도면의 3D 모델에서 본다.', 'Schematic drawing; the exact computation is the 3D model on this sheet.')}</Label>
-      </g>
-    ),
+    draw: (t) => {
+      const k = seg(t, 0, 0.25);
+      const fx = 145 + (360 - 145) * k, fy = 190 + (200 - 190) * k, fs = 0.82 + (0.7 - 0.82) * k;
+      return (
+        <g>
+          <g opacity={1 - k} transform="translate(250 30) scale(0.42)"><ConfigSpace path={1} /></g>
+          <g opacity={k} transform="translate(120 200) scale(0.7) translate(-240 -190)"><Bag s={0} /></g>
+          <g transform={`translate(${fx} ${fy}) scale(${fs}) translate(-240 -190)`}><Bag s={1} /></g>
+          <Label x={240} y={140} size={30} weight={700} opacity={seg(t, 0.25, 0.45)}>→</Label>
+          <Label x={240} y={170} size={14} color={BAD} weight={600} opacity={seg(t, 0.3, 0.5)}>{tr('면이 휘어야 함', 'faces must bend')}</Label>
+          <Label x={240} y={282} size={13} color={INK3} opacity={seg(t, 0.45, 0.7)}>{tr('그림은 개략도다. 정확한 계산은 이 도면의 3D 모델에서 본다.', 'Schematic drawing; the exact computation is the 3D model on this sheet.')}</Label>
+        </g>
+      );
+    },
   },
 ];
 
@@ -131,84 +152,98 @@ export const bagScenes = (): Scene[] => [
 const RINGS = [1, 0.75, 0.5, 0.25];
 /** saddle z = c·x·y: corners (a,a) and (−a,−a) rise, the other two sink */
 const corners = (a: number, c: number): P3[] => [[a, a, c * a * a], [-a, a, -c * a * a], [-a, -a, c * a * a], [a, -a, -c * a * a]];
+const ringStroke = (i: number) => (i === 0 ? INK : i % 2 ? MOUNTAIN : VALLEY);
+const ringDash = (i: number) => (i === 0 ? undefined : i % 2 ? '9 3 2 3' : '7 4');
 
 function HyparCP({ t = 1 }: { t?: number }) {
   const s = 100, cx = 240, cy = 150;
   return (
     <g>
-      {RINGS.map((a, i) => {
-        const k = seg(t, i * 0.15, 0.3 + i * 0.15);
-        return <rect key={i} x={cx - a * s} y={cy - a * s} width={2 * a * s} height={2 * a * s} fill="none"
-          stroke={i === 0 ? INK : i % 2 ? MOUNTAIN : VALLEY} strokeWidth={i === 0 ? 2 : 2.2} strokeDasharray={i === 0 ? undefined : i % 2 ? '9 3 2 3' : '7 4'} opacity={k} />;
-      })}
       {[[1, 1], [1, -1]].map(([u, v], i) => (
         <line key={i} x1={cx - u * s} y1={cy - v * s} x2={cx + u * s} y2={cy + v * s} stroke={INK3} strokeWidth={1.4} opacity={seg(t, 0.7, 0.95)} />
+      ))}
+      {RINGS.map((a, i) => (
+        <rect key={i} x={cx - a * s} y={cy - a * s} width={2 * a * s} height={2 * a * s} fill="none"
+          stroke={ringStroke(i)} strokeWidth={2.2} strokeDasharray={ringDash(i)} opacity={seg(t, i * 0.15, 0.3 + i * 0.15)} />
       ))}
     </g>
   );
 }
 
-/** a turned, slightly raised view so the saddle reads (an isometric view looks straight down its diagonal) */
-const view = (p: P3, s: number, ox: number, oy: number): [number, number] => {
-  const yaw = (28 * Math.PI) / 180;
+/**
+ * Seen from above (tilt 0, matching the crease pattern) or turned and raised
+ * (tilt 1) so the saddle reads; an isometric view would look straight down its diagonal.
+ */
+const view = (p: P3, tilt: number, ox: number, oy: number): [number, number] => {
+  const s = 100 + 18 * tilt;
+  const yaw = (28 * tilt * Math.PI) / 180;
   const x = p[0] * Math.cos(yaw) - p[1] * Math.sin(yaw);
   const y = p[0] * Math.sin(yaw) + p[1] * Math.cos(yaw);
-  return [ox + x * s, oy - p[2] * s * 0.95 + y * s * 0.42];
+  return [ox + x * s, oy - p[2] * s * 0.95 * tilt + y * s * (1 - 0.58 * tilt)];
 };
 
-function Hypar3D({ c, highlight = 0, split = 0 }: { c: number; highlight?: number; split?: number }) {
-  const s = 118, ox = 240, oy = 150;
-  const P = (p: P3) => view(p, s, ox, oy);
+function Hypar3D({ c, highlight = 0, split = 0, tilt = 1 }: { c: number; highlight?: number; split?: number; tilt?: number }) {
+  const ox = 240, oy = 150;
+  const P = (p: P3) => view(p, tilt, ox, oy);
   const rings = RINGS.map((a) => corners(a, c));
   // the trapezoid between ring 0 and ring 1 on one side
   const q: P3[] = [rings[0][0], rings[0][1], rings[1][1], rings[1][0]];
   const qs = q.map(P);
   return (
     <g strokeLinejoin="round">
+      {[0, 1, 2, 3].map((k) => <line key={k} x1={P(rings[0][k])[0]} y1={P(rings[0][k])[1]} x2={P([0, 0, 0])[0]} y2={P([0, 0, 0])[1]} stroke={INK3} strokeWidth={1.4} />)}
       {rings.map((r, i) => (
-        <polygon key={i} points={poly(r.map(P))} fill="none" stroke={i === 0 ? INK : i % 2 ? MOUNTAIN : VALLEY} strokeWidth={2.2} strokeDasharray={i === 0 ? undefined : i % 2 ? '9 3 2 3' : '7 4'} />
+        <polygon key={i} points={poly(r.map(P))} fill="none" stroke={ringStroke(i)} strokeWidth={2.2} strokeDasharray={ringDash(i)} />
       ))}
-      {[0, 1, 2, 3].map((k) => <line key={k} x1={P(rings[0][k])[0]} y1={P(rings[0][k])[1]} x2={P([0, 0, 0])[0]} y2={P([0, 0, 0])[1]} stroke={INK3} strokeWidth={1.2} />)}
       {highlight > 0 && <polygon points={poly(qs)} fill={BAD} fillOpacity={0.22 * highlight} stroke={BAD} strokeWidth={2.4 * highlight} />}
       {split > 0 && <line x1={qs[0][0]} y1={qs[0][1]} x2={qs[2][0]} y2={qs[2][1]} stroke={OK} strokeWidth={3} strokeDasharray="6 4" opacity={split} />}
     </g>
   );
 }
 
+const BENT = () => tr('네 꼭짓점이 한 평면에 없다 → 면이 휘어야 한다', 'four corners, not one plane → the face must bend');
+const FLAT = () => tr('삼각형은 언제나 평평하다 ✓', 'a triangle is always flat ✓');
+
 export const hyparScenes = (): Scene[] => [
   {
-    duration: 4200,
-    caption: () => tr('하이파의 크리스 패턴: 동심 정사각형에 산과 골을 번갈아 주고, 대각선을 더한다. 직선뿐이다.', 'The hypar\'s crease pattern: concentric squares, alternately mountain and valley, plus the diagonals. Straight lines only.'),
+    duration: 4000, view: 'top', viewNote: () => tr('펼친 종이', 'flat sheet'),
+    caption: () => tr('하이파의 크리스 패턴을 펼친 채 위에서 본다: 동심 정사각형에 산과 골을 번갈아 주고, 대각선을 더한다. 직선뿐이다.', 'The hypar\'s crease pattern, a flat sheet seen from above: concentric squares, alternately mountain and valley, plus the diagonals. Straight lines only.'),
     draw: (t) => <HyparCP t={t} />,
   },
   {
-    duration: 5000,
-    caption: () => tr('접으면 전체가 말안장(쌍곡포물면)처럼 휜다. 두 모서리는 올라가고 두 모서리는 내려간다. 바우하우스 시절부터 사람들이 접어 온 모양이다.', 'Folded, the whole sheet bends into a saddle (a hyperbolic paraboloid): two corners rise, two sink. People have folded it since the Bauhaus.'),
-    draw: (t) => <Hypar3D c={0.55 * seg(t, 0.05, 0.85)} />,
+    duration: 5600, view: 'oblique',
+    caption: () => tr('보는 눈을 비스듬히 위로 옮긴 뒤 접는다. 전체가 말안장(쌍곡포물면)처럼 휜다. 두 모서리는 올라가고 두 모서리는 내려간다. 바우하우스 시절부터 사람들이 접어 온 모양이다.', 'First the eye moves to look from above at an angle, then the sheet folds. It bends into a saddle (a hyperbolic paraboloid): two corners rise, two sink. People have folded it since the Bauhaus.'),
+    draw: (t) => <Hypar3D tilt={seg(t, 0, 0.3)} c={0.55 * seg(t, 0.35, 0.9)} />,
   },
   {
-    duration: 6000,
+    duration: 6000, view: 'oblique',
     caption: () => tr('그런데 고리 사이의 사다리꼴 하나를 보자. 네 꼭짓점이 한 평면 위에 있지 않다. 평평한 종이 조각이 이렇게 놓이려면 휘어야 한다. Demaine 외(2011)는 이 크리스만으로는 면을 평평하게 둔 채 접을 수 없음을 증명했다.', 'Look at one trapezoid between two rings: its four corners do not lie in one plane. A flat piece of paper can only sit like that if it bends. Demaine et al. (2011) proved the hypar cannot fold with exactly these creases and flat faces.'),
     draw: (t) => (
       <g>
         <Hypar3D c={0.55} highlight={seg(t, 0.1, 0.4)} />
-        <Label x={240} y={286} size={15} weight={700} color={BAD} opacity={seg(t, 0.45, 0.7)}>{tr('네 꼭짓점이 한 평면에 없다 → 면이 휘어야 한다', 'four corners, not one plane → the face must bend')}</Label>
+        <Label x={240} y={286} size={15} weight={700} color={BAD} opacity={seg(t, 0.45, 0.7)}>{BENT()}</Label>
       </g>
     ),
   },
   {
-    duration: 5600,
+    duration: 5600, view: 'oblique',
     caption: () => tr('그래서 실제 하이파는 면이 살짝 휘어서 접힌다. 사다리꼴마다 대각선 크리스를 하나 더하면 삼각형 두 개로 나뉘어, 면을 휘지 않고도 접히는 패턴이 된다.', 'So a real hypar folds because its faces bend slightly. Add one diagonal crease per trapezoid and it splits into two flat triangles: a pattern that folds without bending.'),
     draw: (t) => (
       <g>
         <Hypar3D c={0.55} highlight={1 - seg(t, 0.4, 0.7)} split={seg(t, 0.15, 0.45)} />
-        <Label x={240} y={286} size={15} weight={700} color={OK} opacity={seg(t, 0.55, 0.8)}>{tr('삼각형은 언제나 평평하다 ✓', 'a triangle is always flat ✓')}</Label>
+        <Label x={240} y={286} size={15} weight={700} color={BAD} opacity={1 - seg(t, 0, 0.12)}>{BENT()}</Label>
+        <Label x={240} y={286} size={15} weight={700} color={OK} opacity={seg(t, 0.55, 0.8)}>{FLAT()}</Label>
       </g>
     ),
   },
   {
-    duration: 4200,
+    duration: 4000, view: 'oblique',
     caption: () => tr('이 도면에서: Energy로 접어 면이 얼마나 휘는지 보고, "삼각 분할" 프리셋으로 면을 휘지 않는 강체 버전을 접어 보자.', 'On this sheet: fold with Energy to see how much the faces bend, then try the "triangulated" preset, the rigid version with flat faces.'),
-    draw: (t) => <g opacity={seg(t, 0, 0.4)}><Hypar3D c={0.55} split={1} /></g>,
+    draw: (t) => (
+      <g>
+        <Hypar3D c={0.55} split={1} />
+        <Label x={240} y={286} size={15} weight={700} color={OK} opacity={1 - seg(t, 0.1, 0.4)}>{FLAT()}</Label>
+      </g>
+    ),
   },
 ];

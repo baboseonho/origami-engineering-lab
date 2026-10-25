@@ -50,7 +50,7 @@ function IconAction({ icon, label, onClick, disabled, active }: { icon: ReactNod
  * are (lecture, sheet, previous/next), how the model is solved and viewed
  * (on model sheets only — lab sheets have their own controls), history.
  */
-export function TopBar() {
+export function TopBar({ mobile = false }: { mobile?: boolean } = {}) {
   const lecture = useUI((s) => s.lecture);
   const lang = useUI((s) => s.lang);
   const viewMode = useUI((s) => s.viewMode);
@@ -80,10 +80,10 @@ export function TopBar() {
   const step = 'flex h-8 w-7 shrink-0 items-center justify-center rounded-[3px] text-ink-2 hover:bg-paper-2 hover:text-ink disabled:opacity-30';
   return (
     <header className="sheet flex min-h-[58px] flex-wrap items-stretch rounded-[3px] pr-2 md:flex-nowrap">
-      <button type="button" onClick={() => useUI.getState().setDrawer('index')} aria-label={tr('도면 목록 열기', 'Open the sheet index')}
+      {!mobile && <button type="button" onClick={() => useUI.getState().setDrawer('index')} aria-label={tr('도면 목록 열기', 'Open the sheet index')}
         className="ml-2 flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-[4px] border border-rule-2 text-ink-2 hover:border-ink hover:text-ink xl:hidden">
         <Menu size={17} />
-      </button>
+      </button>}
       {/* identity cell: opens the drawing index (cover sheet) */}
       <button type="button" onClick={() => useUI.getState().setCoverOpen(true)} title={tr('도면 목록 (표지)', 'Sheet index (cover)')} aria-label={tr('도면 목록 (표지) 열기', 'Open the sheet index (cover)')}
         className="group flex shrink-0 items-center gap-2.5 px-3 text-left max-md:hidden">
@@ -126,7 +126,7 @@ export function TopBar() {
 
       {/* model sheets only: lab sheets have no solver / view to choose */}
       {model && (
-        <div className="flex max-md:order-2 max-md:w-full max-md:items-center max-md:gap-2 max-md:border-t max-md:border-rule max-md:px-2 max-md:py-1.5 md:contents">
+        <div className="flex max-md:order-2 max-md:w-full max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:border-t max-md:border-rule max-md:px-2 max-md:py-1.5 md:contents">
           <Cell caption={tr('솔버', 'Solver')} className="max-md:px-0">
             <Segmented<'rigid' | 'energy'> label={tr('솔버', 'Solver')} value={solverMode} onChange={(m) => setSolverMode(m)} options={[
               { id: 'rigid', label: 'Rigid', title: tr('강체 기구학: 면은 변형되지 않고, 불가능한 요청은 거부한다', 'Rigid kinematics: faces never deform, and an impossible request is refused') },
@@ -145,7 +145,7 @@ export function TopBar() {
       )}
 
       <div className="ml-auto flex items-center gap-0.5 border-rule pl-2 md:border-l">
-        <span className="md:hidden"><IconAction icon={<PanelBottomOpen size={16} />} label={tr('검사', 'Inspect')} onClick={() => useUI.getState().setDrawer('inspector')} /></span>
+        {!mobile && <span className="md:hidden"><IconAction icon={<PanelBottomOpen size={16} />} label={tr('검사', 'Inspect')} onClick={() => useUI.getState().setDrawer('inspector')} /></span>}
         {model && solverMode === 'energy' && (
           <IconAction icon={playing ? <Pause size={16} /> : <Play size={16} />} label={playing ? tr('동역학 정지', 'Stop dynamics') : tr('동역학 재생', 'Run dynamics')} onClick={togglePlay} active={playing} />
         )}

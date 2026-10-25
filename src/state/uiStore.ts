@@ -29,6 +29,9 @@ export interface UIState {
   settingsOpen: boolean;
   /** the drawing index (cover sheet) */
   coverOpen: boolean;
+  /** the lesson explanation in the main area is unfolded */
+  briefOpen: boolean;
+  setBriefOpen: (b: boolean) => void;
   /** a short notice about something the app changed by itself */
   notice: { text: string; n: number } | null;
   notify: (text: string) => void;
@@ -80,6 +83,8 @@ export const useUI = create<UIState>((set) => ({
   showDerivation: false,
   settingsOpen: false,
   coverOpen: false,
+  briefOpen: true,
+  setBriefOpen: (briefOpen) => set({ briefOpen }),
   notice: null,
   notify: (text) => set((st) => ({ notice: { text, n: (st.notice?.n ?? 0) + 1 } })),
   setCoverOpen: (coverOpen) => set({ coverOpen }),

@@ -1,16 +1,19 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { Sym } from '../controls/sym';
 
 /**
  * Screen-space labels for the 3D view without per-label React roots.
  * Components inside the Canvas publish label specs; a projector writes
  * screen positions directly into the overlay's DOM/SVG nodes every frame.
- * `leader` labels are drafting leader notes: a dot terminator on the anchor,
+ * The labels are HTML (not canvas sprites), so they share the HTML <Sym>
+ * typesetting of the rest of the app. `leader` labels are drafting leader notes: a dot terminator on the anchor,
  * a leader line, and the note on a short horizontal shoulder.
  */
 export interface LabelSpec {
   id: string;
+  /** plain text; indexed symbols ("ρ1") are set with a real subscript */
   text: string;
   cls: string;
   /** anchor in WORLD coordinates (already rotated) */
@@ -102,7 +105,7 @@ export function LabelLayer() {
       </svg>
       {specs.map((s) => (
         <div key={s.id} ref={(el) => { if (el) nodes.set(s.id, el); else nodes.delete(s.id); }} className={`absolute left-0 top-0 whitespace-nowrap ${s.cls}`} style={{ display: 'none' }}>
-          {s.text}
+          <Sym text={s.text} />
         </div>
       ))}
     </div>

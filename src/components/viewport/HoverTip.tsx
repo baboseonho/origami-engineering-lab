@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Assignment, OrigamiModel } from '../../core/topology/types';
 import { creaseName } from '../../core/topology/names';
-import { fmtDeg, toDeg } from '../../core/geometry/angles';
+import { fmtDeg } from '../../core/geometry/angles';
 import { ASSIGN_COLOR } from '../controls/ui';
 import { tr } from '../../i18n';
 import { edgeLength3, faceArea3, faceCorners3, pos3, vertexSectors } from './measure';
+import { SUB_CLASS, Sym } from '../controls/sym';
+import { deg, num } from '../analysis/num';
 
 /**
  * Hover readouts shared by the 3D view, the crease pattern and the
@@ -96,7 +98,8 @@ export function HoverCard({ title, assignment, rows, note }: TipContent) {
   );
 }
 
-const L = (x: number) => x.toFixed(3);
+/** Lengths and coordinates: 3 decimals, Unicode minus, never "−0.000". */
+const L = (x: number) => num(x, 3);
 const G = ({ children }: { children: ReactNode }) => <span className="greek">{children}</span>;
 
 /** Fold angle of an edge, or the word "boundary" where there is no second face. */
@@ -116,13 +119,13 @@ export function edgeTip(model: OrigamiModel, eid: number, rho: ArrayLike<number>
   }
   rows.push(...(opts.extra ?? []));
   rows.push({ k: <><G>ρ</G> {tr('접힘각', 'fold angle')}</>, v: rhoText(model, eid, rho) });
-  return { title: creaseName(model, eid), assignment: e.assignment, rows };
+  return { title: <Sym text={creaseName(model, eid)} />, assignment: e.assignment, rows };
 }
 
 /** Sector angles as rows θ1 … θk and their sum. */
 function sectorRows(sectors: number[]): TipRow[] {
-  const rows: TipRow[] = sectors.map((s, i) => ({ k: <G>θ{i + 1}</G>, v: `${toDeg(s).toFixed(1)}°` }));
-  rows.push({ k: <><G>Σθ</G></>, v: `${toDeg(sectors.reduce((a, b) => a + b, 0)).toFixed(1)}°` });
+  const rows: TipRow[] = sectors.map((s, i) => ({ k: <Sym text={`θ${i + 1}`} />, v: deg(s, 1) }));
+  rows.push({ k: <><G>Σθ</G><sub className={SUB_CLASS}><i>i</i></sub></>, v: deg(sectors.reduce((a, b) => a + b, 0), 1) });
   return rows;
 }
 
@@ -147,7 +150,7 @@ export function faceTip(model: OrigamiModel, fid: number): TipContent {
   const f = model.faces[fid];
   const corners = faceCorners3(model, fid);
   const rows: TipRow[] = [{ k: tr('면적', 'Area'), v: L(faceArea3(model, fid)) }];
-  f.vertices.forEach((v, i) => rows.push({ k: <>∠v{v}</>, v: `${toDeg(corners[i]).toFixed(1)}°` }));
+  f.vertices.forEach((v, i) => rows.push({ k: <>∠v{v}</>, v: deg(corners[i], 1) }));
   return { title: `f${fid}`, rows: rows.slice(0, 9), note: f.vertices.length > 8 ? tr(`꼭짓점 ${f.vertices.length}개 중 8개`, `8 of ${f.vertices.length} corners`) : undefined };
 }
 

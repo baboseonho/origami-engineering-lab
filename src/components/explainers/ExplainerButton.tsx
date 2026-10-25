@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Clapperboard, X } from 'lucide-react';
 import { tr } from '../../i18n';
-import { Explainer, type Scene } from './Explainer';
+import { Explainer, span, type Scene } from './Explainer';
 import { kawasakiScenes } from './Kawasaki';
 import { maekawaScenes } from './Maekawa';
 import { bagScenes, hyparScenes } from './Demaine';
@@ -25,7 +25,7 @@ export const EXPLAINERS: Record<string, Entry> = {
   'l6-hypar': HYPAR,
 };
 
-const minutes = (e: Entry) => Math.max(1, Math.round(e.scenes().reduce((s, x) => s + x.duration, 0) / 60000));
+const minutes = (e: Entry) => Math.max(1, Math.round(e.scenes().reduce((s, x) => s + span(x), 0) / 60000));
 
 /** A button that opens the sheet's motion explainer in a large player. */
 export function ExplainerButton({ lessonId, variant = 'card' }: { lessonId: string; variant?: 'card' | 'bar' }) {
