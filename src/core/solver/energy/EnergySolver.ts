@@ -19,10 +19,11 @@
  * using GPU computation", 7OSME (2018) (Origami Simulator, MIT licence) —
  * re-derived and written fresh here; no source code was copied.
  */
-import type { OrigamiModel } from '../../topology/types';
+import type { CyclicSymmetry, OrigamiModel } from '../../topology/types';
 import type { OrigamiSolver, SolverResult, SolverState } from '../types';
 import { hingeAngleGrad } from './creaseEnergy';
 import { buildTriMesh, type TriMesh } from './mesh';
+import { alignRigid, buildSymmetryGroup, projectSymmetric, symmetryError, type SymmetryGroup } from './symmetry';
 
 export interface EnergyParams {
   kAxial: number;
@@ -73,6 +74,11 @@ export class EnergySolver implements OrigamiSolver {
   private x0!: Float64Array;
   private gradBuf = new Float64Array(12);
   drive: number | null = null;
+  /** active symmetry group (symmetric mode), see setSymmetry */
+  private sym: SymmetryGroup | null = null;
+  /** the vertex clamp that symmetric mode replaced (restored when it ends) */
+  private symSavedFixed: Uint8Array | null = null;
+  private symTmp = new Float64Array(0);
 
   constructor(model?: OrigamiModel, params?: Partial<EnergyParams>) {
     if (params) this.params = { ...this.params, ...params };
@@ -100,6 +106,84 @@ export class EnergySolver implements OrigamiSolver {
     this.updateTimeStep();
     this.time = 0;
     this.diverged = false;
+    this.sym = null;
+    this.symSavedFixed = null;
+  }
+
+  /** True while the solver is restricted to the declared symmetric subspace. */
+  get symmetric(): boolean { return this.sym !== null; }
+
+  /**
+   * Symmetric mode: restrict the configuration to the subspace invariant under
+   * the model's declared symmetry group (see symmetry.ts). Positions, velocities
+   * and forces are projected (orbit-averaged) at every step, so FIRE and the
+   * dynamics converge to an equilibrium WITHIN that subspace, which by
+   * symmetric criticality is a true equilibrium of the whole bar-and-hinge
+   * model: the idealised, imperfection-free structure. The symmetry also fixes
+   * the rigid-body gauge (the axis is the z-axis), so the vertex clamp is
+   * released while the mode is on and restored (at the current positions)
+   * when it ends. The mode turns itself off whenever the loading stops being
+   * symmetric (non-invariant crease targets or stiffnesses, a driven crease,
+   * a new vertex clamp), so it can never symmetrise an asymmetric problem.
+   * Returns whether the mode is on.
+   */
+  setSymmetry(decl: CyclicSymmetry | null | undefined): boolean {
+    if (!decl) {
+      if (this.sym) {
+        this.sym = null;
+        if (this.symSavedFixed) {
+          this.fixed = this.symSavedFixed;
+          for (let i = 0; i < this.x.length; i++) if (this.fixed[i]) this.prescribed[i] = this.x[i];
+        }
+        this.symSavedFixed = null;
+      }
+      return false;
+    }
+    if (this.sym) return true;
+    const G = buildSymmetryGroup(this.model, this.mesh, decl);
+    if (!G) return false;
+    this.sym = G;
+    if (!this.loadsSymmetric()) { this.sym = null; return false; }
+    this.symSavedFixed = this.fixed;
+    this.fixed = new Uint8Array(this.x.length);
+    this.symTmp = new Float64Array(this.x.length);
+    // bring the current shape into the symmetry frame (a rigid motion: no energy change), then project
+    if (symmetryError(G, this.x) > 1e-9 * this.model.scale) alignRigid(this.x, this.x0);
+    projectSymmetric(G, this.x, true, this.symTmp);
+    this.v.fill(0);
+    this.refreshHingeAngles();
+    return true;
+  }
+
+  /** Are the crease targets and stiffnesses invariant under the active group? */
+  private loadsSymmetric(): boolean {
+    const G = this.sym;
+    if (!G) return true;
+    if (this.drive !== null && this.mesh.hingeOfEdge[this.drive] >= 0) return false;
+    for (const hp of G.hingePerm)
+      for (let i = 0; i < hp.length; i++) {
+        const j = hp[i];
+        if (Math.abs(this.hingeTarget[i] - this.hingeTarget[j]) > 1e-12 || Math.abs(this.hingeMult[i] - this.hingeMult[j]) > 1e-12) return false;
+      }
+    return true;
+  }
+
+  private symCheckLoads() {
+    if (this.sym && !this.loadsSymmetric()) this.setSymmetry(null);
+  }
+
+  /** Max-norm symmetry error of the current positions (0 when not in symmetric mode). */
+  symmetryError(): number {
+    return this.sym ? symmetryError(this.sym, this.x) : 0;
+  }
+
+  /** max |F| over the free coordinates of the FULL (unprojected) model at the current positions. */
+  residual(): number {
+    const F = new Float64Array(this.x.length);
+    this.computeForces(this.x, F, false);
+    let m = 0;
+    for (let i = 0; i < F.length; i++) if (!this.fixed[i]) m = Math.max(m, Math.abs(F[i]));
+    return m;
   }
 
   reset(): void {
@@ -119,6 +203,10 @@ export class EnergySolver implements OrigamiSolver {
   setPositions(pos: Float64Array) {
     this.x = new Float64Array(pos);
     this.v.fill(0);
+    if (this.sym) {
+      if (symmetryError(this.sym, this.x) > 1e-9 * this.model.scale) alignRigid(this.x, this.x0);
+      projectSymmetric(this.sym, this.x, true, this.symTmp);
+    }
     this.refreshHingeAngles();
   }
 
@@ -129,6 +217,7 @@ export class EnergySolver implements OrigamiSolver {
       this.hingeTarget[i] = typeof targets === 'function' ? targets(h.modelEdge) : targets[h.modelEdge];
       this.hingeMult[i] = mult ? mult(h.modelEdge) : 1;
     });
+    this.symCheckLoads();
     this.updateTimeStep();
   }
 
@@ -144,11 +233,13 @@ export class EnergySolver implements OrigamiSolver {
     if (h < 0) return;
     this.hingeTarget[h] = targetAngle;
     this.hingeMult[h] = this.params.driveStiffness;
+    this.symCheckLoads();
     this.updateTimeStep();
   }
 
   /** Fix (or prescribe) some coordinates. mask bit 1=x, 2=y, 4=z. */
   fixVertices(ids: number[], mask = 7, values?: (id: number) => [number, number, number]) {
+    if (this.sym) this.setSymmetry(null); // a clamp is not a symmetric load
     for (const i of ids) {
       const val = values ? values(i) : [this.x[3 * i], this.x[3 * i + 1], this.x[3 * i + 2]];
       for (let k = 0; k < 3; k++) if (mask & (1 << k)) {
@@ -162,6 +253,7 @@ export class EnergySolver implements OrigamiSolver {
 
   clearFixed() {
     this.fixed.fill(0);
+    this.symSavedFixed?.fill(0);
   }
 
   private refreshHingeAngles() {
@@ -311,12 +403,14 @@ export class EnergySolver implements OrigamiSolver {
       this.stepCount++;
       this.computeForces();
       this.addDamping();
+      if (this.sym) projectSymmetric(this.sym, this.F, false, this.symTmp);
       const dt = this.dt;
       for (let i = 0; i < N; i++) {
         if (this.fixed[i]) { this.v[i] = 0; this.x[i] = this.prescribed[i]; continue; }
         this.v[i] += (dt * this.F[i]) / this.mass[(i / 3) | 0];
         this.x[i] += dt * this.v[i];
       }
+      if (this.sym) { projectSymmetric(this.sym, this.v, false, this.symTmp); projectSymmetric(this.sym, this.x, true, this.symTmp); }
       let finite = true;
       for (let i = 0; i < N; i++) if (!Number.isFinite(this.x[i])) { finite = false; break; }
       if (!finite) { this.rollback(); return; }
@@ -347,6 +441,8 @@ export class EnergySolver implements OrigamiSolver {
     let it = 0;
     for (; it < maxIter; it++) {
       this.computeForces();
+      // symmetric mode: F is equivariant, so this only removes round-off; the minimum found is one of V on the subspace
+      if (this.sym) projectSymmetric(this.sym, this.F, false, this.symTmp);
       maxF = 0;
       let P = 0, vn = 0, fn = 0;
       for (let i = 0; i < N; i++) {
@@ -372,6 +468,7 @@ export class EnergySolver implements OrigamiSolver {
         this.v[i] += (dt * this.F[i]) / this.mass[(i / 3) | 0];
         this.x[i] += dt * this.v[i];
       }
+      if (this.sym) { projectSymmetric(this.sym, this.v, false, this.symTmp); projectSymmetric(this.sym, this.x, true, this.symTmp); }
       if (!Number.isFinite(this.x[0])) { this.diverged = true; break; }
     }
     this.v.fill(0);

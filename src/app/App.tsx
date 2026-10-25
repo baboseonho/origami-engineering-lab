@@ -2,6 +2,7 @@ import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ComponentTy
 import { lessonById, PAGE_LABS, type LabId } from '../curriculum/lessons';
 import { tr } from '../i18n';
 import { PageAside } from '../components/pages/PageAside';
+import { ExplainerButton } from '../components/explainers/ExplainerButton';
 import { useModel } from '../state/modelStore';
 import { useUI } from '../state/uiStore';
 import { loadLesson } from '../state/actions';
@@ -173,6 +174,7 @@ export default function App() {
               ) : (
                 <DrawingFrame title={lesson!.title}>
                   <div className="absolute inset-[8px] overflow-y-auto px-3 pb-16 pt-3">
+                    <ExplainerButton lessonId={lessonId} variant="bar" />
                     <SheetBoundary label={tr('실습', 'Lab')} resetKey={lessonId}><Suspense fallback={<SheetLoading label={tr('도면을 펼치는 중', 'Unfolding the sheet')} />}><Lab key={lessonId} /></Suspense></SheetBoundary>
                   </div>
                 </DrawingFrame>

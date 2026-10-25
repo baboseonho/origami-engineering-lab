@@ -618,6 +618,11 @@ function foldEnergyTo(q: number) {
       const pe = w ? Math.max(0, Math.min(1, (p - w[0]) / (w[1] - w[0]))) : p;
       return r + pe * (target(id) - r);
     });
+    // a model with a declared symmetry (the waterbomb tube) folds as the ideal, imperfection-free
+    // structure: the solver stays in the symmetric subspace, whose equilibria are true equilibria of
+    // the whole model (EnergySolver.setSymmetry). It replaces the facet clamp, which pinned one facet
+    // (no strain, fixed attitude) and so tilted the axis and broke the symmetry.
+    if (k === 1 && model.edu.cyclicSymmetry) e.setSymmetry(model.edu.cyclicSymmetry);
     e.relaxFIRE(4000, 1e-6);
   }
   engine.setPositions(e.x);

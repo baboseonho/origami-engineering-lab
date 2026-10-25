@@ -11,10 +11,11 @@ import { useSim } from '../../state/simulationStore';
 import { useUI } from '../../state/uiStore';
 import { animatePatternFold, applyParams, cancelPatternFold, driveSelected, foldDriveFully, patternFoldMode, patternFoldProgress, setPatternFold, pushHistory, setAssignment, setDriveEdge, setEnforceMV, setUseSymmetry, toggleLock } from '../../state/actions';
 import { lessonById } from '../../curriculum/lessons';
+import { TUBE_SYMMETRY_NOTE } from '../../models/generators/waterbombTube';
 import { ASSIGN_COLOR, ASSIGN_LABEL, AngleSlider, Badge, Button, KV, NumberField, Section, SpeedControl, Toggle, fmt } from '../controls/ui';
 import { VerdictStrip } from './FeasibilityBoard';
 import { layersFor } from '../viewport/layerCache';
-import { tr } from '../../i18n';
+import { getLang, tr } from '../../i18n';
 
 /** Closure error in words: an exact rigid solution reads "≈ 0", the number stays in the tooltip. */
 function Residual({ value }: { value: number }) {
@@ -420,7 +421,8 @@ function PatternFoldCard({ mode }: { mode: 'rigid' | 'energy' }) {
               <><b className="text-ink">{collisions} self-intersecting pairs:</b> in this stretch the paper briefly passes through itself. With so few facets this model cannot get through here without stretching them a lot. The solver has no contact model.</>)}
           </p>
         )}
-        {mode === 'energy' && <p className="mt-1 text-[13px] leading-relaxed text-ink-3">{tr('막대-힌지 모델로 각 단계의 평형을 푼 결과다. 처음과 완전 접힘에서는 변형이 0이고, 중간에서만 면이 휜다.', 'Each step is an equilibrium of the bar-and-hinge model. Deformation is zero at the start and when fully folded; the facets bend only in between.')}</p>}
+        {mode === 'energy' && <p className="mt-1 text-[13px] leading-relaxed text-ink-3">{tr('막대-힌지 모델로 각 단계의 평형을 푼 결과다. 면이 얼마나 늘어나거나 휘어야 하는지는 위의 값으로 확인한다.', 'Each step is an equilibrium of the bar-and-hinge model. How much the faces must stretch or bend is shown above.')}</p>}
+        {mode === 'energy' && engine.energy?.symmetric && <p className="mt-1 text-[13px] leading-relaxed text-ink-3">{getLang() === 'en' ? TUBE_SYMMETRY_NOTE.en : TUBE_SYMMETRY_NOTE.ko}</p>}
       </div>
     </section>
   );

@@ -5,6 +5,15 @@ import type { Vec2, Vec3 } from '../../core/geometry/vectors';
 /** Energy fold target |ρ| of every crease (see waterbombTube). */
 export const TUBE_TARGET = (120 * Math.PI) / 180;
 
+/**
+ * One-sentence UI note for the symmetric energy fold (see edu.cyclicSymmetry
+ * below and EnergySolver.setSymmetry).
+ */
+export const TUBE_SYMMETRY_NOTE = {
+  ko: '축에 대해 대칭을 유지하는 이상적인 튜브(불완전성 없음)로 계산한 평형 상태다. 대칭 없이 풀어도 같은 모양으로 돌아온다.',
+  en: 'Computed as an ideal tube that stays symmetric about its axis (no imperfections); released without the symmetry, it returns to the same shape.',
+};
+
 export interface WaterbombTubeParams {
   /** bases (units) around the circumference */
   n: number;
@@ -33,6 +42,18 @@ export interface WaterbombTubeParams {
  * constraints (see constraints.ts). Rotating by one unit (x → x + d) is a
  * symmetry of the pattern and of the reference, so the optional symmetry
  * links tie each crease to its images in the other n − 1 units (ratio 1).
+ *
+ * Energy (whole-pattern) fold: the model declares its symmetry group
+ * (edu.cyclicSymmetry: the 2π/n turn about z, a vertical mirror plane and the
+ * mid-height mirror), and the energy solver folds it inside the symmetric
+ * subspace. Modelling choice, stated plainly: this is the perfect tube with
+ * no imperfections. Its equilibria are nevertheless true equilibria of the
+ * full bar-and-hinge model (symmetric criticality), and they are stable: a
+ * free tube, perturbed and relaxed without the symmetry, returns to the same
+ * symmetric shape at the same energy (checked in tests). The symmetry also
+ * keeps the axis on z, straight and centred at mid-height. The tilt and
+ * drift seen before came from the one clamped facet (initEnergy), which can
+ * neither strain nor change attitude while the tube's facets all rotate.
  *
  * Source: crease pattern as waterbomb.ts (Chen et al., "Rigid origami tubes
  * based on the waterbomb pattern", PMC7171592); tube geometry: Y. Chen, H. Feng,
@@ -124,6 +145,40 @@ export function waterbombTube(p: WaterbombTubeParams): OrigamiModel {
     for (const o of orbit.slice(1)) links.push({ a: o, b: e.id, ratio: 1 });
   }
   model.edu.symmetryLinks = links;
+  // Declared symmetry for the energy solver's symmetric mode (EnergySolver.setSymmetry). The tube is
+  // built centred on the z-axis through the origin, so every map below fixes that axis. All three are
+  // symmetries of the crease pattern, of its M/V assignment and of the ±TUBE_TARGET fold targets
+  // (fold angles are unchanged by a reflection that keeps the outside outside), and the solver
+  // re-checks each against the reference positions, the mesh and the targets before using it.
+  //  • rotation by 2π/n about z (one unit around): `shift`
+  //  • mirror in the vertical plane through the axis and meridian i = 1 (a base centre line of row 0)
+  //  • mirror in the mid-height plane z = m·d/2, combined with a half-unit turn π/n when m is even
+  //    (rows alternate their offset, so row k meets row m−1−k only after that turn)
+  const ringOf = (v: number) => [Math.floor(v / N2), v % N2];
+  const vMirror = (v: number) => {
+    if (v < (m + 1) * N2) { const [k, i] = ringOf(v); return ring(k, 2 - i); }
+    const q = v - (m + 1) * N2, k = Math.floor(q / n), j = q % n;
+    return centre(k, (((-j - (k % 2)) % n) + n) % n);
+  };
+  const s = m % 2 === 0 ? 1 : 0;
+  const hMirror = (v: number) => {
+    if (v < (m + 1) * N2) { const [k, i] = ringOf(v); return ring(m - k, i + s); }
+    const q = v - (m + 1) * N2, k = Math.floor(q / n), j = q % n;
+    // centre (k, j) sits on meridian 2j + k%2 + 1; its image (row m−1−k) on meridian 2j + k%2 + 1 + s
+    return centre(m - 1 - k, ((2 * j + (k % 2) + s - ((m - 1 - k) % 2)) / 2 + n) % n);
+  };
+  const phi = Math.PI / n, c2 = Math.cos(2 * phi), s2 = Math.sin(2 * phi);
+  const cs = Math.cos(s * phi), sn = Math.sin(s * phi);
+  const all = (f: (v: number) => number) => Array.from({ length: model.vertices.length }, (_, v) => f(v));
+  model.edu.cyclicSymmetry = {
+    n,
+    axis: 'z',
+    perm: all(shift),
+    extra: [
+      { label: 'vertical mirror', perm: all(vMirror), A: [c2, s2, 0, s2, -c2, 0, 0, 0, 1] },
+      { label: 'mid-height mirror', perm: all(hMirror), A: [cs, -sn, 0, sn, cs, 0, 0, 0, -1], t: [0, 0, m * d] },
+    ],
+  };
   return model;
 }
 

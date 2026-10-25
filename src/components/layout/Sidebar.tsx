@@ -5,6 +5,7 @@ import { tr } from '../../i18n';
 import { downloadCreasePattern, printCreasePattern } from '../pages/printCP';
 import { VideoGrid } from '../pages/Article';
 import { StructureIntro } from '../pages/StructurePicker';
+import { ExplainerButton } from '../explainers/ExplainerButton';
 import { useSim } from '../../state/simulationStore';
 import { engine } from '../../state/engine';
 import { waterbombTubeMetrics } from '../../models/generators/waterbombTube';
@@ -209,6 +210,7 @@ function LessonContent({ lesson }: { lesson: Lesson }) {
     <section className="vt-lesson border-b border-dashed border-rule-2 px-4 pb-3 pt-4">
       <h2 className="text-[18px] font-bold leading-snug tracking-tight text-ink">{lesson.title}</h2>
       <StructureIntro sheet={lesson.id} />
+      <ExplainerButton lessonId={lesson.id} />
       <p className="mt-3 text-[15px] leading-[1.7] text-ink"><Rich text={lesson.content.concept} /></p>
       {!page && (<>
         <div className="lettering mt-4 text-[12px] text-ink-3">{tr('주기', 'Notes')}</div>

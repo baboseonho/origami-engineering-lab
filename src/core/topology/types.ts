@@ -55,6 +55,31 @@ export interface SymmetryLink {
   ratio: number;
 }
 
+/** An isometry x ↦ A·x + t of space that maps the structure onto itself, with its vertex permutation. */
+export interface SymmetryOp {
+  /** perm[v] = the vertex that v is mapped to */
+  perm: number[];
+  /** orthogonal 3×3 matrix, row-major */
+  A: number[];
+  /** translation (default 0) */
+  t?: Vec3;
+  label?: string;
+}
+
+/**
+ * Declared cyclic symmetry about the z-axis through the origin (used by the
+ * energy solver's symmetric mode): perm[v] is the vertex v is mapped to by the
+ * rotation of +2π/n about z (one unit step around). `extra` adds further
+ * symmetries of the pattern AND of its fold targets (e.g. mirror planes); the
+ * solver works with the group these generate.
+ */
+export interface CyclicSymmetry {
+  n: number;
+  axis: 'z';
+  perm: number[];
+  extra?: SymmetryOp[];
+}
+
 export interface Layout2D {
   /** If set, the 2D pattern is periodic in x (unrolled cylinder). */
   periodX?: number;
@@ -87,6 +112,8 @@ export interface EducationalMetadata {
   foldSchedule?: Record<number, [number, number]>;
   /** Vertex groups used by experiments (e.g. top / bottom rings of a cylinder). */
   groups?: Record<string, number[]>;
+  /** Cyclic (C_n, optionally larger) symmetry about the z-axis; see CyclicSymmetry. */
+  cyclicSymmetry?: CyclicSymmetry;
 }
 
 export interface OrigamiModel {

@@ -106,3 +106,19 @@ test('Reading pages: welcome paths, glossary search and printing a pattern', asy
   expect((await download).suggestedFilename()).toMatch(/\.svg$/);
   expect(errors).toEqual([]);
 });
+
+test('Motion explainers: open, step through scenes, close', async ({ page }) => {
+  const errors = collectErrors(page);
+  for (const id of ['l2-kawasaki', 'l2-maekawa', 'l3-bag', 'l6-hypar']) {
+    await open(page, id);
+    await page.getByRole('button', { name: /애니메이션으로 이해하기/ }).first().click();
+    const dialog = page.getByRole('dialog').last();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: '다음 장면' }).click();
+    await dialog.getByRole('button', { name: '3번 장면' }).click();
+    await page.waitForTimeout(600);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
+  expect(errors).toEqual([]);
+});

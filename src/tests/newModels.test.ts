@@ -10,6 +10,8 @@ import { edgeKey } from '../core/topology/build';
 import { DEG } from '../core/numerics/tolerances';
 import { isCrease, type OrigamiModel } from '../core/topology/types';
 import { waterbombTubeMetrics } from '../models/generators/waterbombTube';
+import { buildSymmetryGroup } from '../core/solver/energy/symmetry';
+import { buildTriMesh } from '../core/solver/energy/mesh';
 import { kreslingSecondState } from '../models/generators/kresling';
 import { setLang } from '../i18n';
 
@@ -273,6 +275,136 @@ describe('waterbomb tube', () => {
     const g = waterbombTubeMetrics(m, s.x);
     expect(g.R).toBeLessThan(0.85 * g.formula.R0);
     expect(g.L).toBeLessThan(0.8 * g.formula.L0);
+  });
+});
+
+describe('waterbomb tube: symmetric energy fold (ideal tube, axis = z)', () => {
+  /** What foldEnergyTo does for a model with edu.cyclicSymmetry: the facet clamp of initEnergy, then symmetric mode. */
+  function symFold(m: OrigamiModel, ps: number[], steps = 20) {
+    const s = new EnergySolver(m, ENERGY_PRESETS.paperLike);
+    s.fixVertices(m.faces[m.edu.baseFace ?? 0].vertices, 7);
+    const tgt = (p: number) => (id: number) => { const e = m.edges[id]; return e.referenceFoldAngle + p * ((e.faces[1] >= 0 && isCrease(e.assignment) ? e.defaultTarget : e.referenceFoldAngle) - e.referenceFoldAngle); };
+    const states = new Map<number, { x: Float64Array; residual: number; strain: number; E: number }>();
+    let peak = 0;
+    const pmax = Math.max(...ps);
+    for (let k = 1; k <= steps; k++) {
+      const p = (pmax * k) / steps;
+      s.setCreaseTargets(tgt(p));
+      if (k === 1) expect(s.setSymmetry(m.edu.cyclicSymmetry)).toBe(true);
+      s.relaxFIRE(4000, 1e-6);
+      const strain = Math.max(...Array.from(s.strains(), Math.abs));
+      peak = Math.max(peak, strain);
+      for (const q of ps) if (Math.abs(q - p) < 1e-9) states.set(q, { x: new Float64Array(s.x), residual: s.residual(), strain, E: s.energy().total });
+    }
+    return { s, states, peak, tgt };
+  }
+  const centroid = (x: Float64Array, vs: number[]) => {
+    const c = [0, 0, 0];
+    for (const v of vs) for (let q = 0; q < 3; q++) c[q] += x[3 * v + q] / vs.length;
+    return c;
+  };
+  const ps = [0.25, 0.5, 0.8, 1];
+  for (const [n, mm] of [[6, 4], [8, 2]]) {
+    const m = buildFromRegistry('waterbombTube', { n, m: mm, d: 1 });
+    let memo: ReturnType<typeof symFold> | undefined;
+    const run = () => (memo ??= symFold(m, ps));
+    it(`${n}×${mm}: C_${n}-symmetric about the z-axis at p = ${ps.join(', ')}`, () => {
+      const { states } = run();
+      const perm = m.edu.cyclicSymmetry!.perm;
+      const c = Math.cos((2 * Math.PI) / n), sn = Math.sin((2 * Math.PI) / n);
+      for (const p of ps) {
+        const { x } = states.get(p)!;
+        let err = 0;
+        for (let v = 0; v < m.vertices.length; v++) {
+          const w = perm[v];
+          const rx = c * x[3 * v] - sn * x[3 * v + 1], ry = sn * x[3 * v] + c * x[3 * v + 1];
+          err = Math.max(err, Math.hypot(x[3 * w] - rx, x[3 * w + 1] - ry, x[3 * w + 2] - x[3 * v + 2]));
+        }
+        expect(err).toBeLessThan(1e-9);
+      }
+    });
+    it(`${n}×${mm}: ring and base-row centroids stay on the axis; the axis is straight and the tube shortens about its middle`, () => {
+      const { states } = run();
+      for (const p of ps) {
+        const { x } = states.get(p)!;
+        const zs: number[] = [];
+        for (let k = 0; k <= mm; k++) {
+          const cc = centroid(x, m.edu.groups![`ring${k}`]);
+          expect(Math.hypot(cc[0], cc[1])).toBeLessThan(1e-9);
+          zs.push(cc[2]);
+        }
+        for (let k = 0; k < mm; k++) {
+          const cc = centroid(x, m.edu.groups!.centres.slice(k * n, (k + 1) * n));
+          expect(Math.hypot(cc[0], cc[1])).toBeLessThan(1e-9);
+        }
+        // rings in order along z, mirror-symmetric about mid-height z = m·d/2
+        for (let k = 0; k < mm; k++) expect(zs[k + 1]).toBeGreaterThan(zs[k]);
+        for (let k = 0; k <= mm; k++) expect(zs[k] + zs[mm - k]).toBeCloseTo(mm, 9);
+        const g = waterbombTubeMetrics(m, x);
+        expect(g.L).toBeCloseTo(zs[mm] - zs[0], 12);
+      }
+    });
+    it(`${n}×${mm}: each state is an equilibrium of the FULL model (unprojected net force small), with small strain`, () => {
+      const { s, states, peak } = run();
+      for (const p of ps) {
+        const st = states.get(p)!;
+        expect(st.residual).toBeLessThan(1e-5);
+        expect(st.strain).toBeLessThan(0.05);
+      }
+      expect(peak).toBeLessThan(0.04);
+      expect(s.diverged).toBe(false);
+      expect(detectCollisions(s.x, m.faces.flatMap((f) => f.triangles)).count).toBe(0);
+    });
+    it(`${n}×${mm}: the symmetric equilibrium is stable: a free tube, perturbed and relaxed WITHOUT symmetry, returns to it`, () => {
+      const { states, tgt } = run();
+      let seed = 7;
+      const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5;
+      for (const p of [0.5, 1]) {
+        const st = states.get(p)!;
+        const t = new EnergySolver(m, ENERGY_PRESETS.paperLike); // no clamp, no symmetry
+        t.setCreaseTargets(tgt(p));
+        t.setPositions(Float64Array.from(st.x, (v) => v + 2e-2 * rnd()));
+        expect(t.relaxFIRE(40000, 1e-8).converged).toBe(true);
+        expect(t.energy().total).toBeCloseTo(st.E, 5);
+        // same shape up to a rigid motion: all bar lengths agree
+        const L = (x: Float64Array) => t.mesh.bars.map((b) => Math.hypot(x[3 * b.a] - x[3 * b.b], x[3 * b.a + 1] - x[3 * b.b + 1], x[3 * b.a + 2] - x[3 * b.b + 2]));
+        const a = L(st.x), b = L(t.x);
+        expect(Math.max(...a.map((v, i) => Math.abs(v - b[i])))).toBeLessThan(1e-4);
+      }
+    });
+    it(`${n}×${mm}: R and L agree with the clamped (tilted) fold: waterbombTubeMetrics does not depend on the frame`, () => {
+      const { s } = run();
+      const c = energyFold(m, ENERGY_PRESETS.paperLike, 20);
+      const gs = waterbombTubeMetrics(m, s.x), gc = waterbombTubeMetrics(m, c.s.x);
+      expect(Math.abs(gs.R - gc.R)).toBeLessThan(5e-3);
+      expect(Math.abs(gs.L - gc.L)).toBeLessThan(5e-3);
+      expect(gs.R).toBeLessThan(0.9 * gs.formula.R0);
+      expect(gs.L).toBeLessThan(0.8 * gs.formula.L0);
+    });
+  }
+  it('the declared group is accepted (order 4n: turns, vertical mirrors, mid-height mirrors) for odd and even m', () => {
+    for (const n of [3, 4, 6, 8, 12]) for (const mm of [1, 2, 3, 4]) {
+      const m = buildFromRegistry('waterbombTube', { n, m: mm, d: 1 });
+      const G = buildSymmetryGroup(m, buildTriMesh(m), m.edu.cyclicSymmetry!);
+      expect(G, `${n}×${mm}`).not.toBeNull();
+      expect(G!.elements.length).toBe(4 * n);
+    }
+  });
+  it('symmetric mode turns itself off for an asymmetric load and restores the clamp; other models declare no symmetry', () => {
+    const m = buildFromRegistry('waterbombTube', { n: 6, m: 2, d: 1 });
+    const s = new EnergySolver(m, ENERGY_PRESETS.paperLike);
+    const face = m.faces[m.edu.baseFace ?? 0].vertices;
+    s.fixVertices(face, 7);
+    expect(s.setSymmetry(m.edu.cyclicSymmetry)).toBe(true);
+    expect(s.fixed.every((f) => f === 0)).toBe(true);
+    s.setDrivingCrease(m.edu.defaultDrive!.edge, 1);
+    expect(s.symmetric).toBe(false);
+    expect(s.fixed.reduce((a, f) => a + f, 0)).toBe(3 * face.length);
+    // asymmetric crease targets are refused up front
+    const t = new EnergySolver(m, ENERGY_PRESETS.paperLike);
+    t.setCreaseTargets((id) => (id === m.edu.defaultDrive!.edge ? 1 : m.edges[id].referenceFoldAngle));
+    expect(t.setSymmetry(m.edu.cyclicSymmetry)).toBe(false);
+    for (const g of Object.keys(GENERATORS)) if (g !== 'waterbombTube') expect(buildFromRegistry(g, {}).edu.cyclicSymmetry, g).toBeUndefined();
   });
 });
 
