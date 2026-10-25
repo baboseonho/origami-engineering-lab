@@ -1,6 +1,13 @@
 import type { Params } from '../models/registry';
+import { getLang, onLangChange, type Lang } from '../i18n';
+import { LESSONS_EN } from './lessons.en';
 
-export type LabId = 'conceptLab' | 'strip1D' | 'kawasaki' | 'maekawa' | 'mvCrimp' | 'generalized' | 'gkawasaki' | 'stepwise' | 'kreslingVsYoshimura';
+export type LabId = 'conceptLab' | 'strip1D' | 'kawasaki' | 'maekawa' | 'mvCrimp' | 'generalized' | 'gkawasaki' | 'stepwise' | 'kreslingVsYoshimura'
+  // reading pages (no model): the lesson column and a "next" sheet beside them
+  | 'welcome' | 'atlas' | 'glossary' | 'firstFolds' | 'beyond' | 'tools' | 'hobby';
+
+/** Lab ids that are reading pages rather than interactive tools. */
+export const PAGE_LABS: LabId[] = ['welcome', 'atlas', 'glossary', 'firstFolds', 'beyond', 'tools', 'hobby'];
 export type ExperimentId = 'kreslingAxial' | 'yoshimuraCompression' | 'bagCollapse';
 export type PanelId = 'miuraMetrics' | 'curvature' | 'bagStates' | 'kreslingCompat' | 'dofNotes' | 'flatVsRigid' | 'reschVertices' | 'energyPresets';
 export type TheoryKey =
@@ -17,7 +24,8 @@ export interface Challenge {
 
 export interface Lesson {
   id: string;
-  lecture: 1 | 2 | 3 | 4 | 5;
+  /** part (단원) number: 0 = start here … 7 = beyond, tools & hobby */
+  lecture: number;
   title: string;
   kind: 'model' | 'lab';
   lab?: LabId;
@@ -39,28 +47,86 @@ export interface Lesson {
   verdictNote?: string;
   /** fold progress the lesson opens at (energy pattern fold) */
   patternFoldStart?: number;
+  /** material for the Energy solver: a named preset plus overrides */
+  energyPreset?: 'rigidLike' | 'paperLike' | 'veryFlexible';
+  energyParams?: { kAxial?: number; kCrease?: number; kFacet?: number };
   content: { concept: string; observe: string; experiment: string; meaning: string; question?: string; answer?: string };
   challenges: Challenge[];
   theory: TheoryKey[];
   /** lesson ids this one links to (terminology links) */
   links?: { label: string; to: string }[];
+  /** videos to watch (ids in resources.ts) */
+  videos?: string[];
 }
 
-/** Lecture titles: the one source for the cover, the index and the top bar. */
-export const LECTURE_TITLES: Record<number, string> = {
-  1: '도입 · 형상과 기능',
-  2: '평탄 접기의 정리',
-  3: '강체 접기와 자유도',
-  4: '테셀레이션',
-  5: '원통과 응용 패턴',
+/**
+ * English text of a lesson, laid over the Korean source by id. Anything left
+ * out falls back to Korean. Challenges are matched by id; presets and links by
+ * position.
+ */
+export interface LessonText {
+  title?: string;
+  content?: Partial<Lesson['content']>;
+  challenges?: Record<string, Partial<Omit<Challenge, 'id'>>>;
+  presets?: { label?: string; note?: string }[];
+  links?: string[];
+  verdictNote?: string;
+}
+
+function localize(l: Lesson, t: LessonText | undefined): Lesson {
+  if (!t) return l;
+  return {
+    ...l,
+    title: t.title ?? l.title,
+    verdictNote: t.verdictNote ?? l.verdictNote,
+    content: { ...l.content, ...t.content },
+    challenges: l.challenges.map((c) => ({ ...c, ...t.challenges?.[c.id] })),
+    presets: l.presets?.map((p, i) => ({ ...p, label: t.presets?.[i]?.label ?? p.label, note: t.presets?.[i]?.note ?? p.note })),
+    links: l.links?.map((k, i) => ({ ...k, label: t.links?.[i] ?? k.label })),
+  };
+}
+
+/** Part (단원) titles: the one source for the cover, the index and the top bar. */
+const PART_TITLES: Record<Lang, Record<number, string>> = {
+  ko: {
+    0: '시작하기',
+    1: '도입 · 형상과 기능',
+    2: '평탄 접기의 정리',
+    3: '강체 접기와 자유도',
+    4: '테셀레이션',
+    5: '원통과 응용 패턴',
+    6: '더 많은 형상',
+    7: '이론 너머 · 도구 · 취미',
+  },
+  en: {
+    0: 'Start here',
+    1: 'Shape and function',
+    2: 'Flat-folding theorems',
+    3: 'Rigid folding and DoF',
+    4: 'Tessellations',
+    5: 'Cylinders and applied patterns',
+    6: 'More shapes',
+    7: 'Beyond theory · tools · hobby',
+  },
 };
+/** Every part number, in order. */
+export const PARTS = [0, 1, 2, 3, 4, 5, 6, 7];
+export let LECTURE_TITLES: Record<number, string> = PART_TITLES[getLang()];
 
 /** Theorems / ideas a sheet is about (shown on the cover so a theorem can be found fast). */
-export const THEORY_TAG: Partial<Record<TheoryKey, string>> = {
-  kawasaki: 'Kawasaki', maekawa: 'Maekawa', generalized: '일반화 Kawasaki', generalizedMaekawa: '일반화 Maekawa',
-  winding: '±360° 감김', strip: '1D 접기', crimpLemma: 'crimp', dof: 'N − 3M', energy: '에너지법', stepwise: '단계적 기구학',
-  miura: 'Miura', kresling: 'Kresling', bag: '쇼핑백 정리', gaussian: '가우스 곡률', lm: '수치 풀이',
+const TAGS: Record<Lang, Partial<Record<TheoryKey, string>>> = {
+  ko: {
+    kawasaki: 'Kawasaki', maekawa: 'Maekawa', generalized: '일반화 Kawasaki', generalizedMaekawa: '일반화 Maekawa',
+    winding: '±360° 감김', strip: '1D 접기', crimpLemma: 'crimp', dof: 'N − 3M', energy: '에너지법', stepwise: '단계적 기구학',
+    miura: 'Miura', kresling: 'Kresling', bag: '쇼핑백 정리', gaussian: '가우스 곡률', lm: '수치 풀이',
+  },
+  en: {
+    kawasaki: 'Kawasaki', maekawa: 'Maekawa', generalized: 'generalized Kawasaki', generalizedMaekawa: 'generalized Maekawa',
+    winding: '±360° winding', strip: '1D folding', crimpLemma: 'crimp', dof: 'N − 3M', energy: 'energy method', stepwise: 'stepwise kinematics',
+    miura: 'Miura', kresling: 'Kresling', bag: 'shopping-bag theorem', gaussian: 'Gaussian curvature', lm: 'numerical solve',
+  },
 };
+export let THEORY_TAG: Partial<Record<TheoryKey, string>> = TAGS[getLang()];
 
 /** Sheet number "lecture.index" (1-based), e.g. 3.2 — the same everywhere. */
 export function sheetNumber(id: string): string {
@@ -69,26 +135,68 @@ export function sheetNumber(id: string): string {
   return `${l.lecture}.${LESSONS.filter((x) => x.lecture === l.lecture).findIndex((x) => x.id === id) + 1}`;
 }
 
-export const LESSONS: Lesson[] = [
+const LESSONS_KO: Lesson[] = [
+  // ───────────────────────────── Part 0: start here
+  {
+    id: 'l0-welcome', lecture: 0, title: 'Origami Engineering에 오신 것을 환영합니다', kind: 'lab', lab: 'welcome',
+    content: { concept: '종이가 접힘선을 따라 움직이는 방식을 직접 움직여 보며 배운다. 화면 읽는 법과 목적별 학습 경로부터 시작한다.', observe: '', experiment: '', meaning: '' },
+    challenges: [], theory: [], videos: ['lang-ted-math-magic','veritasium-engineering-origami','ted-ed-satisfying-math','wired-11-levels'],
+  },
+  {
+    id: 'l0-atlas', lecture: 0, title: '구조 고르기', kind: 'lab', lab: 'atlas',
+    content: { concept: '관심 있는 분야나 이름으로 구조를 골라 바로 열어 본다. 각 구조에서 접히는 방식, 쓰이는 곳, 관련 이론으로 이어진다.', observe: '', experiment: '', meaning: '' },
+    challenges: [], theory: [],
+  },
+  {
+    id: 'l0-pleat', lecture: 0, title: '크리스 패턴 읽기: 아코디언 플리트', kind: 'model', generator: 'pleat', params: { n: 6, width: 3, depth: 0.5 },
+    solver: 'rigid', enforceMV: true, useSymmetry: true, patternFold: 'rigid',
+    presets: [
+      { label: '크리스 2개', params: { n: 2 } },
+      { label: '크리스 6개', params: { n: 6 } },
+      { label: '크리스 12개 (좁게)', params: { n: 12, depth: 0.25 } },
+    ],
+    content: {
+      concept: '가장 단순한 크리스 패턴이다. 평행한 선에 산접기(M, 빨강 일점쇄선)와 골접기(V, 파랑 점선)를 번갈아 배정하면 부채나 아코디언처럼 접힌다. 접힌 정도는 접힘각 $\\rho$로 잰다: 펼침 $0^\\circ$, 완전히 접힘 $\\pm 180^\\circ$, 골접기는 +, 산접기는 −.',
+      observe: '오른쪽 "구조 전체 접기" 슬라이더를 움직이면 모든 크리스가 같은 크기로, 산과 골은 서로 반대 부호로 접힌다. 전개도의 색과 3D의 접힘 방향을 비교해 보자.',
+      experiment: '"대칭 구속"을 끄고 크리스 하나만 끌어 본다. 이 패턴에는 크리스가 만나는 꼭짓점이 없어서, 크리스마다 따로 움직인다(자유도 = 크리스 수). 구속을 다시 켜면 슬라이더 하나로 전체가 접힌다.',
+      meaning: '크리스가 꼭짓점에서 만나야 서로의 움직임이 묶인다. 미우라 접기처럼 "한 곳을 접으면 전체가 따라오는" 패턴은 꼭짓점의 조건 덕분이다.',
+    },
+    challenges: [
+      { id: 'c1', text: '크리스 수를 12개로 늘리고 완전히 접어라. 접힌 두께는 어떻게 되는가?', answer: '모든 층이 겹쳐 한 줄로 쌓인다. 층 수는 크리스 수 + 1이다.' },
+      { id: 'c2', text: '인쇄해서 직접 접어 보라. 산과 골을 하나라도 바꾸면 어떻게 되는가?', hint: '같은 방향 두 개가 이웃하면 한쪽이 다른 쪽을 덮는다.' },
+    ],
+    theory: ['convention', 'strip', 'dof'], videos: ['basics-valley-mountain', 'mit-6849-l09-pleat-folding'],
+    links: [{ label: '1D 단순 접기 실습', to: 'l2-strip' }, { label: '미우라 접기', to: 'l4-miura' }],
+  },
+  {
+    id: 'l0-first', lecture: 0, title: '처음 접어 볼 것들', kind: 'lab', lab: 'firstFolds',
+    content: { concept: '손으로 접는 기본 동작과 기본형을 익히고, 이 앱의 전개도를 인쇄해서 직접 접어 본다.', observe: '', experiment: '', meaning: '' },
+    challenges: [], theory: [], videos: ['basics-valley-mountain','jjongi-10-basic-folds','basics-squash-swivel','tavin-preliminary-base','tavin-waterbomb-base','paperkawaii-bird-base','jo-nakashima-crane','nemo-crane-two-ways','jo-nakashima-jumping-frog','paperkawaii-masu-box'],
+  },
+  {
+    id: 'l0-glossary', lecture: 0, title: '용어 사전', kind: 'lab', lab: 'glossary',
+    content: { concept: '이 앱에서 쓰는 말을 한곳에 모았다. 각 용어에서 그 말이 쓰이는 도면으로 바로 갈 수 있다.', observe: '', experiment: '', meaning: '' },
+    challenges: [], theory: [], videos: ['nemo-basic-terms'],
+  },
   // ───────────────────────────── Lecture 1
   {
     id: 'l1-concept', lecture: 1, title: '개념 실습: 형상 → 기능', kind: 'lab', lab: 'conceptLab',
     content: {
-      concept: '종이접기 공학은 접힌 구조물의 형상(configuration)과 역학적 거동(점유 면적, 강성, 운동, 하중 경로) 사이의 사상(MAPPING)을 다룬다. 접기는 장식이 아니라 설계 변수이다.',
+      concept: 'Origami Engineering은 접힌 구조물의 형상(configuration)과 역학적 거동(점유 면적, 강성, 운동, 하중 경로) 사이의 사상(MAPPING)을 다룬다. 접기는 장식이 아니라 설계 변수이다.',
       observe: '단일 접힘각으로 구동되는 하나의 미우라 접기(Miura-ori) 시트가 평평한 시트(제작 상태)에서 중간 상태들을 거쳐 조밀한 수납 상태까지 연속적으로 움직인다. 면(facet)은 전혀 늘어나지 않지만 점유 면적과 두께는 몇 배 단위로 변한다.',
       experiment: '형상 슬라이더를 "펼침"에서 "수납"까지 끌어 본다. 점유 면적 비와 강체 솔버 잔차를 관찰한다(잔차는 ~1e-12로 유지된다: 모든 프레임은 애니메이션이 아니라 정확한 강체 형상이다).',
       meaning: '조밀한 수납, 전개 구조물(태양전지판 배열, 멤브레인), 변형 가능 메커니즘, 메타물질은 모두 같은 아이디어를 이용한다: 저차원 형상 공간(여기서는 자유도(DoF) 1)이 큰 기하학적 변화를 제어한다.',
     },
     challenges: [
       { id: 'c1', text: '점유 면적이 절반이 되는 구동각을 찾아라.', hint: '통계 패널의 areaRatio를 읽는다.' },
-      { id: 'c2', text: '슬라이더 하나만으로 전체 운동을 기술할 수 있는 이유를 설명하라.', answer: '미우라 접기는 자유도 1의 강체 메커니즘이다: 하나의 일반화 좌표가 모든 접힘각을 결정한다(3–4강).' },
+      { id: 'c2', text: '슬라이더 하나만으로 전체 운동을 기술할 수 있는 이유를 설명하라.', answer: '미우라 접기는 자유도 1의 강체 메커니즘이다: 하나의 일반화 좌표가 모든 접힘각을 결정한다(3–4단원).' },
     ],
-    theory: ['convention'],
-    links: [{ label: '용어 정리 (2강)', to: 'l2-terms' }, { label: '미우라 접기 (4강)', to: 'l4-miura' }],
+    theory: ['convention'], videos: ['byu-origami-solar-arrays','veritasium-engineering-origami'],
+    links: [{ label: '용어 정리 (2단원)', to: 'l2-terms' }, { label: '미우라 접기 (4단원)', to: 'l4-miura' }],
   },
   // ───────────────────────────── Lecture 2
   {
-    id: 'l2-terms', lecture: 2, title: '용어 정리 & 평탄 ≠ 강체', kind: 'model', generator: 'squareTwist', params: { phi: 25, L: 1.6 },
+    id: 'l2-terms', lecture: 2, title: '용어 정리 & 평탄 ≠ 강체', kind: 'model', generator: 'squareTwist', params: { phi: 25, L: 1.6 }, patternFold: 'energy', energyPreset: 'veryFlexible', energyParams: { kAxial: 200 },
     solver: 'rigid', enforceMV: true, panels: ['flatVsRigid'],
     content: {
       concept: '면(facet) = 강체 패널; 크리스(crease, 접는 선) = 힌지; 산접기(Mountain, M, $\\rho<0$, 빨강)는 관찰자로부터 멀어지는 방향으로, 골접기(Valley, V, $\\rho>0$, 파랑)는 관찰자 쪽으로 접힌다. M/V 배정은 크리스에 대한 레이블링이다. 평탄 접힘 가능(flat-foldable): 모든 $\\rho = \\pm 180^\\circ$이고 자기 교차가 없는 접힌 상태가 존재한다. 강체 접힘 가능(rigid-foldable): 모든 면이 강체로 유지되면서 평평한 시트로부터의 연속(CONTINUOUS) 운동이 존재한다. 테셀레이션(tessellation)은 주기적 크리스 패턴이며, 키리가미(kirigami)는 추가로 절개를 허용한다.',
@@ -101,7 +209,7 @@ export const LESSONS: Lesson[] = [
     challenges: [
       { id: 'c1', text: '"Respect M/V"를 해제하고 다시 구동하라. 무엇이 왜 달라지는가?', answer: '다른 M/V 배정으로는 강체 운동이 존재한다. 주어진 배정이 장애 요인이다.' },
     ],
-    theory: ['convention', 'kawasaki', 'maekawa'],
+    theory: ['convention', 'kawasaki', 'maekawa'], videos: ['gatheringfolds-closed-square-twist'],
     links: [{ label: '1D 단순 접기', to: 'l2-strip' }, { label: 'Kawasaki 탐색기', to: 'l2-kawasaki' }],
   },
   {
@@ -130,7 +238,7 @@ export const LESSONS: Lesson[] = [
       { id: 'c1', text: '평탄 접힘 가능성이 깨질 때까지 섹터각 하나를 바꾼 뒤, 광선 하나만 움직여 복원하라.' },
       { id: 'c2', text: '홀수 차수 꼭짓점이 결코 평탄 접힘 가능하지 않은 이유는 무엇인가?', answer: '층 방향이 교대하려면 크리스 수가 짝수여야 한다(Maekawa–Justin 정리로부터도 도출된다).' },
     ],
-    theory: ['kawasaki'],
+    theory: ['kawasaki'], videos: ['mit-6849-l03-single-vertex'],
     links: [{ label: 'Maekawa 탐색기', to: 'l2-maekawa' }],
   },
   {
@@ -153,14 +261,14 @@ export const LESSONS: Lesson[] = [
       concept: 'Kawasaki 조건을 만족하는 꼭짓점에 대해: (비엄격) 국소 최소 섹터를 고른다. (엄격 최소이면) 그 두 크리스는 서로 달라야 한다. 이 둘을 크림프로 제거하고, 공선인 크리스 두 개가 남을 때까지 반복한다.',
       observe: '각 단계는 크리스 두 개를 제거하고 세 섹터를 $\\theta_{i-1} - \\theta_i + \\theta_{i+1}$로 병합한다.',
       experiment: '"재귀 증명 보기"를 누르고 단계별로 진행한다. 그다음 배정 하나를 바꾸고 증명이 어느 단계에서 실패하는지 확인한다.',
-      meaning: '시험에서 사용하는 단일 꼭짓점의 구성적 특성화이다: 축소한 뒤 기저 사례를 확인한다.',
+      meaning: '단일 꼭짓점을 구성적으로 판정하는 방법이다: 축소한 뒤 기저 사례를 확인한다.',
     },
     challenges: [{ id: 'c1', text: '섹터 60,40,70,80,50,60에 대해 유효한 배정을 찾고, 크림프 2회로 축소됨을 확인하라.' }],
     theory: ['crimpLemma', 'maekawa'],
   },
   {
     id: 'l2-single', lecture: 2, title: '단일 꼭짓점 놀이터 (3D)', kind: 'model', generator: 'singleVertex',
-    params: { sectors: '70,100,110,80', mv: 'V,M,V,V' }, solver: 'rigid', enforceMV: true,
+    params: { sectors: '70,100,110,80', mv: 'V,M,V,V' }, solver: 'rigid', enforceMV: true, patternFold: 'rigid',
     presets: [
       { label: '일반 4차 꼭짓점 (70,100,110,80)', params: { sectors: '70,100,110,80', mv: 'V,M,V,V' } },
       { label: '미우라 꼭짓점 $\\alpha=60^\\circ$', params: { sectors: '60,120,120,60', mv: 'V,M,M,M' } },
@@ -174,7 +282,7 @@ export const LESSONS: Lesson[] = [
       meaning: '꼭짓점의 접힘각들은 폐합 조건 $\\prod R(\\rho_i) = I$로 연성(coupled)되어 있다.',
     },
     challenges: [{ id: 'c1', text: '$\\rho_1$을 잠그고 $\\rho_2$를 구동하라. 결과를 설명하라.', answer: '$\\rho_1$이 고정되면 링키지에 남은 자유도는 0이므로 구동은 실현 불가능하다.' }],
-    theory: ['convention', 'closure', 'dof', 'kawasaki'],
+    theory: ['convention', 'closure', 'dof', 'kawasaki'], videos: ['mit-6849-l03-single-vertex'],
   },
   // ───────────────────────────── Lecture 3
   {
@@ -221,7 +329,7 @@ export const LESSONS: Lesson[] = [
     theory: ['bag', 'dof', 'energy'],
   },
   {
-    id: 'l3-dof', lecture: 3, title: '자유도 탐색기: N − 3M vs rank J', kind: 'model', generator: 'miura', params: { rows: 3, cols: 3, a: 1, b: 1, alpha: 60 },
+    id: 'l3-dof', lecture: 3, title: '자유도 탐색기: N − 3M vs rank J', kind: 'model', generator: 'miura', params: { rows: 3, cols: 3, a: 1, b: 1, alpha: 60 }, patternFold: 'rigid',
     solver: 'rigid', enforceMV: true, panels: ['dofNotes'],
     presets: [
       { label: '4차 꼭짓점: $N - 3M = 1$, 완전 랭크', generator: 'singleVertex', params: { sectors: '70,100,110,80', mv: 'V,M,V,V' } },
@@ -232,7 +340,7 @@ export const LESSONS: Lesson[] = [
       { label: '미우라 3×4 패널 ($M = 6$)', generator: 'miura', params: { rows: 3, cols: 4 } },
     ],
     content: {
-      concept: '강의의 추정식 $\\text{DoF} \\ge N - 3M$ ($N$: 크리스 수, $M$: 내부 꼭짓점 수, 꼭짓점당 회전 구속 3개). $3M$개의 구속이 독립일 때(야코비안 $J$가 완전 행 랭크), 그리고 그때에만 등호가 성립한다. 국소적인 참값은 $\\text{DoF} = N - \\operatorname{rank} J$이다.',
+      concept: '흔히 쓰는 추정식 $\\text{DoF} \\ge N - 3M$ ($N$: 크리스 수, $M$: 내부 꼭짓점 수, 꼭짓점당 회전 구속 3개). $3M$개의 구속이 독립일 때(야코비안 $J$가 완전 행 랭크), 그리고 그때에만 등호가 성립한다. 국소적인 참값은 $\\text{DoF} = N - \\operatorname{rank} J$이다.',
       observe: '미우라 접기에서 $N - 3M$은 0 또는 음수이지만 메커니즘은 움직인다: 꼭짓점 구속이 중복되어 있다($\\operatorname{rank} J < 3M$). 평탄 상태에서는 모든 크리스 축이 한 평면에 놓여 랭크가 더 떨어진다 — 특이 형상(singular configuration)이다.',
       experiment: '$\\rho = 0^\\circ$와 $\\rho = 60^\\circ$에서 $N - 3M$, $\\operatorname{rank} J$, $\\text{DoF}_{\\text{local}}$을 비교한다. 특잇값 그래프를 살펴본다.',
       meaning: '$N - 3M$이 음수라는 것은 음의 운동성이 아니라 중복(redundancy)을 의미한다. 대칭/특수 기하에서는 이 추정이 성립하지 않는다.',
@@ -264,7 +372,7 @@ export const LESSONS: Lesson[] = [
     theory: ['closure', 'lm', 'dof'],
   },
   {
-    id: 'l3-energy', lecture: 3, title: '에너지법 (Energy Method)', kind: 'model', generator: 'squareTwist', params: { phi: 25, L: 1.6 },
+    id: 'l3-energy', lecture: 3, title: '에너지법 (Energy Method)', kind: 'model', generator: 'squareTwist', params: { phi: 25, L: 1.6 }, patternFold: 'energy', energyPreset: 'veryFlexible', energyParams: { kAxial: 200 },
     solver: 'energy', panels: ['energyPresets'],
     content: {
       concept: 'bar-and-hinge 모델: $V = \\sum \\tfrac12 k_{\\text{axial}}/L_0\\,(l - L_0)^2 + \\sum \\tfrac12 k_{\\text{crease}} L_0 (\\rho - \\rho_t)^2 + \\sum \\tfrac12 k_{\\text{facet}} L_0 (\\alpha - \\alpha_0)^2$, $F = -\\nabla V$, 감쇠 동역학으로 최솟값까지 이완시킨다.',
@@ -297,7 +405,7 @@ export const LESSONS: Lesson[] = [
       { id: 'c1', text: '크리스 하나가 나머지 모두를 결정함을 확인하라(임의의 크리스를 구동하고 나머지를 관찰한다).' },
       { id: 'c2', text: '측정된 푸아송비를 $-\\cos^2\\theta \\tan^2\\alpha$와 비교하라.' },
     ],
-    theory: ['miura', 'miuraPoisson', 'dof', 'convention'],
+    theory: ['miura', 'miuraPoisson', 'dof', 'convention'], videos: ['jester-miura-ori','byu-origami-solar-arrays'],
   },
   {
     id: 'l4-waterbomb', lecture: 4, title: '워터밤(Waterbomb) 테셀레이션', kind: 'model', generator: 'waterbomb', params: { cols: 5, rows: 5 }, patternFold: 'energy', patternFoldStart: 0.3,
@@ -309,10 +417,10 @@ export const LESSONS: Lesson[] = [
       meaning: '양의 각 결손 ⇒ 국소적으로 돔형(synclastic). 이는 종이가 아니라 조대화(coarse-grained) 곡면의 이산(DISCRETE) 곡률 추정이다.',
     },
     challenges: [{ id: 'c1', text: '중심에서의 조대 각 결손을 경계 근처의 값과 비교하라.' }],
-    theory: ['gaussian', 'dof'],
+    theory: ['gaussian', 'dof'], videos: ['happyfolding-waterbomb-tessellation'],
   },
   {
-    id: 'l4-wbbase', lecture: 4, title: '워터밤 베이스 (8차)', kind: 'model', generator: 'waterbombBase', solver: 'rigid', enforceMV: true, useSymmetry: true,
+    id: 'l4-wbbase', lecture: 4, title: '워터밤 베이스 (8차)', kind: 'model', generator: 'waterbombBase', solver: 'rigid', enforceMV: true, useSymmetry: true, patternFold: 'rigid',
     content: {
       concept: '8차 꼭짓점은 $N - 3M = 5$의 자유도를 갖는다. 4중 대칭(모든 대각선 동일, 모든 중선 동일)을 부과하면 자유도 1의 운동으로 줄어든다.',
       observe: '"Symmetry links"를 켜면 대각선 하나를 구동할 때 여덟 크리스가 모두 일관되게 움직인다.',
@@ -320,11 +428,11 @@ export const LESSONS: Lesson[] = [
       meaning: '4M/4V는 Maekawa 정리를 위반하므로, 이는 평탄 접힘이 아니라 3D (쌍안정) 상태이다.',
     },
     challenges: [{ id: 'c1', text: '운동을 유일하게 만들기 위해 솔버에 추가 구속이 필요한 이유는 무엇인가?' }],
-    theory: ['dof', 'maekawa'],
+    theory: ['dof', 'maekawa'], videos: ['tavin-waterbomb-base'],
   },
   // ───────────────────────────── Lecture 5
   {
-    id: 'l5-resch', lecture: 5, title: 'Ron Resch 패턴', kind: 'model', generator: 'resch', params: { m: 3, n: 2, variant: 'valid' },
+    id: 'l5-resch', lecture: 5, title: 'Ron Resch 패턴', kind: 'model', generator: 'resch', params: { m: 3, n: 2, variant: 'valid' }, patternFold: 'energy', patternFoldStart: 0.6,
     solver: 'energy', panels: ['reschVertices'],
     content: {
       concept: 'Resch 테셀레이션: 아래를 향한 표면 삼각형과 3중 별 모양 턱(tuck)으로 구성된다. 오세틱이며, 매끈해 보이는 샌드위치 곡면으로 접힌다.',
@@ -336,7 +444,7 @@ export const LESSONS: Lesson[] = [
     theory: ['kawasaki', 'maekawa', 'dof'],
   },
   {
-    id: 'l5-boxpleat', lecture: 5, title: '박스 플리팅 (Box pleating)', kind: 'model', generator: 'boxpleat', params: { n: 4, preset: 'tray' }, solver: 'energy',
+    id: 'l5-boxpleat', lecture: 5, title: '박스 플리팅 (Box pleating)', kind: 'model', generator: 'boxpleat', params: { n: 4, preset: 'tray' }, solver: 'energy', patternFold: 'energy', patternFoldStart: 0.6,
     presets: [
       { label: '트레이 (Tray)', params: { preset: 'tray' } },
       { label: '플리트 (Pleat)', params: { preset: 'pleat' } },
@@ -349,11 +457,11 @@ export const LESSONS: Lesson[] = [
       meaning: '박스 플리팅(box pleating)은 설계 방법론(Lang)이다. 임의 형상 최적화는 여기서 다루지 않는다.',
     },
     challenges: [{ id: 'c1', text: '트레이의 F 선 하나를 M으로 바꾸고 형상 변화를 관찰하라.' }],
-    theory: ['energy'],
+    theory: ['energy'], videos: ['rickman-box-pleating-1','plant-bpstudio-treemaker'],
   },
   {
     id: 'l5-kresling', lecture: 5, title: 'Kresling 원통', kind: 'model', generator: 'kresling',
-    params: { n: 6, R: 1, H: 1.2, phi: 45, cells: 1, chirality: 'right', caps: true }, solver: 'rigid', enforceMV: false,
+    params: { n: 6, R: 1, H: 1.2, phi: 45, cells: 1, chirality: 'right', caps: true }, solver: 'rigid', enforceMV: false, patternFold: 'energy',
     experiment: 'kreslingAxial', panels: ['kreslingCompat'],
     content: {
       concept: 'Kresling 원통: 꼬인 다각형 링들이 삼각형으로 연결된 구조이다. 축 하중을 받으면 짧아지면서 동시에(AND) 비틀린다(비틀림 좌굴). 평면 강체 링을 가정하면 강체 메커니즘이 아니다: 상태 전이에는 패널 변형이 필요하다.',
@@ -379,7 +487,7 @@ export const LESSONS: Lesson[] = [
       meaning: '관찰되는 형상은 에너지적으로 유리한 모드에 해당한다. 주의: 메시가 Yoshimura 격자에 정렬되어 있으므로 모드 형상은 이산화의 영향을 받는다. 물리적 핵심은 에너지 경쟁이다.',
     },
     challenges: [{ id: 'c1', text: '압축을 증가시키며 좌굴 개시점($u$와 반력)을 찾아라.' }],
-    theory: ['energy', 'reaction'],
+    theory: ['energy', 'reaction'], videos: ['aghabayli-yoshimura'],
   },
   {
     id: 'l5-compare', lecture: 5, title: 'Kresling vs Yoshimura', kind: 'lab', lab: 'kreslingVsYoshimura',
@@ -392,6 +500,87 @@ export const LESSONS: Lesson[] = [
     challenges: [{ id: 'c1', text: 'Kresling에 잘못된 방향으로 비틀림을 지정하라. 에너지는 어떻게 되는가?' }],
     theory: ['kresling', 'energy'],
   },
+  // ───────────────────────────── Part 6: more shapes
+  {
+    id: 'l6-twist', lecture: 6, title: '다각형 꼬아 접기 (삼각·사각·육각)', kind: 'model', generator: 'twist', params: { n: 6, phi: 15, h: 0.5, L: 1.6 },
+    solver: 'energy', enforceMV: true, patternFold: 'energy', patternFoldStart: 0.5, energyPreset: 'veryFlexible', energyParams: { kAxial: 200 },
+    presets: [
+      { label: '삼각형 꼬임 ($\\varphi = 40^\\circ$)', params: { n: 3, phi: 40 } },
+      { label: '사각형 꼬임 ($\\varphi = 25^\\circ$)', params: { n: 4, phi: 25 } },
+      { label: '육각형 꼬임 ($\\varphi = 15^\\circ$)', params: { n: 6, phi: 15 } },
+    ],
+    content: {
+      concept: '가운데 다각형의 각 꼭짓점에서 플리트 두 줄이 나간다. 꼭짓점의 섹터각은 $90^\\circ+\\varphi$, $360^\\circ/n$, $90^\\circ-\\varphi$, $180^\\circ-360^\\circ/n$이라 번갈아 더한 합이 $180^\\circ$로 같다: 어떤 $n$, $\\varphi$에서도 Kawasaki 조건이 성립한다.',
+      observe: '전체 접기를 끝까지 하면 정확한 평탄 상태에 도달한다. 그러나 Rigid 솔버로는 펼친 상태에서 한 걸음도 움직이지 못한다: 평탄하게 접히지만 강체로는 접히지 않는다.',
+      experiment: '프리셋으로 삼각·사각·육각을 바꿔 본다. 치수에서 비틀림각 $\\varphi$와 가운데 다각형 크기를 바꾸고, 전개도를 인쇄해 직접 접어 본다.',
+      meaning: '꼬아 접기는 테셀레이션의 기본 단위다. 평탄 접힘(끝 상태)과 강체 접힘(경로)은 다른 질문이라는 것을 다시 확인한다.',
+    },
+    challenges: [{ id: 'c1', text: '삼각형 꼬임에서 $\\varphi$를 $30^\\circ$보다 작게 할 수 없는 이유를 big–little–big으로 설명하라.', hint: '가장 작은 섹터가 어디에 생기는지 본다.' }],
+    theory: ['kawasaki', 'maekawa', 'crimpLemma', 'energy'], videos: ['gatheringfolds-closed-square-twist'],
+    links: [{ label: '사각 꼬임과 평탄 ≠ 강체', to: 'l2-terms' }],
+  },
+  {
+    id: 'l6-hypar', lecture: 6, title: '하이파: 직선으로 만드는 말안장', kind: 'model', generator: 'hypar', params: { rings: 6, L: 2, variant: 'classic' },
+    solver: 'energy', enforceMV: true, patternFold: 'energy', patternFoldStart: 1, energyParams: { kAxial: 200 },
+    presets: [
+      { label: '고리 3개', params: { rings: 3 } },
+      { label: '고리 10개', params: { rings: 10 } },
+      { label: '삼각 분할 하이파 (강체 1자유도)', params: { variant: 'triangulated' } },
+    ],
+    content: {
+      concept: '동심 정사각형에 산과 골을 번갈아 배정하고 대각선을 더한 패턴이다. 직선만 접는데 전체가 말안장(쌍곡포물면)처럼 휜다. Demaine 외(2011)는 이 고전 하이파가 정확히 이 크리스만으로는 접힐 수 없음을 증명했다: 면이 휘어야 한다.',
+      observe: 'Energy로 전체 접기를 하면 사다리꼴 면이 휘면서 두 대각선이 서로 반대 방향으로 굽는다. 면 변형은 수 % 정도로 작다. "삼각 분할" 프리셋은 사다리꼴마다 선을 하나 더해 자유도 1의 강체 기구가 된다.',
+      experiment: '고전 하이파를 Rigid로 바꿔 구동해 본다(바로 잠긴다). 그다음 삼각 분할 프리셋에서 전체 접기를 하고 투영 보기로 말안장 모양을 확인한다.',
+      meaning: '"접는 선"과 "면의 굽힘"이 함께 형태를 만든다. 곡선 접기와 얇은 셸 구조로 이어지는 주제다.',
+    },
+    challenges: [{ id: 'c1', text: '고리 수를 3에서 10으로 늘릴 때 중심부와 바깥의 굽힘을 비교하라.' }],
+    theory: ['energy', 'gaussian', 'maekawa'], videos: ['gjerde-hypar', 'mit-6849-l09-pleat-folding'],
+  },
+  {
+    id: 'l6-wbtube', lecture: 6, title: '워터밤 튜브: 반복 수와 반지름', kind: 'model', generator: 'waterbombTube', params: { n: 6, m: 4, d: 1 },
+    solver: 'energy', enforceMV: true, patternFold: 'energy', patternFoldStart: 0.8,
+    presets: [
+      { label: '둘레 6 × 길이 4', params: { n: 6, m: 4 } },
+      { label: '둘레 8 × 길이 2', params: { n: 8, m: 2 } },
+      { label: '둘레 12 × 길이 6', params: { n: 12, m: 6 } },
+    ],
+    content: {
+      concept: '워터밤 베이스를 둘레 방향으로 $n$개, 길이 방향으로 $m$개 반복해 원통으로 만든 구조다. 처음 말았을 때 반지름은 $R_0 = d / (4\\sin(\\pi/2n))$, 길이는 $L_0 = m\\,d$이다($d$: 단위 크기). 한 단위가 다각형의 변 두 개를 차지하기 때문에 $d/(2\\sin(\\pi/n))$가 아니다.',
+      observe: '전체 접기를 하면 반지름과 길이가 함께 줄어든다(6×4에서 약 30%). 레슨 칸의 "튜브 치수"에 공식 값과 지금 측정값이 나란히 나온다. 접힌 뒤의 값은 측정값이며 닫힌 공식은 없다.',
+      experiment: '치수에서 $n$과 $m$을 바꾸며 $R_0$, $L_0$와 접힌 뒤의 $R$, $L$이 어떻게 변하는지 비교한다. 너무 많이 접으면 베이스 중심이 축에서 부딪힌다.',
+      meaning: '반복 수가 전체 크기를 정한다. 스텐트처럼 지름이 크게 바뀌어야 하는 관 구조의 설계 변수다.',
+    },
+    challenges: [{ id: 'c1', text: '$n = 6$과 $n = 12$에서 $R_0$의 비를 공식으로 예측하고 측정값과 비교하라.' }],
+    theory: ['energy', 'gaussian', 'dof'], videos: ['happyfolding-waterbomb-tessellation'],
+    links: [{ label: '워터밤 테셀레이션', to: 'l4-waterbomb' }],
+  },
+  // ───────────────────────────── Part 7: beyond theory, tools and hobby
+  {
+    id: 'l7-beyond', lecture: 7, title: '평탄 접기 너머: 오리가미 이론 지도', kind: 'lab', lab: 'beyond',
+    content: { concept: '층 순서, 강체 접기, 설계 알고리즘, 곡선 접기, 두꺼운 재료, 키리가미, 역학, 자가 접힘, 계산, 응용까지 오리가미 연구의 큰 줄기를 한눈에 본다.', observe: '', experiment: '', meaning: '' },
+    challenges: [], theory: [], videos: ['numberphile-fold-and-cut','mit-6849-l01-overview','jpl-starshade','mit-self-folding-robot','mit-ingestible-origami-robot','harvard-kirigami-snake-robot','neospica-huffman-tower','tachi-computational-design','demaine-momath-geometry','numberphile-trisect-angle'],
+  },
+  {
+    id: 'l7-tools', lecture: 7, title: '설계와 시뮬레이션 도구', kind: 'lab', lab: 'tools',
+    content: { concept: '크리스 패턴을 그리고, 설계하고, 3D로 접어 보고, 역학을 계산하는 실제 도구들을 소개한다.', observe: '', experiment: '', meaning: '' },
+    challenges: [], theory: [], videos: ['plant-bpstudio-treemaker','mori-solve-crease-patterns','mit-6849-l04-efficient-design','mit-6849-l05-artistic-design'],
+  },
+  {
+    id: 'l7-hobby', lecture: 7, title: '취미로 이어가기', kind: 'lab', lab: 'hobby',
+    content: { concept: '종이 고르기, 실력을 키우는 순서, 잘 접는 요령, 책과 모임까지. 오리가미를 오래 즐기기 위한 안내.', observe: '', experiment: '', meaning: '' },
+    challenges: [], theory: [], videos: ['between-the-folds-trailer','wired-11-levels','hull-maa-folding-tomorrow','paperkawaii-crane'],
+  },
 ];
+
+const build = (lang: Lang) => (lang === 'en' ? LESSONS_KO.map((l) => localize(l, LESSONS_EN[l.id])) : LESSONS_KO);
+
+/** Every lesson in the current language. */
+export let LESSONS: Lesson[] = build(getLang());
+
+onLangChange((lang) => {
+  LESSONS = build(lang);
+  LECTURE_TITLES = PART_TITLES[lang];
+  THEORY_TAG = TAGS[lang];
+});
 
 export const lessonById = (id: string) => LESSONS.find((l) => l.id === id);

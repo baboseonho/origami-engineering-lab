@@ -1,6 +1,6 @@
 # Implementation plan
 
-Interactive computational-origami textbook + simulator for KAIST AE53006 *Origami Engineering*, Lectures 1–5.
+Interactive Origami Engineering textbook and simulator, Parts 0–7 (Parts 1–5 follow a standard origami-engineering syllabus).
 
 Guiding rule: **fold angles are coupled.** The user prescribes one *driving crease*; the rigid solver determines every other fold angle from closure constraints, or reports infeasibility. Facet deformation is only allowed in the explicitly separate *Energy / Elastic* mode. Nothing is animated by canned interpolation and presented as a solver result.
 

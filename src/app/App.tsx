@@ -1,5 +1,7 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
-import { lessonById, type LabId } from '../curriculum/lessons';
+import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
+import { lessonById, PAGE_LABS, type LabId } from '../curriculum/lessons';
+import { tr } from '../i18n';
+import { PageAside } from '../components/pages/PageAside';
 import { useModel } from '../state/modelStore';
 import { useUI } from '../state/uiStore';
 import { loadLesson } from '../state/actions';
@@ -22,6 +24,7 @@ const named = <K extends string>(load: () => Promise<Record<K, ComponentType>>, 
   lazy(() => load().then((m) => ({ default: m[name] })));
 const Viewport3D = named(() => import('../components/viewport/Viewport3D'), 'Viewport3D');
 const TheoryPanel = named(() => import('../components/theory/TheoryPanel'), 'TheoryPanel');
+const ProjectionView = named(() => import('../components/viewport/ProjectionView'), 'ProjectionView');
 const LABS: Record<LabId, ReturnType<typeof named>> = {
   conceptLab: named(() => import('../components/labs/ModelLabs'), 'ConceptLab'),
   stepwise: named(() => import('../components/labs/ModelLabs'), 'StepwiseLab'),
@@ -32,6 +35,13 @@ const LABS: Record<LabId, ReturnType<typeof named>> = {
   mvCrimp: named(() => import('../components/labs/VertexLabs'), 'MVCrimpLab'),
   generalized: named(() => import('../components/labs/VertexLabs'), 'GeneralizedLab'),
   gkawasaki: named(() => import('../components/labs/GKawasakiLab'), 'GKawasakiLab'),
+  welcome: named(() => import('../components/pages/Welcome'), 'WelcomePage'),
+  atlas: named(() => import('../components/pages/Atlas'), 'AtlasPage'),
+  glossary: named(() => import('../components/pages/Glossary'), 'GlossaryPage'),
+  firstFolds: named(() => import('../components/pages/FirstFolds'), 'FirstFoldsPage'),
+  beyond: named(() => import('../components/pages/Beyond'), 'BeyondPage'),
+  tools: named(() => import('../components/pages/Tools'), 'ToolsPage'),
+  hobby: named(() => import('../components/pages/Hobby'), 'HobbyPage'),
 };
 
 const FOLDED_STRIP = 41;
@@ -40,7 +50,7 @@ const FULL_BLEED: LabId[] = ['conceptLab', 'stepwise'];
 
 function View3D() {
   const lessonId = useModel((s) => s.lessonId);
-  return <SheetBoundary label="3D 모델" resetKey={lessonId}><Suspense fallback={<SheetLoading label="3D 모델을 펼치는 중" />}><Viewport3D /></Suspense></SheetBoundary>;
+  return <SheetBoundary label={tr('3D 모델', '3D model')} resetKey={lessonId}><Suspense fallback={<SheetLoading label={tr('3D 모델을 펼치는 중', 'Unfolding the 3D model')} />}><Viewport3D /></Suspense></SheetBoundary>;
 }
 
 function ModelWorkspace() {
@@ -52,11 +62,12 @@ function ModelWorkspace() {
     <div className="flex h-full min-h-0 flex-col gap-2">
       <div className="sheet min-h-0 flex-1 overflow-hidden rounded-[3px]">
         {viewMode === '3d' && <View3D />}
-        {viewMode === '2d' && <SheetBoundary label="전개도"><CreasePattern2D /></SheetBoundary>}
+        {viewMode === '2d' && <SheetBoundary label={tr('전개도', 'Crease pattern')}><CreasePattern2D /></SheetBoundary>}
+        {viewMode === 'proj' && <SheetBoundary label={tr('투영도', 'Projections')}><Suspense fallback={<SheetLoading label={tr('투영도를 그리는 중', 'Drawing the projections')} />}><ProjectionView /></Suspense></SheetBoundary>}
         {viewMode === 'split' && (
           // side by side on wide sheets, stacked on narrow ones
           <div className="grid h-full grid-rows-2 md:grid-cols-2 md:grid-rows-1">
-            <div className="min-h-0 min-w-0 border-b border-rule-2 md:border-b-0 md:border-r"><SheetBoundary label="전개도"><CreasePattern2D /></SheetBoundary></div>
+            <div className="min-h-0 min-w-0 border-b border-rule-2 md:border-b-0 md:border-r"><SheetBoundary label={tr('전개도', 'Crease pattern')}><CreasePattern2D /></SheetBoundary></div>
             <div className="min-h-0 min-w-0"><View3D /></div>
           </div>
         )}
@@ -66,7 +77,7 @@ function ModelWorkspace() {
           <div
             role="separator"
             aria-orientation="horizontal"
-            aria-label="분석 패널 높이 조절"
+            aria-label={tr('분석 패널 높이 조절', 'Resize the analysis panel')}
             className="absolute -top-2 left-0 right-0 z-10 h-2 cursor-row-resize"
             onPointerDown={(e) => { dragging.current = true; (e.target as Element).setPointerCapture(e.pointerId); }}
             onPointerMove={(e) => {
@@ -77,7 +88,7 @@ function ModelWorkspace() {
             onPointerUp={() => (dragging.current = false)}
           />
         )}
-        <SheetBoundary label="분석 패널"><BottomPanel /></SheetBoundary>
+        <SheetBoundary label={tr('분석 패널', 'Analysis panel')}><BottomPanel /></SheetBoundary>
       </div>
     </div>
   );
@@ -85,11 +96,13 @@ function ModelWorkspace() {
 
 function SideSheet({ isLab }: { isLab: boolean }) {
   const lessonId = useModel((s) => s.lessonId);
+  const lab = lessonById(lessonId)?.lab;
+  if (lab && PAGE_LABS.includes(lab)) return <SheetBoundary label={tr('다음 도면', 'Next sheets')} resetKey={lessonId}><PageAside /></SheetBoundary>;
   return (
-    <SheetBoundary label={isLab ? '이론' : '검사 패널'} resetKey={lessonId}>
+    <SheetBoundary label={isLab ? tr('이론', 'Theory') : tr('검사 패널', 'Inspector')} resetKey={lessonId}>
       {isLab ? (
         <div className="theory-aside h-full overflow-y-auto p-4">
-          <Suspense fallback={<SheetLoading label="이론을 불러오는 중" />}><TheoryPanel /></Suspense>
+          <Suspense fallback={<SheetLoading label={tr('이론을 불러오는 중', 'Loading the theory')} />}><TheoryPanel /></Suspense>
         </div>
       ) : <Inspector />}
     </SheetBoundary>
@@ -102,10 +115,11 @@ function SideSheet({ isLab }: { isLab: boolean }) {
  */
 function AsideSheet({ isLab }: { isLab: boolean }) {
   const [tab, setTab] = useState<'lesson' | 'side'>('side');
-  const tabs = [['lesson', '레슨'], ['side', isLab ? '이론' : '검사']] as const;
+  const page = PAGE_LABS.includes(lessonById(useModel.getState().lessonId)?.lab as LabId);
+  const tabs = [['lesson', tr('레슨', 'Lesson')], ['side', page ? tr('다음', 'Next') : isLab ? tr('이론', 'Theory') : tr('검사', 'Inspect')]] as const;
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div role="tablist" aria-label="오른쪽 패널" className="flex shrink-0 gap-1 border-b border-rule-2 bg-paper-2 p-1.5 xl:hidden">
+      <div role="tablist" aria-label={tr('오른쪽 패널', 'Right panel')} className="flex shrink-0 gap-1 border-b border-rule-2 bg-paper-2 p-1.5 xl:hidden">
         {tabs.map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`h-8 flex-1 rounded-[3px] text-[14px] font-medium transition-colors ${tab === id ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
@@ -121,6 +135,8 @@ function AsideSheet({ isLab }: { isLab: boolean }) {
 
 export default function App() {
   const coverOpen = useUI((s) => s.coverOpen);
+  // a language switch remounts the whole board so every text is read again
+  const lang = useUI((s) => s.lang);
   const lessonId = useModel((s) => s.lessonId);
   const drawer = useUI((s) => s.drawer);
   useEffect(() => {
@@ -144,7 +160,7 @@ export default function App() {
   const Lab = lesson?.kind === 'lab' && lesson.lab ? LABS[lesson.lab] : null;
   const closeDrawer = () => useUI.getState().setDrawer(null);
   return (
-    <>
+    <Fragment key={lang}>
     <div className="grid h-[100dvh] grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr] gap-2 overflow-hidden bg-board p-2" inert={coverOpen}>
       <TopBar />
       <div className="grid min-h-0 grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[256px_minmax(0,1fr)_318px] min-[1500px]:grid-cols-[300px_minmax(0,1fr)_350px]">
@@ -153,11 +169,11 @@ export default function App() {
           {Lab ? (
             <div className="sheet h-full min-h-0 overflow-hidden rounded-[3px]">
               {FULL_BLEED.includes(lesson!.lab!) ? (
-                <SheetBoundary label="실습" resetKey={lessonId}><Suspense fallback={<SheetLoading label="실습 도구를 펼치는 중" />}><Lab key={lessonId} /></Suspense></SheetBoundary>
+                <SheetBoundary label={tr('실습', 'Lab')} resetKey={lessonId}><Suspense fallback={<SheetLoading label={tr('도면을 펼치는 중', 'Unfolding the sheet')} />}><Lab key={lessonId} /></Suspense></SheetBoundary>
               ) : (
                 <DrawingFrame title={lesson!.title}>
                   <div className="absolute inset-[8px] overflow-y-auto px-3 pb-16 pt-3">
-                    <SheetBoundary label="실습" resetKey={lessonId}><Suspense fallback={<SheetLoading label="실습 도구를 펼치는 중" />}><Lab key={lessonId} /></Suspense></SheetBoundary>
+                    <SheetBoundary label={tr('실습', 'Lab')} resetKey={lessonId}><Suspense fallback={<SheetLoading label={tr('도면을 펼치는 중', 'Unfolding the sheet')} />}><Lab key={lessonId} /></Suspense></SheetBoundary>
                   </div>
                 </DrawingFrame>
               )}
@@ -168,16 +184,16 @@ export default function App() {
           <AsideSheet isLab={!!Lab} />
         </aside>
       </div>
-      <Drawer side="left" open={drawer === 'index'} onClose={closeDrawer} label="도면 목록">
+      <Drawer side="left" open={drawer === 'index'} onClose={closeDrawer} label={tr('도면 목록', 'Sheet index')}>
         <Sidebar />
       </Drawer>
-      <Drawer side="bottom" open={drawer === 'inspector'} onClose={closeDrawer} label={Lab ? '이론' : '검사'}>
+      <Drawer side="bottom" open={drawer === 'inspector'} onClose={closeDrawer} label={Lab ? tr('이론', 'Theory') : tr('검사', 'Inspect')}>
         <SideSheet isLab={!!Lab} />
       </Drawer>
       <SettingsModal />
     </div>
     <CoverSheet />
     <Toast />
-    </>
+    </Fragment>
   );
 }

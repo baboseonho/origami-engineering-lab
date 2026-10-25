@@ -25,6 +25,7 @@
  */
 import { TOL } from '../numerics/tolerances';
 import { kawasaki } from './kawasaki';
+import { tr } from '../../i18n';
 
 export type MV = 'M' | 'V';
 
@@ -82,8 +83,8 @@ export function checkMVAssignment(sectors: number[], mv: MV[], creaseIds?: numbe
   let state: VertexState = { creases: [...ids], mv: [...mv], sectors: [...sectors] };
   const steps: CrimpStep[] = [];
   const k = kawasaki(sectors);
-  if (!k.satisfied) return { valid: false, reason: 'Kawasaki 조건 불성립: 섹터각이 평탄 접힘 가능하지 않다', steps, final: state };
-  if (mv.length !== n) return { valid: false, reason: '배정 길이가 크리스 수와 일치하지 않는다', steps, final: state };
+  if (!k.satisfied) return { valid: false, reason: tr('Kawasaki 조건 불성립: 섹터각이 평탄 접힘 가능하지 않다', 'Kawasaki condition fails: the sector angles cannot fold flat'), steps, final: state };
+  if (mv.length !== n) return { valid: false, reason: tr('배정 길이가 크리스 수와 일치하지 않는다', 'The assignment length does not match the number of creases'), steps, final: state };
 
   while (state.creases.length > 2) {
     const m = state.creases.length;
@@ -97,7 +98,10 @@ export function checkMVAssignment(sectors: number[], mv: MV[], creaseIds?: numbe
         if (strict)
           return {
             valid: false,
-            reason: `Big–little–big 위반: ${label(state.creases[i])}, ${label(state.creases[(i + 1) % m])} 사이 섹터가 엄격한 국소 최소인데 두 크리스가 모두 ${state.mv[i]}이다`,
+            reason: tr(
+              `Big–little–big 위반: ${label(state.creases[i])}, ${label(state.creases[(i + 1) % m])} 사이 섹터가 엄격한 국소 최소인데 두 크리스가 모두 ${state.mv[i]}이다`,
+              `Big–little–big violated: the sector between ${label(state.creases[i])} and ${label(state.creases[(i + 1) % m])} is a strict local minimum, but both creases are ${state.mv[i]}`,
+            ),
             steps,
             final: state,
           };
@@ -106,7 +110,7 @@ export function checkMVAssignment(sectors: number[], mv: MV[], creaseIds?: numbe
       if (chosen < 0 || (strict && !chosenStrict)) { chosen = i; chosenStrict = strict; }
     }
     if (chosen < 0)
-      return { valid: false, reason: 'M/V가 반대인 두 크리스 사이에 crimp 가능한 국소 최소 섹터가 없다', steps, final: state };
+      return { valid: false, reason: tr('M/V가 반대인 두 크리스 사이에 crimp 가능한 국소 최소 섹터가 없다', 'No local-minimum sector between two creases of opposite M/V can be crimped'), steps, final: state };
     const after = crimpAt(state, chosen);
     steps.push({
       before: state,
@@ -121,12 +125,14 @@ export function checkMVAssignment(sectors: number[], mv: MV[], creaseIds?: numbe
     const ok = state.mv[0] === state.mv[1];
     return {
       valid: ok,
-      reason: ok ? '단일 직선 접기로 축약됨 (기저 사례): 배정 유효' : '기저 사례의 두 공선 크리스 배정이 서로 다르다',
+      reason: ok
+        ? tr('단일 직선 접기로 축약됨 (기저 사례): 배정 유효', 'Reduced to a single straight fold (base case): assignment valid')
+        : tr('기저 사례의 두 공선 크리스 배정이 서로 다르다', 'In the base case, the two collinear creases have different assignments'),
       steps,
       final: state,
     };
   }
-  return { valid: false, reason: '예상치 못한 홀수 차수', steps, final: state };
+  return { valid: false, reason: tr('예상치 못한 홀수 차수', 'Unexpected odd degree'), steps, final: state };
 }
 
 const label = (id: number) => `c${id + 1}`;

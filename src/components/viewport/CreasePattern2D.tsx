@@ -12,6 +12,8 @@ import { ASSIGN_COLOR } from '../controls/ui';
 import { Legend } from './Legend';
 import { DrawingFrame } from './DrawingFrame';
 import { C } from '../../theme/tokens';
+import { tr } from '../../i18n';
+import { HoverCard, PointerTip, edgeTip, vertexTip } from './HoverTip';
 
 /** Planar layout helpers: periodic unwrapping for unrolled cylinders. */
 function edgePts(model: OrigamiModel, eid: number): [Vec2, Vec2] {
@@ -80,6 +82,7 @@ export function CreasePattern2D() {
   }, [bounds]);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const host = useRef<HTMLDivElement>(null);
   // on-screen size of the drawing, so labels are sized in real pixels (≥ 12px) at any zoom
   const [px, setPx] = useState({ w: 600, h: 400 });
   const hasModel = !!model;
@@ -99,7 +102,7 @@ export function CreasePattern2D() {
     return [...s].filter((v) => !model.vertices[v].boundary).slice(0, 40);
   }, [model, selection]);
 
-  if (!model) return <div className="grid h-full place-items-center text-ink-3">전개도가 없다</div>;
+  if (!model) return <div className="grid h-full place-items-center text-ink-3">{tr('전개도가 없다', 'No crease pattern')}</div>;
   const sc = Math.max(bounds.w, bounds.h);
   const lw = sc * 0.006;
   // drawing units per screen pixel (viewBox "meet"); fs is a 20px base, so every label is 12–15px on screen
@@ -113,10 +116,17 @@ export function CreasePattern2D() {
     setView({ x: mx - (mx - view.x) * k, y: my - (my - view.y) * k, w: view.w * k, h: view.h * k });
   };
 
+  // hover readout: crease name, flat length and current ρ; a vertex's sector angles
+  let tip = null;
+  if (hover?.kind === 'edge' && model.edges[hover.id]) {
+    const [a, b] = edgePts(model, hover.id);
+    tip = edgeTip(model, hover.id, rho, { lengthLabel: tr('길이 (전개도)', 'Flat length'), length: Math.hypot(b[0] - a[0], b[1] - a[1]) });
+  } else if (hover?.kind === 'vertex' && model.vertices[hover.id]) tip = vertexTip(model, hover.id, { sectors: true });
+
   // y flipped so the crease pattern reads with +y up
   return (
-    <div className="relative h-full w-full">
-      <DrawingFrame title="전개도">
+    <div ref={host} className="relative h-full w-full">
+      <DrawingFrame title={tr('전개도', 'Crease pattern')}>
       <svg
         ref={svgRef}
         className="h-full w-full cursor-crosshair"
@@ -187,7 +197,7 @@ export function CreasePattern2D() {
             return (
               <circle key={'v' + v} cx={p[0]} cy={p[1]} r={lw * (sel ? 1.6 : 1.15)} fill={sel ? C.markDeep : (model.edu.highlightVertices ?? []).includes(v) ? C.ink : C.ink3} stroke={C.paper} strokeWidth={1} vectorEffect="non-scaling-stroke"
                 onClick={(ev) => { ev.stopPropagation(); useUI.getState().select({ kind: 'vertex', id: v }); }}
-                onPointerEnter={() => useUI.getState().setHover({ kind: 'vertex', id: v })} style={{ cursor: 'pointer' }} />
+                onPointerEnter={() => useUI.getState().setHover({ kind: 'vertex', id: v })} onPointerLeave={() => useUI.getState().setHover(null)} style={{ cursor: 'pointer' }} />
             );
           })}
         </g>
@@ -263,13 +273,14 @@ export function CreasePattern2D() {
           );
         })}
         <text x={bounds.x} y={-(bounds.y - sc * 0.06)} fontSize={fs * 0.65} fill={C.ink3} fontFamily="Barlow Semi Condensed, Pretendard Variable, sans-serif" letterSpacing="0.04em">
-          <tspan x={bounds.x}>전개도 {bounds.w.toFixed(2)} × {bounds.h.toFixed(2)}</tspan>
-          {model.edu.layout2D?.periodX && <tspan x={bounds.x} dy="1.35em">원통을 펼친 그림 (x 방향 주기)</tspan>}
-          {!model.metadata.developable && <tspan x={bounds.x} dy="1.35em">평면 전개가 안 되는 조립체의 개략 전개도</tspan>}
+          <tspan x={bounds.x}>{tr('전개도', 'Crease pattern')} {bounds.w.toFixed(2)} × {bounds.h.toFixed(2)}</tspan>
+          {model.edu.layout2D?.periodX && <tspan x={bounds.x} dy="1.35em">{tr('원통을 펼친 그림 (x 방향 주기)', 'Unrolled cylinder (periodic in x)')}</tspan>}
+          {!model.metadata.developable && <tspan x={bounds.x} dy="1.35em">{tr('평면 전개가 안 되는 조립체의 개략 전개도', 'Schematic layout of an assembly that does not unfold flat')}</tspan>}
         </text>
       </svg>
-      {viewMode === '2d' && <div className="pointer-events-none absolute bottom-[15px] left-[15px] hidden max-w-[45%] text-[12px] leading-snug text-ink-3 sm:block">크리스를 가로질러 끌기: 접기 · 휠: 확대/축소 · Shift+드래그: 이동</div>}
+      {viewMode === '2d' && <div className="pointer-events-none absolute bottom-[15px] left-[15px] hidden max-w-[45%] text-[12px] leading-snug text-ink-3 sm:block">{tr('크리스를 가로질러 끌기: 접기 · 휠: 확대/축소 · Shift+드래그: 이동', 'Drag across a crease: fold · Wheel: zoom · Shift+drag: pan')}</div>}
       {viewMode === '2d' && <Legend compact position="top" />}
+      <PointerTip host={host} show={!!tip}>{tip && <HoverCard {...tip} />}</PointerTip>
       <div key={'carriage' + modelVersion} className="plot-carriage pointer-events-none absolute inset-y-[8px] w-[3px] -translate-x-1/2 bg-ink/70 shadow-[0_0_0_3px_rgb(23_32_42/0.08)]" aria-hidden />
 
       </DrawingFrame>

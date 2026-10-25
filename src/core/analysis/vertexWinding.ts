@@ -26,6 +26,7 @@
  * All angles in this module's public API are DEGREES unless named *Rad.
  */
 import { choleskySolve } from '../numerics/linearAlgebra';
+import { tr } from '../../i18n';
 
 export const D2R = Math.PI / 180;
 export const R2D = 180 / Math.PI;
@@ -73,8 +74,8 @@ export function analyzeSectors(theta: number[], eps = ANGLE_EPS): SectorReport {
   else if (Math.abs(S + 360) < eps) winding = -1;
   const intrinsic: IntrinsicClass = Math.abs(total - 360) < eps ? 'flat' : total < 360 ? 'cone' : 'saddle';
   const reason = n % 2 !== 0
-    ? '크리스 수가 홀수: 평탄 접힘에서 방향이 번갈아 바뀌지 않는다'
-    : winding === null ? `S = ${fmtSigned(S)} ∉ {0°, ±360°}: 접힌 경로가 시작 광선으로 돌아오지 않는다` : null;
+    ? tr('크리스 수가 홀수: 평탄 접힘에서 방향이 번갈아 바뀌지 않는다', 'Odd number of creases: directions cannot alternate in a flat fold')
+    : winding === null ? tr(`S = ${fmtSigned(S)} ∉ {0°, ±360°}: 접힌 경로가 시작 광선으로 돌아오지 않는다`, `S = ${fmtSigned(S)} ∉ {0°, ±360°}: the folded path does not return to the first ray`) : null;
   return { n, total, defect: 360 - total, intrinsic, odd, even, S, phi, winding, pass: reason === null, reason };
 }
 

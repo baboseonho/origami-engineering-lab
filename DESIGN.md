@@ -1,6 +1,6 @@
 ---
 name: Origami BaBolaB
-description: A live engineering drawing set on a drafting table for KAIST AE53006 Origami Engineering.
+description: A live engineering drawing set on a drafting table for learning Origami Engineering.
 colors:
   board: "#d2dad2"
   board-2: "#bcc7bd"

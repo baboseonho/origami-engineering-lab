@@ -21,6 +21,7 @@ import { buildRigidSystem, evaluateBlocks, residualNorm, type RigidSystem } from
 import { analyzeDof, type DofAnalysis } from './jacobian';
 import { faceTransforms, positionsFromTransforms } from './kinematics';
 import { solveLM } from './nonlinearSolve';
+import { tr } from '../../../i18n';
 
 export interface RigidOptions {
   enforceMV: boolean;
@@ -186,14 +187,14 @@ export class RigidKinematicSolver implements OrigamiSolver {
     const reasons: string[] = [];
     if (this.drive === null || this.sys.vars.varOfEdge[this.drive] < 0) {
       const r = this.closureResidual();
-      this.lastResult = { success: r < TOL.constraintFail, status: 'idle', iterations: 0, residualNorm: r, message: '구동 크리스가 선택되지 않았다', reasons };
+      this.lastResult = { success: r < TOL.constraintFail, status: 'idle', iterations: 0, residualNorm: r, message: tr('구동 크리스가 선택되지 않았다', 'No driving crease is selected'), reasons };
       return this.lastResult;
     }
     const { vars } = this.sys;
     const dv = vars.varOfEdge[this.drive];
     const requested = this.target;
     if (Math.abs(requested) > Math.PI + 1e-9) {
-      reasons.push('양립 불가능한 크리스 목표: |ρ|는 180°를 넘을 수 없다');
+      reasons.push(tr('양립 불가능한 크리스 목표: |ρ|는 180°를 넘을 수 없다', 'Incompatible crease target: |ρ| cannot exceed 180°'));
     }
     const goal = Math.max(-Math.PI, Math.min(Math.PI, requested));
     const free = this.freeMask();
@@ -283,7 +284,10 @@ export class RigidKinematicSolver implements OrigamiSolver {
         conditionEstimate: dof?.fullRank.condition,
         reachedAngle: reached,
         requestedAngle: requested,
-        message: `요청한 ρ = ${toDeg(requested).toFixed(1)}°에서 강체 해가 없다. 마지막 유효 배치 ρ = ${toDeg(reached).toFixed(2)}°에서 멈춤`,
+        message: tr(
+          `요청한 ρ = ${toDeg(requested).toFixed(1)}°에서 강체 해가 없다. 마지막 유효 배치 ρ = ${toDeg(reached).toFixed(2)}°에서 멈춤`,
+          `No rigid solution at the requested ρ = ${toDeg(requested).toFixed(1)}°. Stopped at the last valid configuration, ρ = ${toDeg(reached).toFixed(2)}°`,
+        ),
         reasons,
       };
     } else {
@@ -296,7 +300,7 @@ export class RigidKinematicSolver implements OrigamiSolver {
         conditionEstimate: dof?.fullRank.condition,
         reachedAngle: reached,
         requestedAngle: requested,
-        message: '강체 해를 찾았다',
+        message: tr('강체 해를 찾았다', 'Rigid solution found'),
         reasons,
       };
     }
@@ -308,11 +312,14 @@ export class RigidKinematicSolver implements OrigamiSolver {
     const out: string[] = [];
     const { vars } = this.sys;
     const drive = this.drive!;
-    if (dof && dof.dofLocal === 0) out.push('자유도 잠김: 적합 조건 야코비안이 열 랭크가 가득 차서 이 상태에서 강체 운동이 존재하지 않는다');
+    if (dof && dof.dofLocal === 0) out.push(tr('자유도 잠김: 적합 조건 야코비안이 열 랭크가 가득 차서 이 상태에서 강체 운동이 존재하지 않는다', 'DoF locked: the compatibility Jacobian has full column rank, so no rigid motion exists from this state'));
     if (dof && dof.dofLocal > 0 && this.drive !== null && Math.abs(rho[this.drive] - this.initialRho[this.drive]) < 1e-6)
-      out.push(`1차 가동성만 존재: rank J로는 무한소 DoF가 ${dof.dofLocal}개 남지만 유한한 강체 운동은 존재하지 않는다 (고차 강성)`);
-    if (dof && dof.fullRank.condition > 1e7) out.push('특이 배치: 이 지점에서 야코비안이 (거의) 랭크 부족이다 (분기점 또는 전환점)');
-    if (this.locked.size > 0) out.push(`잠긴 크리스 ${this.locked.size}개가 가동성을 제거한다. 잠금을 해제하고 시험한다`);
+      out.push(tr(
+        `1차 가동성만 존재: rank J로는 무한소 DoF가 ${dof.dofLocal}개 남지만 유한한 강체 운동은 존재하지 않는다 (고차 강성)`,
+        `First-order mobility only: rank J leaves ${dof.dofLocal} infinitesimal DoF, but no finite rigid motion exists (higher-order rigidity)`,
+      ));
+    if (dof && dof.fullRank.condition > 1e7) out.push(tr('특이 배치: 이 지점에서 야코비안이 (거의) 랭크 부족이다 (분기점 또는 전환점)', 'Singular configuration: the Jacobian is (nearly) rank-deficient here (a bifurcation or turning point)'));
+    if (this.locked.size > 0) out.push(tr(`잠긴 크리스 ${this.locked.size}개가 가동성을 제거한다. 잠금을 해제하고 시험한다`, `${this.locked.size} locked crease(s) remove mobility. Unlock them and try again`));
     if (this.options.enforceMV) {
       const rhoFixed = new Float64Array(rho);
       rhoFixed[drive] = tryAngle;
@@ -324,11 +331,14 @@ export class RigidKinematicSolver implements OrigamiSolver {
           const a = this.model.edges[eid].assignment;
           if ((a === 'M' && res.q[i] > 1e-4) || (a === 'V' && res.q[i] < -1e-4)) flips.push(`e${eid}`);
         });
-        if (flips.length) out.push(`M/V 배정 충돌: ${flips.slice(0, 6).join(', ')}${flips.length > 6 ? '…' : ''} 이(가) 배정과 반대로 접혀야만 강체 운동이 존재한다`);
+        if (flips.length) out.push(tr(
+          `M/V 배정 충돌: ${flips.slice(0, 6).join(', ')}${flips.length > 6 ? '…' : ''} 이(가) 배정과 반대로 접혀야만 강체 운동이 존재한다`,
+          `M/V assignment conflict: a rigid motion exists only if ${flips.slice(0, 6).join(', ')}${flips.length > 6 ? '…' : ''} fold against their assignment`,
+        ));
       }
     }
-    if (Math.abs(tryAngle) >= Math.PI - 1e-3) out.push('완전 접힘 한계(|ρ| → 180°)에 도달했다');
-    if (out.length === 0) out.push('이 목표까지 메커니즘이 강체 접힘 가능하지 않다 (연속법으로 적합한 배치를 찾지 못했다)');
+    if (Math.abs(tryAngle) >= Math.PI - 1e-3) out.push(tr('완전 접힘 한계(|ρ| → 180°)에 도달했다', 'Reached the fully folded limit (|ρ| → 180°)'));
+    if (out.length === 0) out.push(tr('이 목표까지 메커니즘이 강체 접힘 가능하지 않다 (연속법으로 적합한 배치를 찾지 못했다)', 'The mechanism cannot fold rigidly to this target (continuation found no compatible configuration)'));
     return out;
   }
 

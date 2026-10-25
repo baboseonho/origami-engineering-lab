@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { C, SERIES } from '../../theme/tokens';
+import { tr } from '../../i18n';
 
 export interface Series {
   label: string;
@@ -28,7 +29,7 @@ const tickFmt = (v: number) => (Math.abs(v) >= 1e4 || (Math.abs(v) < 1e-2 && v !
  * (the width follows the container) so axis text is a true 12px, never a
  * scaled-down 9px; the title and legend are ordinary HTML above it.
  */
-export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 360, yZero = false, title, logY = false, emptyText = '아직 표시할 데이터가 없다' }: {
+export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 360, yZero = false, title, logY = false, emptyText = tr('아직 표시할 데이터가 없다', 'No data to show yet') }: {
   series: Series[]; xLabel: string; yLabel: string; markerX?: number; height?: number; width?: number; yZero?: boolean; title?: string; logY?: boolean; emptyText?: string;
 }) {
   const box = useRef<HTMLElement>(null);
@@ -78,7 +79,7 @@ export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 36
           ))}
         </figcaption>
       )}
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block max-w-full select-none" role="img" aria-label={`${yLabel} 대 ${xLabel}${title ? ` · ${title}` : ''}`}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block max-w-full select-none" role="img" aria-label={`${yLabel}${tr(' 대 ', ' vs ')}${xLabel}${title ? ` · ${title}` : ''}`}>
         <rect x={pad.l} y={pad.t} width={W - pad.l - pad.r} height={H - pad.t - pad.b} fill={C.paper} stroke={C.rule} />
         {!empty && niceTicks(xlo, xhi, xTicks).map((t) => (
           <g key={'x' + t}>

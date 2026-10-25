@@ -42,7 +42,29 @@ export function kreslingSecondState(p: Pick<KreslingParams, 'n' | 'R' | 'H' | 'p
   return { H: Math.sqrt(H2sq), phi: phi2 };
 }
 
+/**
+ * Kresling model plus its second stable state as referenceStates[0]. The
+ * second state (φ', H') keeps every triangle edge a, b, c exactly, so it is an
+ * exact, stress-free folded state of the same sheet (closure checked in
+ * tests); its fold angles are read off a model built at (H', φ'), whose
+ * vertex/edge numbering is identical. This is the honest "folded" end state
+ * for the whole-pattern energy fold: ±180° on every crease is not one (with
+ * caps the cylinder has no rigid mobility at all). Reaching it from the first
+ * state requires panel strain (snap-through), which the energy model shows.
+ */
 export function kresling(p: KreslingParams): OrigamiModel {
+  const model = kreslingModel(p);
+  const st = kreslingSecondState(p);
+  if (st) {
+    const m2 = kreslingModel({ ...p, H: st.H, phi: st.phi });
+    const fold: Record<number, number> = {};
+    for (const e of m2.edges) if (e.faces[1] >= 0) fold[e.id] = e.referenceFoldAngle;
+    model.edu.referenceStates = [{ name: 'Second stable state', foldAngles: fold }];
+  }
+  return model;
+}
+
+function kreslingModel(p: KreslingParams): OrigamiModel {
   const { n, R, H, cells, caps } = p;
   const phi = p.chirality * p.phi;
   const al = (2 * Math.PI) / n;

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
+import { getLang, setLang as setGlobalLang, type Lang } from '../i18n';
 
 export type Selection = { kind: 'edge' | 'vertex' | 'face'; id: number } | null;
-export type ViewMode = '3d' | '2d' | 'split';
+export type ViewMode = '3d' | '2d' | 'split' | 'proj';
 export type AppMode = 'learn' | 'explore' | 'challenge';
 export type BottomTab = 'angles' | 'constraints' | 'dof' | 'energy' | 'strain' | 'geometry' | 'theory';
 export type OverlayKey =
@@ -9,7 +10,10 @@ export type OverlayKey =
   | 'facetBending' | 'energyDensity' | 'collisions' | 'axes' | 'symmetry' | 'vertices';
 
 export interface UIState {
-  lecture: 1 | 2 | 3 | 4 | 5;
+  lecture: number;
+  /** interface and content language */
+  lang: Lang;
+  setLang: (l: Lang) => void;
   appMode: AppMode;
   viewMode: ViewMode;
   selection: Selection;
@@ -59,6 +63,8 @@ export interface UIState {
 
 export const useUI = create<UIState>((set) => ({
   lecture: 4,
+  lang: getLang(),
+  setLang: (lang) => { setGlobalLang(lang); set({ lang }); },
   appMode: 'learn',
   viewMode: 'split',
   selection: null,

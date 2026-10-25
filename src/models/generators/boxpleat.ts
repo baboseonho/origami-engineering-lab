@@ -8,6 +8,8 @@ export interface BoxpleatParams {
   /** grid cells per side */
   n: number;
   preset: BoxpleatPreset;
+  /** side of one grid cell (default 1) */
+  size?: number;
 }
 
 /**
@@ -26,11 +28,12 @@ export interface BoxpleatParams {
  */
 export function boxpleat(p: BoxpleatParams): OrigamiModel {
   const { n } = p;
+  const sz = p.size ?? 1;
   const coords: Vec2[] = [];
   const g = (i: number, j: number) => i * (n + 1) + j; // grid point (x=j, y=i)
-  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) coords.push([j, i]);
+  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) coords.push([j * sz, i * sz]);
   const ctr = (i: number, j: number) => (n + 1) * (n + 1) + i * n + j; // cell centre
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) coords.push([j + 0.5, i + 0.5]);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) coords.push([(j + 0.5) * sz, (i + 0.5) * sz]);
   const faces: number[][] = [];
   for (let i = 0; i < n; i++)
     for (let j = 0; j < n; j++) {
@@ -75,7 +78,7 @@ export function boxpleat(p: BoxpleatParams): OrigamiModel {
     faces,
     assignment: (a, b) => assign[edgeKey(a, b)] ?? 'F',
     targets,
-    params: { n, preset: p.preset },
+    params: { n, preset: p.preset, size: sz },
   });
   model.edu.baseFace = faces.findIndex((f) => f.includes(ctr(Math.floor(n / 2), Math.floor(n / 2))));
   const d = model.edges.find((e) => e.assignment === 'V');

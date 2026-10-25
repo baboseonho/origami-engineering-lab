@@ -1,6 +1,6 @@
 # Generalized Kawasaki Lab — ±360° and winding
 
-An experiment environment for one question from KAIST AE53006 (Lecture 3):
+An experiment environment for one question in Origami Engineering (Part 3, rigid folding):
 
 > For a single vertex with an even number of creases, flat-foldability requires
 > S = θ1 − θ2 + θ3 − θ4 + … − θn ∈ {0°, +360°, −360°}.
@@ -16,7 +16,7 @@ An experiment environment for one question from KAIST AE53006 (Lecture 3):
 
 | | How | What you get |
 |---|---|---|
-| Web lab (interactive) | Site → Lecture 3 → **일반화 Kawasaki 실험실: ±360°와 감김** (`#l3-gkawasaki`), or `npm run dev` → `http://localhost:5173/#l3-gkawasaki` | split view (3D vertex · sector diagram · angular walk), cases A–E, live angle sliders, step-by-step walk animation |
+| Web lab (interactive) | Site → Part 3 → **일반화 Kawasaki 실험실: ±360°와 감김** (`#l3-gkawasaki`), or `npm run dev` → `http://localhost:5173/#l3-gkawasaki` | split view (3D vertex · sector diagram · angular walk), cases A–E, live angle sliders, step-by-step walk animation |
 | Blender (renders) | `blender -b -P scripts/generalized_kawasaki.py -- --all` | validation table + `renders/case_*.png` |
 | | `blender -b -P scripts/generalized_kawasaki.py -- --theta 120,40,100,60,90,50` | a render of any vertex (`renders/custom.png`) |
 | | `blender -P scripts/generalized_kawasaki.py -- --case C --no-render` | opens the scene for orbiting in Blender |

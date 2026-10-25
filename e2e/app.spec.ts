@@ -64,6 +64,8 @@ test('1D strip: collision preset is reported as not flat-foldable', async ({ pag
 
 test('Square twist: rigid drive is infeasible with an explicit reason', async ({ page }) => {
   await open(page, 'l2-terms');
+  // the sheet folds as a whole; single-crease controls sit behind a disclosure
+  await page.getByRole('button', { name: '이 크리스 하나만 움직이기' }).click();
   await page.getByRole('button', { name: '+45°', exact: true }).click();
   await expect(page.getByText('강체 해 없음', { exact: true })).toBeVisible();
   await expect(page.getByText(/M\/V 배정 충돌/)).toBeVisible();
@@ -75,4 +77,32 @@ test('Kresling: energy experiment runs in the worker', async ({ page }) => {
   await page.getByRole('tab', { name: '에너지', exact: true }).click();
   await page.getByRole('button', { name: '축 압축 실험 (비틀림 자유)' }).click();
   await expect(page.getByText(/실험 프레임 u = 0\.5\d\d/)).toBeVisible({ timeout: 60_000 });
+});
+
+test('English: the language switch translates the interface and the lessons, and is remembered', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page, 'l4-miura');
+  await page.getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.getByRole('region', { name: 'Verdict' })).toBeVisible();
+  await expect(page.getByText('Miura-ori', { exact: true }).first()).toBeVisible();
+  await page.reload();
+  await page.waitForTimeout(1500);
+  await expect(page.getByRole('region', { name: 'Verdict' })).toBeVisible();
+  await page.getByRole('button', { name: '한국어로 보기' }).click();
+  await expect(page.getByRole('region', { name: '판정' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('Reading pages: welcome paths, glossary search and printing a pattern', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page, 'l0-glossary');
+  await page.getByRole('textbox', { name: '용어 찾기' }).fill('Maekawa');
+  await expect(page.getByRole('term').filter({ hasText: 'Maekawa–Justin 정리' })).toBeVisible();
+  await expect(page.getByRole('term').filter({ hasText: '플리트 (주름)' })).toHaveCount(0);
+  await open(page, 'l4-miura');
+  await page.getByRole('button', { name: '직접 접어 보기' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'SVG 저장' }).click();
+  expect((await download).suggestedFilename()).toMatch(/\.svg$/);
+  expect(errors).toEqual([]);
 });

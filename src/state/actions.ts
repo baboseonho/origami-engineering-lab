@@ -22,6 +22,7 @@ import { DEG } from '../core/numerics/tolerances';
 import { exportFold } from '../core/fold/exportFold';
 import { importFold } from '../core/fold/importFold';
 import type { FoldFile } from '../core/fold/foldTypes';
+import { tr } from '../i18n';
 
 const AUTO_DRIVE = new Set(['miura', 'singleVertex', 'waterbombBase']);
 
@@ -158,7 +159,8 @@ function loadLessonNow(id: string) {
   stopPlaying();
   useUI.setState({ lecture: lesson.lecture, selection: null, hover: null });
   const energyParams: EnergyParams = {
-    ...ENERGY_PRESETS.paperLike,
+    ...ENERGY_PRESETS[lesson.energyPreset ?? 'paperLike'],
+    ...lesson.energyParams,
     ...(lesson.id === 'l5-kresling' || lesson.id === 'l5-compare' ? { kCrease: 0.02, kAxial: 60 } : {}),
     // thin shell: bending must be cheap relative to membrane stretching for buckling to appear
     ...(lesson.id === 'l5-yoshimura' ? { kFacet: 0.3, kCrease: 0.3 } : {}),
@@ -166,7 +168,7 @@ function loadLessonNow(id: string) {
   const creaseRest: CreaseRest = lesson.id === 'l5-yoshimura' || lesson.id === 'l5-kresling' ? 'reference' : lesson.solver === 'energy' && lesson.id !== 'l3-energy' ? 'foldAll' : 'current';
   useSim.setState({
     solverMode: lesson.solver ?? 'rigid', enforceMV: lesson.enforceMV ?? true, useSymmetry: lesson.useSymmetry ?? false,
-    locked: [], drive: null, target: 0, energyParams, energyPreset: 'paperLike', creaseRest, dof: null,
+    locked: [], drive: null, target: 0, energyParams, energyPreset: lesson.energyPreset ?? 'paperLike', creaseRest, dof: null,
     foldPercent: lesson.id === 'l4-waterbomb' ? 0.3 : 0.5,
     foldGrade: lesson.id === 'l4-waterbomb' ? 1.2 : 0,
   });
@@ -382,7 +384,7 @@ export function resetSimulation() {
 
 /** Switch the solver; `reason` (an automatic switch) is announced to the student. */
 export function setSolverMode(mode: 'rigid' | 'energy', reason?: string) {
-  if (reason && useSim.getState().solverMode !== mode) useUI.getState().notify(`${mode === 'energy' ? 'Energy' : 'Rigid'} 솔버로 바꿨다: ${reason}`);
+  if (reason && useSim.getState().solverMode !== mode) useUI.getState().notify(tr(`${mode === 'energy' ? 'Energy' : 'Rigid'} 솔버로 바꿨다: ${reason}`, `Switched to the ${mode === 'energy' ? 'Energy' : 'Rigid'} solver: ${reason}`));
   const s = useSim.getState();
   if (s.solverMode === mode) return;
   pushHistory();
@@ -577,7 +579,7 @@ export function patternFoldProgress(): number {
 function foldRigidTo(q: number) {
   const model = engine.model!;
   const dd = model.edu.defaultDrive!;
-  if (useSim.getState().solverMode !== 'rigid') setSolverMode('rigid', '이 패턴은 강체 기구로 접는다');
+  if (useSim.getState().solverMode !== 'rigid') setSolverMode('rigid', tr('이 패턴은 강체 기구로 접는다', 'This pattern folds as a rigid mechanism'));
   if (useSim.getState().drive !== dd.edge) setDriveEdge(dd.edge);
   const e = model.edges[dd.edge];
   const sense = e.assignment === 'M' ? -1 : 1;
@@ -595,7 +597,7 @@ function foldRigidTo(q: number) {
  */
 function foldEnergyTo(q: number) {
   const model = engine.model!;
-  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', '모든 크리스를 함께 접으려면 면이 휘어야 한다');
+  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', tr('모든 크리스를 함께 접으려면 면이 휘어야 한다', 'Folding all creases together requires the faces to bend'));
   stopPlaying();
   if (useSim.getState().experiment) clearExperiment();
   if (!engine.energy) initEnergy();
@@ -743,7 +745,7 @@ export function runExperiment(kind: 'kreslingAxial' | 'yoshimuraCompression' | '
   const model = engine.model;
   if (!model || !m.generator) return;
   stopPlaying();
-  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', '실험은 에너지법으로 계산한다');
+  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', tr('실험은 에너지법으로 계산한다', 'Experiments are computed with the energy method'));
   const params = useSim.getState().energyParams;
   worker?.terminate();
   worker = new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' });

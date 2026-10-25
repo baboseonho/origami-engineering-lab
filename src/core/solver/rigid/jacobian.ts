@@ -12,6 +12,7 @@
  */
 import { numericalRank, zeros, type Mat, type RankInfo } from '../../numerics/linearAlgebra';
 import type { EvaluatedBlock, RigidSystem } from './constraints';
+import { tr } from '../../../i18n';
 
 export function assembleDense(blocks: EvaluatedBlock[], nVar: number, filter?: (b: EvaluatedBlock) => boolean): Mat {
   const use = filter ? blocks.filter(filter) : blocks;
@@ -51,9 +52,21 @@ export function analyzeDof(sys: RigidSystem, blocks: EvaluatedBlock[]): DofAnaly
   const warnings: string[] = [];
   const naive = N - 3 * M;
   const redundant = 3 * M - vertexRank.rank;
-  if (naive < 0) warnings.push(`N − 3M = ${naive} 은 음수다. 이는 음의 이동성이 아니라 중복 구속을 뜻한다 (rank J = ${fullRank.rank} < 3M = ${3 * M}).`);
-  if (redundant > 0 && naive >= 0) warnings.push(`꼭짓점 구속 ${redundant}개가 중복되어, 실제 국소 자유도(${dofLocal})가 N − 3M(${naive})보다 크다.`);
-  if (dofLocal !== naive && naive >= 0 && redundant === 0 && sys.usesLoops) warnings.push('원통의 전역 루프 폐합 조건이 N − 3M 계산에 포함되지 않는 구속을 추가한다.');
-  if (fullRank.rank > 0 && fullRank.condition > 1e6) warnings.push(`특이 배치에 가깝다: 조건수 κ ≈ ${fullRank.condition.toExponential(1)}.`);
+  if (naive < 0) warnings.push(tr(
+    `N − 3M = ${naive} 은 음수다. 이는 음의 이동성이 아니라 중복 구속을 뜻한다 (rank J = ${fullRank.rank} < 3M = ${3 * M}).`,
+    `N − 3M = ${naive} is negative. This means redundant constraints, not negative mobility (rank J = ${fullRank.rank} < 3M = ${3 * M}).`,
+  ));
+  if (redundant > 0 && naive >= 0) warnings.push(tr(
+    `꼭짓점 구속 ${redundant}개가 중복되어, 실제 국소 자유도(${dofLocal})가 N − 3M(${naive})보다 크다.`,
+    `${redundant} vertex constraints are redundant, so the actual local DoF (${dofLocal}) is larger than N − 3M (${naive}).`,
+  ));
+  if (dofLocal !== naive && naive >= 0 && redundant === 0 && sys.usesLoops) warnings.push(tr(
+    '원통의 전역 루프 폐합 조건이 N − 3M 계산에 포함되지 않는 구속을 추가한다.',
+    'The global loop-closure condition of the cylinder adds constraints that the N − 3M count leaves out.',
+  ));
+  if (fullRank.rank > 0 && fullRank.condition > 1e6) warnings.push(tr(
+    `특이 배치에 가깝다: 조건수 κ ≈ ${fullRank.condition.toExponential(1)}.`,
+    `Close to a singular configuration: condition number κ ≈ ${fullRank.condition.toExponential(1)}.`,
+  ));
   return { N, M, NMinus3M: naive, vertexRank, fullRank, dofLocal, usesLoops: sys.usesLoops, redundantVertexConstraints: redundant, warnings };
 }

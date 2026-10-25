@@ -1,5 +1,7 @@
+import { tr } from '../../i18n';
+
 /** Placeholder shown while a lazily loaded sheet (3D view, lab, theory) arrives. */
-export function SheetLoading({ label = '도면을 펼치는 중' }: { label?: string }) {
+export function SheetLoading({ label = tr('도면을 펼치는 중', 'Unfolding the sheet') }: { label?: string }) {
   return (
     <div className="grid-paper flex h-full w-full items-center justify-center" role="status" aria-live="polite">
       <div className="flex items-center gap-3 rounded-[3px] border border-rule-2 bg-paper/95 px-4 py-3 text-[14px] text-ink-2">

@@ -3,6 +3,7 @@ import { AlertTriangle, Check, ChevronDown, Info, Minus, X } from 'lucide-react'
 import { toDeg, toRad } from '../../core/geometry/angles';
 import { C } from '../../theme/tokens';
 import { useUI } from '../../state/uiStore';
+import { tr } from '../../i18n';
 
 /** Domain convention: Mountain red pencil, Valley ink blue. */
 export const ASSIGN_COLOR: Record<string, string> = {
@@ -13,12 +14,13 @@ export const ASSIGN_COLOR: Record<string, string> = {
   B: C.ink2,
 };
 
+/** Getters, so each read follows the current language. */
 export const ASSIGN_LABEL: Record<string, string> = {
-  M: '산접기 M',
-  V: '골접기 V',
-  F: '면 내부 F',
-  U: '미지정 U',
-  B: '경계 B',
+  get M() { return tr('산접기 M', 'Mountain M'); },
+  get V() { return tr('골접기 V', 'Valley V'); },
+  get F() { return tr('면 내부 F', 'Flat F'); },
+  get U() { return tr('미지정 U', 'Unassigned U'); },
+  get B() { return tr('경계 B', 'Boundary B'); },
 };
 
 /**
@@ -71,7 +73,13 @@ const STAMP: Record<Status, string> = {
 };
 const STAMP_ICON: Record<Status, typeof Check> = { ok: Check, warn: AlertTriangle, bad: X, na: Minus, info: Info };
 /** default word carried by every stamp, so a stamp never reads as a checkbox */
-export const STAMP_WORD: Record<Status, string> = { ok: '가능', warn: '주의', bad: '불가', na: '해당 없음', info: '참고' };
+export const STAMP_WORD: Record<Status, string> = {
+  get ok() { return tr('가능', 'pass'); },
+  get warn() { return tr('주의', 'caution'); },
+  get bad() { return tr('불가', 'fail'); },
+  get na() { return tr('해당 없음', 'n/a'); },
+  get info() { return tr('참고', 'note'); },
+};
 
 /** Inspector's ink stamp: thin outline, always carries a word. */
 export function Badge({ status, children }: { status: Status; children?: ReactNode }) {
@@ -155,7 +163,7 @@ export function NumberField({ value, onCommit, step = 1, min, max, suffix, width
 }
 
 /** Angle slider in degrees bound to a radian value, with a ruler scale (−180 … 0 … +180). */
-export function AngleSlider({ value, onChange, onStart, min = -180, max = 180, step = 0.5, label = '접힘각 ρ' }: {
+export function AngleSlider({ value, onChange, onStart, min = -180, max = 180, step = 0.5, label = tr('접힘각 ρ', 'Fold angle ρ') }: {
   value: number; onChange: (rad: number) => void; onStart?: () => void; min?: number; max?: number; step?: number; label?: string;
 }) {
   const ticks = [-180, -135, -90, -45, 0, 45, 90, 135, 180].filter((t) => t >= min && t <= max);
@@ -203,10 +211,10 @@ export function SpeedControl({ className = '' }: { className?: string }) {
   const v = useUI((s) => s.foldSpeed);
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>
-      <span className="lettering shrink-0 text-[12px] text-ink-3">속도</span>
-      <div role="radiogroup" aria-label="접기 속도" className="flex rounded-[3px] border border-rule-2 bg-paper-2 p-0.5">
+      <span className="lettering shrink-0 text-[12px] text-ink-3">{tr('속도', 'Speed')}</span>
+      <div role="radiogroup" aria-label={tr('접기 속도', 'Fold speed')} className="flex rounded-[3px] border border-rule-2 bg-paper-2 p-0.5">
         {FOLD_SPEEDS.map((s) => (
-          <button key={s} type="button" role="radio" aria-checked={v === s} title={s < 1 ? `${Math.round(1 / s)}배 느리게` : s > 1 ? '2배 빠르게' : '보통 속도'}
+          <button key={s} type="button" role="radio" aria-checked={v === s} title={s < 1 ? tr(`${Math.round(1 / s)}배 느리게`, `${Math.round(1 / s)}× slower`) : s > 1 ? tr('2배 빠르게', '2× faster') : tr('보통 속도', 'Normal speed')}
             onClick={() => useUI.getState().setFoldSpeed(s)}
             className={`tnum h-6 whitespace-nowrap rounded-[2px] px-1.5 text-[12px] transition-colors ${v === s ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
             {s}×

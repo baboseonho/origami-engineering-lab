@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { tr } from '../../i18n';
 
 const ZONES_X = ['A', 'B', 'C', 'D', 'E', 'F'];
 const ZONES_Y = ['1', '2', '3', '4'];
@@ -31,17 +32,17 @@ export function DrawingFrame({ title, subtitle, children, grid = true, status, s
         <div className="absolute bottom-0 right-0 flex border-l border-t border-ink/70 bg-paper/95 text-ink">
           {status && (
             <div className={`border-r border-ink/40 px-2 py-1 ${statusTone === 'ok' ? 'bg-ok-soft text-ok' : 'bg-info-soft text-info'}`}>
-              <div className="lettering text-[12px] leading-none opacity-80">솔버</div>
+              <div className="lettering text-[12px] leading-none opacity-80">{tr('솔버', 'Solver')}</div>
               <div className="whitespace-nowrap text-[13px] font-semibold leading-tight">{status}</div>
             </div>
           )}
           <div className="border-r border-ink/40 px-2 py-1">
-            <div className="lettering text-[12px] leading-none text-ink-3">보기</div>
+            <div className="lettering text-[12px] leading-none text-ink-3">{tr('보기', 'View')}</div>
             <div className="whitespace-nowrap text-[13px] font-semibold leading-tight">{title}</div>
           </div>
           {subtitle && (
             <div className="px-2 py-1">
-              <div className="lettering text-[12px] leading-none text-ink-3">모델</div>
+              <div className="lettering text-[12px] leading-none text-ink-3">{tr('모델', 'Model')}</div>
               <div className="max-w-[220px] truncate text-[13px] leading-tight text-ink-2">{subtitle}</div>
             </div>
           )}

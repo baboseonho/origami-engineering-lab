@@ -1,7 +1,7 @@
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
+import { GizmoHelper, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
 import { LabelLayer, LabelProjector, publishLabels, type LabelSpec } from './labels';
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement, type RefObject } from 'react';
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
@@ -20,6 +20,9 @@ import { Legend } from './Legend';
 import { DrawingFrame } from './DrawingFrame';
 import { layerLift, layersFor } from './layerCache';
 import { C } from '../../theme/tokens';
+import { tr } from '../../i18n';
+import { HoverCard, PointerTip, edgeTip, faceTip, useDwell, vertexTip } from './HoverTip';
+import { useEngineVersion } from './measure';
 
 const tmpM = new THREE.Matrix4();
 const tmpQ = new THREE.Quaternion();
@@ -42,6 +45,13 @@ function currentBounds(): { c: THREE.Vector3; r: number } {
 // model z-up -> world y-up
 const MODEL_ROT = new THREE.Euler(-Math.PI / 2, 0, 0);
 const toWorld = (v: THREE.Vector3) => v.clone().applyEuler(MODEL_ROT);
+
+/** Set the hover only when it changes: pointer moves re-raycast every frame, but subscribers re-render only on a new element. */
+function hoverTo(s: { kind: 'edge' | 'vertex' | 'face'; id: number } | null) {
+  const h = useUI.getState().hover;
+  if (h === s || (h && s && h.kind === s.kind && h.id === s.id)) return;
+  useUI.getState().setHover(s);
+}
 
 function FaceMesh({ model }: { model: OrigamiModel }) {
   const tris = useMemo(() => model.faces.flatMap((f) => f.triangles.map((t) => ({ t, f: f.id }))), [model]);
@@ -98,7 +108,7 @@ function FaceMesh({ model }: { model: OrigamiModel }) {
     e.stopPropagation();
     if (e.faceIndex == null) return;
     const f = tris[e.faceIndex]?.f;
-    if (f !== undefined) useUI.getState().setHover({ kind: 'face', id: f });
+    if (f !== undefined) hoverTo({ kind: 'face', id: f });
   };
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -108,7 +118,7 @@ function FaceMesh({ model }: { model: OrigamiModel }) {
   };
   return (
     <group>
-      <mesh geometry={geom} onPointerMove={onMove} onPointerOut={() => useUI.getState().setHover(null)} onClick={onClick}>
+      <mesh geometry={geom} onPointerMove={onMove} onPointerOut={() => hoverTo(null)} onClick={onClick}>
         <meshStandardMaterial vertexColors color={C.paperFront} side={THREE.FrontSide} roughness={0.9} metalness={0} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
       </mesh>
       <mesh geometry={geom}>
@@ -303,7 +313,7 @@ function Creases({ model }: { model: OrigamiModel }) {
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     if (e.instanceId !== undefined) {
-      useUI.getState().setHover({ kind: 'edge', id: e.instanceId });
+      hoverTo({ kind: 'edge', id: e.instanceId });
       setCanvasCursor(e, canDriveEdge(e.instanceId) ? 'grab' : 'pointer');
     }
   };
@@ -316,7 +326,7 @@ function Creases({ model }: { model: OrigamiModel }) {
   return (
     <group>
       <PenLines model={model} />
-      <instancedMesh ref={pick} args={[geo, undefined, E]} onPointerMove={onMove} onPointerDown={onDown} onPointerOut={(e) => { useUI.getState().setHover(null); setCanvasCursor(e, ''); }} onClick={onClick} frustumCulled={false}>
+      <instancedMesh ref={pick} args={[geo, undefined, E]} onPointerMove={onMove} onPointerDown={onDown} onPointerOut={(e) => { hoverTo(null); setCanvasCursor(e, ''); }} onClick={onClick} frustumCulled={false}>
         <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
       </instancedMesh>
     </group>
@@ -353,7 +363,8 @@ function Vertices({ model }: { model: OrigamiModel }) {
       args={[undefined, undefined, ids.length]}
       frustumCulled={false}
       onClick={(e) => { e.stopPropagation(); if (e.delta <= 4 && e.instanceId !== undefined) useUI.getState().select({ kind: 'vertex', id: ids[e.instanceId] }); }}
-      onPointerMove={(e) => { e.stopPropagation(); if (e.instanceId !== undefined) useUI.getState().setHover({ kind: 'vertex', id: ids[e.instanceId] }); }}
+      onPointerMove={(e) => { e.stopPropagation(); if (e.instanceId !== undefined) hoverTo({ kind: 'vertex', id: ids[e.instanceId] }); }}
+      onPointerOut={() => hoverTo(null)}
     >
       <sphereGeometry args={[model.scale * 0.0065, 12, 10]} />
       <meshBasicMaterial toneMapped={false} />
@@ -532,36 +543,197 @@ function DerivationOverlay({ model }: { model: OrigamiModel }) {
   return <group>{items}</group>;
 }
 
+type Cam = THREE.Camera & { zoom: number; updateProjectionMatrix: () => void; up: THREE.Vector3 };
+type Ctl = { target: THREE.Vector3; update: () => void } | null;
+type Size = { width: number; height: number };
+
+/**
+ * Frame the current model along `dir` (world, from the target towards the
+ * camera): a perspective camera backs off until the bounding sphere fits the
+ * narrower field of view, an orthographic one zooms so it fits the view.
+ */
+function frameModel(camera: Cam, controls: Ctl, size: Size, dir: THREE.Vector3) {
+  const { c, r } = currentBounds();
+  const cw = toWorld(c);
+  const d = dir.clone().normalize();
+  if (Math.abs(d.y) > 0.9999) { d.z += 0.0001; d.normalize(); } // straight down: keep OrbitControls' up axis defined
+  const persp = camera as unknown as THREE.PerspectiveCamera;
+  if (persp.isPerspectiveCamera) {
+    const half = Math.min((persp.fov * Math.PI) / 360, Math.atan(Math.tan((persp.fov * Math.PI) / 360) * persp.aspect));
+    camera.position.copy(cw).addScaledVector(d, (r / Math.sin(half)) * 1.08);
+  } else {
+    camera.position.copy(cw).addScaledVector(d, Math.max(10, r * 4));
+    camera.zoom = Math.max(1e-3, Math.min(size.width, size.height) / (2.16 * r));
+    camera.updateProjectionMatrix();
+  }
+  camera.up.set(0, 1, 0);
+  camera.lookAt(cw);
+  if (controls) { controls.target.copy(cw); controls.update(); }
+}
+
+/** World directions (target → camera) of the named views; the model's z is world y. */
+const VIEW_DIRS: Record<string, THREE.Vector3> = {
+  fit: new THREE.Vector3(0.9, 0.75, 1.1),
+  reset: new THREE.Vector3(0.9, 0.75, 1.1),
+  iso: new THREE.Vector3(1, 1, 1),
+  top: new THREE.Vector3(0, 1, 0),
+  front: new THREE.Vector3(0, 0, 1),
+  side: new THREE.Vector3(1, 0, 0),
+};
+
 function CameraRig({ model }: { model: OrigamiModel | null }) {
   const camType = useUI((s) => s.camera);
   const req = useUI((s) => s.viewRequest);
-  const { camera, controls } = useThree() as unknown as { camera: THREE.Camera & { zoom: number; updateProjectionMatrix: () => void }; controls: { target: THREE.Vector3; update: () => void } | null };
+  const { camera, controls, size } = useThree() as unknown as { camera: Cam; controls: Ctl; size: Size };
   useEffect(() => {
     if (!model) return;
-    const { c, r } = currentBounds();
-    const cw = toWorld(c);
-    const persp = camera as unknown as THREE.PerspectiveCamera;
-    const half = persp.isPerspectiveCamera ? Math.min((persp.fov * Math.PI) / 360, Math.atan(Math.tan((persp.fov * Math.PI) / 360) * persp.aspect)) : 0.35;
-    const dist = (r / Math.sin(half)) * 1.08;
-    const dirs: Record<string, THREE.Vector3> = {
-      fit: new THREE.Vector3(0.9, 0.75, 1.1),
-      reset: new THREE.Vector3(0.9, 0.75, 1.1),
-      iso: new THREE.Vector3(1, 1, 1),
-      top: new THREE.Vector3(0, 1, 0.0001),
-      front: new THREE.Vector3(0, 0, 1),
-      side: new THREE.Vector3(1, 0, 0),
-    };
-    const dir = (dirs[req.preset] ?? dirs.fit).clone().normalize();
-    camera.position.copy(cw.clone().addScaledVector(dir, dist));
-    if ((camera as unknown as THREE.OrthographicCamera).isOrthographicCamera) {
-      (camera as unknown as THREE.OrthographicCamera).zoom = 220 / r;
-      camera.updateProjectionMatrix();
-    }
-    camera.lookAt(cw);
-    if (controls) { controls.target.copy(cw); controls.update(); }
+    frameModel(camera, controls, size, VIEW_DIRS[req.preset] ?? VIEW_DIRS.fit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [req.n, camType, model, controls]);
   return null;
+}
+
+/** Paper disc, filled axis head with its letter, or hollow negative head, drawn once on a canvas. */
+function gizmoTexture(kind: 'disc' | 'pos' | 'neg', label = ''): THREE.CanvasTexture {
+  const S = 128;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d')!;
+  g.beginPath();
+  if (kind === 'disc') {
+    g.arc(S / 2, S / 2, S / 2 - 3, 0, 2 * Math.PI);
+    g.fillStyle = 'rgba(251,252,249,0.86)';
+    g.fill();
+    g.lineWidth = 2;
+    g.strokeStyle = 'rgba(23,32,42,0.35)';
+    g.stroke();
+  } else if (kind === 'pos') {
+    g.arc(S / 2, S / 2, 46, 0, 2 * Math.PI);
+    g.fillStyle = C.ink2;
+    g.fill();
+    g.font = '600 66px "Barlow Semi Condensed", "Pretendard Variable", Arial, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = C.paper;
+    g.fillText(label, S / 2, S / 2 - 3);
+  } else {
+    g.arc(S / 2, S / 2, 30, 0, 2 * Math.PI);
+    g.fillStyle = C.paper;
+    g.fill();
+    g.lineWidth = 7;
+    g.strokeStyle = C.ink3;
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Model axes (z up) as world directions, for the orientation gizmo. */
+const GIZMO_AXES: { label: string; dir: THREE.Vector3 }[] = [
+  { label: 'x', dir: new THREE.Vector3(1, 0, 0) },
+  { label: 'y', dir: new THREE.Vector3(0, 0, -1) },
+  { label: 'z', dir: new THREE.Vector3(0, 1, 0) },
+];
+const AXIS_X = new THREE.Vector3(1, 0, 0);
+
+function GizmoHead({ dir, label, onPick }: { dir: THREE.Vector3; label?: string; onPick: (d: THREE.Vector3) => void }) {
+  const tex = useMemo(() => gizmoTexture(label ? 'pos' : 'neg', label), [label]);
+  useEffect(() => () => tex.dispose(), [tex]);
+  const [hot, setHot] = useState(false);
+  const cursor = (e: { nativeEvent: Event }, c: string) => { const el = e.nativeEvent.target as HTMLElement | null; if (el?.style) el.style.cursor = c; };
+  return (
+    <sprite
+      position={dir}
+      scale={(label ? 1 : 0.8) * (hot ? 1.18 : 1)}
+      onPointerOver={(e) => { e.stopPropagation(); setHot(true); cursor(e, 'pointer'); }}
+      onPointerOut={(e) => { setHot(false); cursor(e, ''); }}
+      onPointerMove={(e) => { e.stopPropagation(); hoverTo(null); }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); onPick(dir); }}
+    >
+      <spriteMaterial map={tex} alphaTest={0.3} toneMapped={false} />
+    </sprite>
+  );
+}
+
+/** Ink-on-paper orientation gizmo: click an axis end to look along it (top, front, side and their opposites). */
+function AxisGizmo({ onPick }: { onPick: (d: THREE.Vector3) => void }) {
+  const disc = useMemo(() => gizmoTexture('disc'), []);
+  useEffect(() => () => disc.dispose(), [disc]);
+  return (
+    <group scale={30}>
+      <sprite scale={2.9} renderOrder={-1} raycast={() => null}>
+        <spriteMaterial map={disc} depthWrite={false} depthTest={false} transparent toneMapped={false} />
+      </sprite>
+      {GIZMO_AXES.map((a) => (
+        <group key={a.label}>
+          <mesh position={a.dir.clone().multiplyScalar(0.36)} quaternion={new THREE.Quaternion().setFromUnitVectors(AXIS_X, a.dir)} raycast={() => null}>
+            <boxGeometry args={[0.72, 0.045, 0.045]} />
+            <meshBasicMaterial color={C.ink2} toneMapped={false} />
+          </mesh>
+          <GizmoHead dir={a.dir} label={a.label} onPick={onPick} />
+          <GizmoHead dir={a.dir.clone().negate()} onPick={onPick} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/**
+ * Navigation helpers of a 3D modelling app: the orientation gizmo (bottom
+ * right, above the title block, clear of the toolbar and legend) snaps the
+ * view along an axis at the same zoom; double-click frames the model along
+ * the current view direction.
+ */
+function NavHelpers({ model }: { model: OrigamiModel }) {
+  const { camera, controls, size, gl } = useThree() as unknown as { camera: Cam; controls: Ctl; size: Size; gl: THREE.WebGLRenderer };
+  const latest = useRef({ camera, controls, size });
+  latest.current = { camera, controls, size };
+  const snap = (dir: THREE.Vector3) => {
+    const target = controls?.target ?? new THREE.Vector3();
+    const dist = camera.position.distanceTo(target) || model.scale * 2;
+    const d = dir.clone().normalize();
+    if (Math.abs(d.y) > 0.9999) { d.z += 0.0001; d.normalize(); }
+    camera.position.copy(target).addScaledVector(d, dist);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(target);
+    controls?.update();
+  };
+  useEffect(() => {
+    const el = gl.domElement;
+    const dbl = () => {
+      const { camera: cam, controls: ctl, size: sz } = latest.current;
+      const dir = cam.position.clone().sub(ctl?.target ?? new THREE.Vector3());
+      frameModel(cam, ctl, sz, dir.lengthSq() > 1e-12 ? dir : VIEW_DIRS.fit);
+    };
+    el.addEventListener('dblclick', dbl);
+    return () => el.removeEventListener('dblclick', dbl);
+  }, [gl]);
+  if (size.width < 300 || size.height < 300) return null;
+  return (
+    <GizmoHelper alignment="bottom-right" margin={[60, 164]}>
+      <AxisGizmo onPick={snap} />
+    </GizmoHelper>
+  );
+}
+
+/** Hover readout beside the pointer: crease, vertex or face measurements of the current state. */
+function HoverReadout3D({ model, host }: { model: OrigamiModel | null; host: RefObject<HTMLDivElement | null> }) {
+  const hover = useUI((s) => s.hover);
+  const rho = useSim((s) => s.rho);
+  const solverMode = useSim((s) => s.solverMode);
+  const key = hover ? `${hover.kind}${hover.id}` : null;
+  // faces cover the whole sheet: their note waits for the pointer to rest; creases and vertices answer at once
+  const shown = useDwell(key, hover?.kind === 'face' ? 420 : 0);
+  useEngineVersion(8, !!hover);
+  let content = null;
+  if (model && hover && shown) {
+    if (hover.kind === 'edge' && model.edges[hover.id]) content = edgeTip(model, hover.id, rho, { lengthLabel: tr('길이 (전개도)', 'Rest length'), current: solverMode === 'energy' });
+    else if (hover.kind === 'vertex' && model.vertices[hover.id]) content = vertexTip(model, hover.id);
+    else if (hover.kind === 'face' && model.faces[hover.id]) content = faceTip(model, hover.id);
+  }
+  return <PointerTip host={host} show={!!content}>{content && <HoverCard {...content} />}</PointerTip>;
 }
 
 export function Viewport3D() {
@@ -571,9 +743,10 @@ export function Viewport3D() {
   const experiment = useSim((s) => s.experiment);
   const playing = useSim((s) => s.playing);
   const solverMode = useSim((s) => s.solverMode);
+  const host = useRef<HTMLDivElement>(null);
   return (
-    <div className="relative h-full w-full" onPointerLeave={() => useUI.getState().setHover(null)}>
-      <DrawingFrame title="3D 모델" grid={false} status={solverMode === 'rigid' ? 'Rigid 강체 기구학' : `Energy 에너지법${playing ? ' · 계산 중' : ''}`} statusTone={solverMode === 'rigid' ? 'info' : 'ok'}>
+    <div ref={host} className="relative h-full w-full" onPointerLeave={() => hoverTo(null)}>
+      <DrawingFrame title={tr('3D 모델', '3D model')} grid={false} status={solverMode === 'rigid' ? tr('Rigid 강체 기구학', 'Rigid kinematics') : `${tr('Energy 에너지법', 'Energy method')}${playing ? tr(' · 계산 중', ' · computing') : ''}`} statusTone={solverMode === 'rigid' ? 'info' : 'ok'}>
       <Canvas dpr={[1, 2]} onPointerMissed={() => useUI.getState().select(null)} gl={{ antialias: true, alpha: true }}>
         {camType === 'perspective' ? <PerspectiveCamera makeDefault fov={40} near={0.01} far={500} position={[3, 3, 3]} /> : <OrthographicCamera makeDefault near={-500} far={500} position={[3, 3, 3]} zoom={80} />}
         <OrbitControls makeDefault enableDamping dampingFactor={0.12} />
@@ -596,15 +769,17 @@ export function Viewport3D() {
           </group>
         )}
         <gridHelper args={[20, 40, C.nonphoto, C.nonphotoSoft]} position={[0, -0.001, 0]} />
+        {model && <NavHelpers model={model} />}
       </Canvas>
       <LabelLayer />
+      <HoverReadout3D model={model} host={host} />
       <ViewToolbar />
       <Legend />
       <div className="pointer-events-none absolute right-[15px] top-[56px] flex max-w-[60%] flex-col items-end gap-1">
-        {shownState && <span className="max-w-[320px] rounded-[3px] border border-rule-2 bg-paper/95 px-2 py-1 text-[13px] text-ink-2">구성된 상태 표시: {shownState} — 정확한 강체 배치이며 솔버 경로가 아님</span>}
-        {experiment && <span className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[13px] text-warn">실험 프레임 u = {experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'} (에너지 최소화 결과)</span>}
+        {shownState && <span className="max-w-[320px] rounded-[3px] border border-rule-2 bg-paper/95 px-2 py-1 text-[13px] text-ink-2">{tr(`구성된 상태 표시: ${shownState} — 정확한 강체 배치이며 솔버 경로가 아님`, `Showing constructed state: ${shownState} — an exact rigid configuration, not a solver path`)}</span>}
+        {experiment && <span className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[13px] text-warn">{tr('실험 프레임', 'Experiment frame')} u = {experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'} {tr('(에너지 최소화 결과)', '(energy-minimized result)')}</span>}
       </div>
-      {!model && <div className="absolute inset-0 grid place-items-center text-ink-3">이 레슨에는 3D 모델이 없다</div>}
+      {!model && <div className="absolute inset-0 grid place-items-center text-ink-3">{tr('이 레슨에는 3D 모델이 없다', 'This lesson has no 3D model')}</div>}
       </DrawingFrame>
     </div>
   );

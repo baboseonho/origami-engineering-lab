@@ -66,6 +66,15 @@ A critique found the verdict buried at the bottom of the inspector, three compet
 * **Layout:** below 1280px the right sheet has "레슨 | 검사" tabs; analysis tabs reflow on the panel's own width (container queries); the GK lab's three status cards are one ruled block and its 3D view spans the width; the 3D toolbar is 맞춤 · 시점 · 원근 · 표시 항목.
 * **Accessibility:** the board is inert under the cover (focus moves in and back); folded sections and the folded analysis panel are inert.
 
+## For everyone: Korean + English, structures first (2026-10)
+* **Two languages.** `src/i18n.ts`: `tr('한국어', 'English')` next to each text; a switch remounts the board. Lesson text is a Korean source plus an English overlay (`lessons.en.ts`). The browser language picks the default; EN/한 in the title bar switches; the choice is remembered.
+* **No course framing.** Parts 0–7 instead of lectures; the field is called Origami Engineering; no institution or course codes.
+* **Start by interest.** Part 0 opens with a chooser: pick a field (everyday, space, medicine, architecture, robotics, vehicles, art) and the structures used there come first (`curriculum/structures.ts`). Each structure sheet opens with an everyday question, how it folds, where it is used (with sourced examples from `resources.ts`) and the theory it teaches, each linked to a sheet.
+* **New sheets.** Welcome, Choose a structure, Reading a crease pattern (accordion pleat), Your first folds, Glossary; polygon twists, hypar, waterbomb tube (formula vs measured R, L by repeat counts); Beyond flat folding, Tools, Making origami a hobby.
+* **Fold the whole structure** on every model sheet: a 1-DoF rigid path where one exists, otherwise an energy path to an honest target; stop anywhere and inspect.
+* **Seeing the shape.** Projections view (third-angle xy / xz / yz with dimensions), hover read-outs of lengths and angles in 3D, 2D and projections, an orientation gizmo, double-click to frame. Lengths, key angles and repeat counts are parameters of every generator.
+* **Paper and other tools.** Print a crease pattern on A4, save SVG or FOLD; open FOLD files from other tools. 41 verified videos, 16 tools with their licences, books and communities.
+
 ## Known issues / limitations
 * "Type I / Type II" Kresling and Yoshimura variants: no standard definition was found, so chirality/caps (Kresling) and smooth/creased (Yoshimura) are offered instead. Align with the lecture's definitions if they differ.
 * The lecture's Miura count N = 19, M = 6 is not reproduced exactly (counting convention unknown); the 3×4-panel preset gives N = 17, M = 6.
