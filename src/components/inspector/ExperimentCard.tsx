@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { Play, Undo2 } from 'lucide-react';
 import type { SweepSample } from '../../core/analysis/experiments';
 import type { ExperimentId } from '../../curriculum/lessons';
+import type { OrigamiModel } from '../../core/topology/types';
 import { lessonById } from '../../curriculum/lessons';
 import { useModel } from '../../state/modelStore';
 import { useSim } from '../../state/simulationStore';
-import { clearExperiment, playExperiment, runAndPlayExperiment, scrubExperiment } from '../../state/actions';
+import { clearExperiment, playExperiment, playExperimentPaced, reactionSnap, runAndPlayExperiment, runAndPlayExperimentPaced, scrubExperiment } from '../../state/actions';
 import { tr } from '../../i18n';
 import { Button } from '../controls/ui';
 
@@ -34,18 +35,28 @@ const text = (kind: ExperimentId) => ({
   },
 }[kind]);
 
-/** The largest drop of the reaction force between two samples: where a pressed shell gives way. */
-function snapOf(samples: SweepSample[]): { index: number; drop: number } | null {
-  let index = -1, drop = 0;
-  for (let k = 1; k < samples.length; k++) {
-    const a = samples[k - 1].reaction, b = samples[k].reaction;
-    if (a > 0 && b < a && (a - b) / a > drop) { drop = (a - b) / a; index = k; }
-  }
-  // a few per cent is numerical wobble, not a snap
-  return drop >= 0.1 ? { index, drop } : null;
-}
+/** The largest drop of the reaction force between two samples: where a pressed shell gives way (≥ 10 %, else none). */
+const snapOf = (samples: SweepSample[]) => reactionSnap(samples);
 
 const pct = (x: number) => Math.round(x * 100);
+
+/** Reference height of a tube (z extent of the unpressed model), so a pressed depth reads as a share of it. */
+export function referenceHeight(model: OrigamiModel): number {
+  let lo = Infinity, hi = -Infinity;
+  for (const v of model.vertices) { lo = Math.min(lo, v.referencePosition[2]); hi = Math.max(hi, v.referencePosition[2]); }
+  return hi > lo ? hi - lo : 0;
+}
+
+/**
+ * The experiment frame in words for the 3D view: "눌린 깊이 48% (높이 대비)"
+ * instead of the raw displacement u. Display only: u itself is unchanged.
+ */
+export function experimentFrameLabel(model: OrigamiModel | null, kind: string, u: number | undefined): string {
+  if (u === undefined || !model) return '—';
+  if (kind === 'bagCollapse') return tr(`접힘 진행률 ${pct(u)}%`, `Fold progress ${pct(u)}%`);
+  const h = referenceHeight(model);
+  return h > 0 ? tr(`눌린 깊이 ${pct(u / h)}% (높이 대비)`, `Pressed ${pct(u / h)}% of the height`) : '—';
+}
 const deg = (r: number) => Math.round((Math.abs(r) * 180) / Math.PI);
 
 /**
@@ -61,12 +72,7 @@ export function ExperimentCard() {
   const lesson = lessonById(lessonId);
   const kind = lesson?.experiment;
   // reference height of the tube, so a pressed depth reads as a share of it
-  const height = useMemo(() => {
-    if (!model) return 0;
-    let lo = Infinity, hi = -Infinity;
-    for (const v of model.vertices) { lo = Math.min(lo, v.referencePosition[2]); hi = Math.max(hi, v.referencePosition[2]); }
-    return hi - lo;
-  }, [model]);
+  const height = useMemo(() => (model ? referenceHeight(model) : 0), [model]);
   const samples = ex?.samples;
   const snap = useMemo(() => (samples && kind === 'yoshimuraCompression' ? snapOf(samples) : null), [samples, kind]);
   if (!kind || !model) return null;
@@ -95,7 +101,7 @@ export function ExperimentCard() {
   }
   // a live word under the readout: where the scrubbed frame is, in plain language
   let now: string | null = null;
-  if (cur && kind === 'yoshimuraCompression' && snap && done) now = mine!.index >= snap.index ? tr('다이아몬드로 꺾였다', 'folded into diamonds') : tr('아직 고르게 줄어드는 중', 'still shortening evenly');
+  if (cur && kind === 'yoshimuraCompression' && snap && done) now = mine!.index === snap.index ? tr('딱! 여기서 꺾였다', 'Snap! It gave way here') : mine!.index > snap.index ? tr('다이아몬드로 꺾였다', 'folded into diamonds') : tr('아직 고르게 줄어드는 중', 'still shortening evenly');
   if (cur && kind === 'kreslingAxial') now = tr(`윗판 ${deg(cur.twist)}° 회전`, `top plate turned ${deg(cur.twist)}°`);
   const max = Math.max(1, (running ? mine!.total : n - 1));
   const snapAt = snap && done ? snap.index / Math.max(1, n - 1) : null;
@@ -109,9 +115,9 @@ export function ExperimentCard() {
       <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{t.watch}</p>
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
         {done ? (
-          <Button kind="primary" className="h-11 text-[15px]" onClick={() => playExperiment()}><Play size={15} />{tr('다시 재생', 'Play again')}</Button>
+          <Button kind="primary" className="h-11 text-[15px]" onClick={() => (kind === 'bagCollapse' ? playExperiment() : playExperimentPaced(5500, snap ? { index: snap.index, ms: 650 } : null))}><Play size={15} />{tr('다시 재생', 'Play again')}</Button>
         ) : (
-          <Button kind="primary" className="h-11 text-[15px]" disabled={running} onClick={() => runAndPlayExperiment(kind)}>
+          <Button kind="primary" className="h-11 text-[15px]" disabled={running} onClick={() => (kind === 'bagCollapse' ? runAndPlayExperiment(kind) : runAndPlayExperimentPaced(kind))}>
             {running ? <span className="tnum">{tr(`계산 중 ${n}/${mine!.total + 1}`, `Computing ${n}/${mine!.total + 1}`)}</span> : <><Play size={15} />{t.run}</>}
           </Button>
         )}

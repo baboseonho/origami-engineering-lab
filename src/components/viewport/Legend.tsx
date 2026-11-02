@@ -3,13 +3,24 @@ import { ASSIGN_COLOR } from '../controls/ui';
 import { useModel } from '../../state/modelStore';
 import { tr } from '../../i18n';
 import { Rich } from '../controls/Rich';
+import { C } from '../../theme/tokens';
+import type { OrigamiModel } from '../../core/topology/types';
+import { PhoneViewSwitch } from './ViewToolbar';
 
-const items = (): [string, string, string | undefined][] => [
-  ['M', tr('산접기 M', 'Mountain M'), '6 2.5 1.5 2.5'],
-  ['V', tr('골접기 V', 'Valley V'), '5 3'],
-  ['F', tr('면', 'Facet'), undefined],
-  ['B', tr('경계', 'Boundary'), undefined],
-  ['U', tr('미지정', 'Unassigned'), undefined],
+/**
+ * True when the model's unassigned (U) edges are the rims of rigid end plates
+ * (Kresling with caps). They stay 'U' in the model and the solvers; the 3D view
+ * and this legend show them as what they are, the plates' outline, in ink.
+ */
+export const endPlateRims = (model: OrigamiModel | null): boolean =>
+  !!model && model.metadata.generator === 'kresling' && !!model.params.caps;
+
+const items = (rims: boolean, inkRims: boolean): [string, string, string | undefined, string][] => [
+  ['M', tr('산접기 M', 'Mountain M'), '6 2.5 1.5 2.5', ASSIGN_COLOR.M],
+  ['V', tr('골접기 V', 'Valley V'), '5 3', ASSIGN_COLOR.V],
+  ['F', tr('면', 'Facet'), undefined, ASSIGN_COLOR.F],
+  ['B', tr('경계', 'Boundary'), undefined, ASSIGN_COLOR.B],
+  ['U', rims ? tr('끝판 테두리', 'End-plate rim') : tr('미지정', 'Unassigned'), undefined, rims && inkRims ? C.ink : ASSIGN_COLOR.U],
 ];
 
 /**
@@ -21,7 +32,8 @@ export function Legend({ compact, position = 'bottom' }: { compact?: boolean; po
   const model = useModel((s) => s.model);
   const [open, setOpen] = useState(false);
   const present = new Set(model ? model.edges.map((e) => e.assignment) : ['M', 'V']);
-  const shown = items().filter(([k]) => k === 'M' || k === 'V' || present.has(k as never));
+  // the 3D view draws the rims in ink; the crease-pattern view (compact legend) still draws them in its U colour
+  const shown = items(endPlateRims(model), !compact).filter(([k]) => k === 'M' || k === 'V' || present.has(k as never));
   const place = position === 'top' ? 'top-[15px]' : 'bottom-[48px] max-md:bottom-[15px]';
   return (
     <>
@@ -35,9 +47,9 @@ export function Legend({ compact, position = 'bottom' }: { compact?: boolean; po
       <div onClick={() => setOpen(false)}
         className={`absolute left-[15px] max-w-[calc(100%-30px)] rounded-[3px] border border-ink/50 bg-paper/95 px-2.5 py-1.5 text-[12px] leading-tight text-ink-2 md:pointer-events-none ${place} ${open ? 'z-10' : 'max-md:hidden'}`}>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          {shown.map(([k, l, dash]) => (
+          {shown.map(([k, l, dash, color]) => (
             <span key={k} className="flex items-center gap-1.5">
-              <svg width="18" height="6" aria-hidden><line x1="1" y1="3" x2="17" y2="3" stroke={ASSIGN_COLOR[k]} strokeWidth={k === 'F' ? 1 : 2} strokeDasharray={dash} /></svg>
+              <svg width="18" height="6" aria-hidden><line x1="1" y1="3" x2="17" y2="3" stroke={color} strokeWidth={k === 'F' ? 1 : 2} strokeDasharray={dash} /></svg>
               {l}
             </span>
           ))}
@@ -50,6 +62,8 @@ export function Legend({ compact, position = 'bottom' }: { compact?: boolean; po
         )}
         {open && <div className="mt-1 text-[12px] text-ink-3 md:hidden">{tr('눌러서 닫기', 'Tap to close')}</div>}
       </div>
+      {/* the crease-pattern sheet has no toolbar: on a phone its top row carries the way back to 3D */}
+      {position === 'top' && <PhoneViewSwitch className="absolute right-[15px] top-[15px] z-10" />}
     </>
   );
 }

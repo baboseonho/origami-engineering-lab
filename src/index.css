@@ -100,6 +100,8 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--color-ink); }
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+/* Korean lettering mixes in Latin names ("일반화 Kawasaki 조건"): capitals there read as shouting, so keep the written case */
+:lang(ko) .lettering, .lettering:lang(ko) { text-transform: none; }
 .greek, .lbl-greek { font-family: var(--font-greek); }
 .tnum { font-variant-numeric: tabular-nums; }
 
@@ -124,6 +126,9 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--color-ink); }
 
 /* inline math never breaks inside a formula */
 .math-inline { white-space: nowrap; display: inline-block; }
+/* a formula longer than its column (Rich marks it math-wide) scrolls inside the column instead of
+   running over the next card; inline-flex keeps the text baseline while it is a scroll box */
+.math-inline.math-wide { display: inline-flex; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-block: 0.2em; scrollbar-width: thin; }
 .math-inline .katex { font-size: 1.02em; }
 .fit-tex .katex-display { margin: 0.2em 0 !important; }
 
@@ -219,12 +224,12 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--color-ink); }
   input[type="range"].range-touch::-webkit-slider-runnable-track {
     height: 6px;
     border-radius: 3px;
-    background: linear-gradient(to right, var(--color-ink) 0 var(--p, 0%), var(--color-rule-2) var(--p, 0%));
+    background: linear-gradient(to right, var(--fill, var(--color-ink)) 0 var(--p, 0%), var(--color-rule-2) var(--p, 0%));
   }
   input[type="range"].range-touch::-moz-range-track {
     height: 6px;
     border-radius: 3px;
-    background: linear-gradient(to right, var(--color-ink) 0 var(--p, 0%), var(--color-rule-2) var(--p, 0%));
+    background: linear-gradient(to right, var(--fill, var(--color-ink)) 0 var(--p, 0%), var(--color-rule-2) var(--p, 0%));
   }
   input[type="range"].range-touch::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -233,7 +238,7 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--color-ink); }
     margin-top: -11px;
     border-radius: 50%;
     background: var(--color-paper);
-    border: 2px solid var(--color-ink);
+    border: 2px solid var(--fill, var(--color-ink));
     box-shadow: 0 1px 3px rgb(23 32 42 / 0.25);
   }
   input[type="range"].range-touch::-moz-range-thumb {
@@ -241,7 +246,7 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--color-ink); }
     height: 24px;
     border-radius: 50%;
     background: var(--color-paper);
-    border: 2px solid var(--color-ink);
+    border: 2px solid var(--fill, var(--color-ink));
     box-shadow: 0 1px 3px rgb(23 32 42 / 0.25);
   }
   input[type="range"].range-touch:focus-visible { outline-offset: 0; }

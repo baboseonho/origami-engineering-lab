@@ -136,7 +136,7 @@ function PhoneMenu({ onClose, returnFocus }: { onClose: () => void; returnFocus:
             </div>
           </>
         )}
-        <div className={`${head} ${model ? 'mt-4' : ''}`}>{tr('그 밖에', 'More')}</div>
+        <div className={`${head} ${model ? 'mt-4' : ''}`}>{tr('언어, 설정, 도면 목록', 'Language, settings, sheets')}</div>
         <div className="grid grid-cols-2 gap-1.5">
           <MenuAction icon={<Languages size={16} />} label={lang === 'ko' ? 'English' : '한국어'} onClick={() => { onClose(); useUI.getState().setLang(lang === 'ko' ? 'en' : 'ko'); }} />
           <MenuAction icon={<Settings size={16} />} label={tr('설정', 'Settings')} onClick={() => { onClose(); useUI.getState().setSettingsOpen(true); }} />
@@ -155,6 +155,7 @@ function PhoneMenu({ onClose, returnFocus }: { onClose: () => void; returnFocus:
  */
 function PhoneTopBar({ prev, next, lessonNo, title }: { prev: Lesson | null; next: Lesson | null; lessonNo: string; title: string }) {
   const [menu, setMenu] = useState(false);
+  const lang = useUI((s) => s.lang);
   const menuBtn = useRef<HTMLButtonElement>(null);
   const step = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-[4px] text-ink-2 hover:bg-paper-2 hover:text-ink disabled:opacity-30';
   return (
@@ -164,14 +165,21 @@ function PhoneTopBar({ prev, next, lessonNo, title }: { prev: Lesson | null; nex
       </button>
       <div className="min-w-0 flex-1 px-0.5 text-center">
         <div className="lettering text-[12px] leading-none text-ink-3">{tr('도면', 'Sheet')} {lessonNo}</div>
-        <div className="mt-0.5 text-[14px] font-semibold leading-[1.2] text-ink [overflow-wrap:anywhere] [text-wrap:balance]">{title}</div>
+        {/* Korean breaks between words only (never "실 / 험실"); a long title steps down to 13px to keep two lines */}
+        <div className={`mt-0.5 break-keep font-semibold leading-[1.2] text-ink [overflow-wrap:break-word] [text-wrap:balance] ${title.length > 18 ? 'text-[13px]' : 'text-[14px]'}`}>{title}</div>
       </div>
       <button type="button" className={step} disabled={!next} onClick={() => next && openSheet(next.id)} aria-label={next ? `${tr('다음 도면', 'Next sheet')}: ${next.title}` : tr('다음 도면 없음', 'No next sheet')}>
         <ChevronRight size={20} />
       </button>
-      <button ref={menuBtn} type="button" className={`${step} border-l border-rule ${menu ? 'bg-paper-2 text-ink' : ''}`} aria-haspopup="dialog" aria-expanded={menu}
+      {/* the language is visible, not only inside the menu: "EN" on the Korean page, "한" on the English one */}
+      <button type="button" className={`${step} border-l border-rule text-[14px] font-semibold`} lang={lang === 'ko' ? 'en' : 'ko'}
+        aria-label={tr('Switch to English', '한국어로 보기')} onClick={() => useUI.getState().setLang(lang === 'ko' ? 'en' : 'ko')}>
+        {lang === 'ko' ? 'EN' : '한'}
+      </button>
+      <button ref={menuBtn} type="button" className={`${step} flex-col gap-0 ${menu ? 'bg-paper-2 text-ink' : ''}`} aria-haspopup="dialog" aria-expanded={menu}
         aria-label={tr('메뉴: 솔버, 보기, 언어, 설정, 도면 목록', 'Menu: solver, view, language, settings, sheets')} onClick={() => setMenu((m) => !m)}>
-        <Ellipsis size={22} />
+        <Ellipsis size={20} aria-hidden />
+        <span aria-hidden className="-mt-1 text-[12px] leading-none">{tr('메뉴', 'Menu')}</span>
       </button>
       {menu && <PhoneMenu onClose={() => setMenu(false)} returnFocus={() => menuBtn.current?.focus()} />}
     </header>
@@ -252,7 +260,7 @@ export function TopBar({ mobile = false }: { mobile?: boolean } = {}) {
         </button>
         <div className="min-w-0 px-1">
           <div className="lettering truncate text-[12px] leading-none text-ink-3">{tr('도면', 'Sheet')} {lesson ? sheetNumber(lesson.id) : '—'} · {LECTURE_TITLES[lecture]}</div>
-          <div className="mt-0.5 line-clamp-2 max-w-[300px] text-[15px] font-semibold leading-[1.2] text-ink [text-wrap:balance]" title={lesson?.title}>{lesson?.title ?? tr('가져온 모델', 'Imported model')}</div>
+          <div className="mt-0.5 line-clamp-2 max-w-[300px] break-keep text-[15px] font-semibold leading-[1.2] text-ink [overflow-wrap:break-word] [text-wrap:balance]" title={lesson?.title}>{lesson?.title ?? tr('가져온 모델', 'Imported model')}</div>
         </div>
         <button type="button" className={step} disabled={!next} onClick={() => next && openSheet(next.id)} aria-label={next ? `${tr('다음 도면', 'Next sheet')}: ${next.title}` : tr('다음 도면 없음', 'No next sheet')} title={next?.title}>
           <ChevronRight size={17} />

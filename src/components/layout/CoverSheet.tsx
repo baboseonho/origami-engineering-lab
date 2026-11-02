@@ -1,13 +1,21 @@
-import { X } from 'lucide-react';
+import { Play, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { LECTURE_TITLES, LESSONS, PAGE_LABS, PARTS, THEORY_TAG, sheetNumber } from '../../curriculum/lessons';
 import { tr } from '../../i18n';
 import { useModel } from '../../state/modelStore';
 import { useUI } from '../../state/uiStore';
-import { isFirstVisit, openSheet } from '../../app/navigation';
+import { coverCurrentSheet, openSheet } from '../../app/navigation';
 import { C } from '../../theme/tokens';
 import { FeaturedStrip } from '../landing/FeaturedStrip';
 import { PatternThumb } from '../landing/PatternThumb';
+import { EXPLAINERS } from '../explainers/ExplainerButton';
+import { span } from '../explainers/Explainer';
+
+/** Length of a sheet's motion explainer in whole minutes (at least 1), for the tile's badge. */
+const explainerMinutes = (id: string) => {
+  const e = EXPLAINERS[id];
+  return e ? Math.max(1, Math.round(e.scenes().reduce((t, x) => t + span(x), 0) / 60000)) : 0;
+};
 
 export { PatternThumb };
 
@@ -18,7 +26,9 @@ export { PatternThumb };
  */
 export function CoverSheet() {
   const open = useUI((s) => s.coverOpen);
-  const current = useModel((s) => s.lessonId);
+  const lang = useUI((s) => s.lang);
+  // re-render when the sheet underneath changes; which one is marked "current" comes from the navigation
+  useModel((s) => s.lessonId);
   const close = () => useUI.getState().setCoverOpen(false);
   const closeBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -30,17 +40,25 @@ export function CoverSheet() {
     return () => { window.removeEventListener('keydown', onKey); before?.focus?.(); };
   }, [open]);
   if (!open) return null;
-  const firstVisit = isFirstVisit();
+  // nothing on a first visit; after Back to the cover, the sheet last opened (not the welcome sheet under the cover)
+  const current = coverCurrentSheet();
   let plate = 3;
   return (
     <div className="cover-backdrop fixed inset-0 z-50 overflow-y-auto bg-board/95 p-2 sm:p-4" onClick={close}>
       <div role="dialog" aria-modal="true" aria-label={tr('도면 목록', 'Sheet index')} className="cover-sheet sheet relative mx-auto max-w-[1280px] rounded-[3px]" onClick={(e) => e.stopPropagation()}>
         {/* stays at the top of the screen while the long index scrolls, so it is always one tap away */}
         <div className="sticky top-2 z-20 h-0">
-          <button ref={closeBtn} type="button" onClick={close} aria-label={tr('도면 목록 닫기', 'Close the sheet index')}
-            className="absolute right-5 top-3 inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-[4px] border border-ink bg-paper px-3 text-[14px] font-medium text-ink shadow-[0_1px_1px_rgb(23_32_42/0.06),0_2px_8px_-2px_rgb(23_32_42/0.14)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:right-7 sm:top-5">
-            <X size={18} aria-hidden /><span aria-hidden>{tr('닫기', 'Close')}</span>
-          </button>
+          <div className="absolute right-5 top-3 flex gap-1.5 sm:right-7 sm:top-5">
+            {/* the language is visible from the first screen, not only inside a menu */}
+            <button type="button" onClick={() => useUI.getState().setLang(lang === 'ko' ? 'en' : 'ko')} aria-label={tr('Switch to English', '한국어로 보기')} lang={lang === 'ko' ? 'en' : 'ko'}
+              className="inline-flex h-11 min-w-11 items-center justify-center rounded-[4px] border border-ink bg-paper px-2.5 text-[14px] font-semibold text-ink shadow-[0_1px_1px_rgb(23_32_42/0.06),0_2px_8px_-2px_rgb(23_32_42/0.14)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+              {lang === 'ko' ? 'EN' : '한'}
+            </button>
+            <button ref={closeBtn} type="button" onClick={close} aria-label={tr('도면 목록 닫기', 'Close the sheet index')}
+              className="inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-[4px] border border-ink bg-paper px-3 text-[14px] font-medium text-ink shadow-[0_1px_1px_rgb(23_32_42/0.06),0_2px_8px_-2px_rgb(23_32_42/0.14)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+              <X size={18} aria-hidden /><span aria-hidden>{tr('닫기', 'Close')}</span>
+            </button>
+          </div>
         </div>
         <div className="grid-paper pointer-events-none absolute inset-0 opacity-60" aria-hidden />
         <div className="relative border-[1.5px] border-ink m-2 sm:m-3">
@@ -49,8 +67,8 @@ export function CoverSheet() {
             <div>
               <div className="lettering text-[12px] text-ink-3">{tr('Origami Engineering · 도면 세트', 'Origami Engineering · drawing set')}</div>
               <h1 className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-ink sm:text-[34px]">Origami BaBolaB</h1>
-              <p className="mt-2 max-w-[56ch] text-[15px] leading-relaxed text-ink-2">
-                {tr('종이 한 장이 접힘선(crease)을 따라 움직이는 방식을 직접 움직여 보며 배우는 도면집. 처음이라면 0단원 "시작하기"부터 펼쳐 보자.', 'A set of drawings for learning how a sheet of paper moves along its creases, by moving it yourself. New here? Start with Part 0.')}
+              <p className="mt-2 max-w-[56ch] break-keep text-[15px] leading-relaxed text-ink-2">
+                {tr('종이 한 장이 접힘선(crease)을 따라 움직이는 방식을 직접 움직여 보며 배우는 도면집.', 'A set of drawings for learning how a sheet of paper moves along its creases, by moving it yourself.')}
               </p>
             </div>
             <dl className="ml-auto grid grid-cols-2 border border-rule-2 text-[13px] max-sm:hidden">
@@ -76,9 +94,8 @@ export function CoverSheet() {
                 {LESSONS.filter((l) => l.lecture === lec).map((l) => {
                   plate += 1;
                   const delay = plate * 45;
-                  const here = l.id === current;
-                  // on a first visit nothing has been opened yet: the welcome sheet behind the cover is not "current"
-                  const badge = here && !firstVisit;
+                  const badge = l.id === current;
+                  const mins = explainerMinutes(l.id);
                   return (
                     <button key={l.id} type="button"
                       onClick={() => openSheet(l.id)}
@@ -89,10 +106,12 @@ export function CoverSheet() {
                         <span className="absolute left-1.5 top-1 tnum text-[12px] text-ink-3">{sheetNumber(l.id)}</span>
                         {l.kind === 'lab' && <span className="lettering absolute right-1.5 top-1 text-[12px] text-ink-3">{l.lab && PAGE_LABS.includes(l.lab) ? tr('읽기', 'Read') : tr('실습', 'Lab')}</span>}
                         {badge && <span className="lettering absolute bottom-1 right-1.5 rounded-[2px] bg-mark px-1 text-[12px] text-mark-ink">{tr('현재 도면', 'Current')}</span>}
+                        {mins > 0 && <span className="absolute bottom-1 left-1.5 inline-flex items-center gap-0.5 rounded-[2px] border border-rule-2 bg-paper px-1 text-[12px] text-ink-2"><Play size={10} aria-hidden fill="currentColor" />{tr(`${mins}분 애니메이션`, `${mins}-min animation`)}</span>}
                       </div>
                       <div className="px-2.5 py-2">
-                        <div className="text-[14px] font-medium leading-snug text-ink group-hover:underline group-hover:decoration-mark group-hover:decoration-2 group-hover:underline-offset-2">{l.title}</div>
-                        {l.theory.some((t) => THEORY_TAG[t]) && <div className="mt-0.5 truncate text-[12px] text-ink-3">{l.theory.map((t) => THEORY_TAG[t]).filter(Boolean).join(' · ')}</div>}
+                        <div className="break-keep text-[14px] font-medium leading-snug text-ink [overflow-wrap:break-word] group-hover:underline group-hover:decoration-mark group-hover:decoration-2 group-hover:underline-offset-2">{l.title}</div>
+                        {l.coverNote ? <div className="mt-0.5 truncate text-[12px] text-ink-3">{l.coverNote}</div>
+                          : l.theory.some((t) => THEORY_TAG[t]) && <div className="mt-0.5 truncate text-[12px] text-ink-3">{l.theory.map((t) => THEORY_TAG[t]).filter(Boolean).join(' · ')}</div>}
                       </div>
                     </button>
                   );

@@ -211,7 +211,8 @@ export function Strip1DLab() {
           <Button size="sm" disabled={!!anim || done >= steps.length || !!stuck} onClick={stepOnce}>{tr('한 단계', 'One step')}<StepForward size={14} /></Button>
           <Button size="sm" disabled={!!anim || (!done && !stuck)} onClick={() => { if (stuck) setStuck(null); else setDone((d) => Math.max(0, d - 1)); }}><StepBack size={14} />{tr('되돌리기', 'Back')}</Button>
           <Button size="sm" onClick={reset}><RotateCcw size={14} />{tr('펼치기', 'Unfold')}</Button>
-          <SpeedControl />
+          {/* on a phone the speed chips show only while the strip folds */}
+          <SpeedControl className={auto || anim ? '' : 'max-md:hidden'} />
         </div>
       </div>
 

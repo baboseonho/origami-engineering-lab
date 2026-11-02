@@ -37,8 +37,18 @@ function thumbFor(lesson: Lesson): Thumb | null {
     try {
       const m = buildFromRegistry(src.generator, src.params);
       const over = m.edu.layout2D?.edgeOverrides ?? {};
+      const per = m.edu.layout2D?.periodX;
       const segs = m.edges.map((e) => {
-        const [a, b] = over[e.id] ?? [m.vertices[e.vertices[0]].initialPosition2D, m.vertices[e.vertices[1]].initialPosition2D];
+        if (over[e.id]) { const [a, b] = over[e.id]; return { a, b, as: e.assignment }; }
+        const a = m.vertices[e.vertices[0]].initialPosition2D;
+        let b = m.vertices[e.vertices[1]].initialPosition2D;
+        // an unrolled cylinder (Yoshimura, Kresling): an edge across the seam joins the two
+        // ends of the strip; draw it next to its neighbours, as the crease-pattern view does
+        if (per) {
+          const dx = b[0] - a[0];
+          if (dx > per / 2) b = [b[0] - per, b[1]];
+          else if (dx < -per / 2) b = [b[0] + per, b[1]];
+        }
         return { a, b, as: e.assignment };
       });
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -50,7 +60,8 @@ function thumbFor(lesson: Lesson): Thumb | null {
   return out;
 }
 
-const STROKE: Record<Assignment, string> = { M: C.mountain, V: C.valley, B: C.ink, F: C.rule2, U: C.unassigned };
+// an unassigned (U) edge in a thumbnail is the rim of an end plate (Kresling): drawn as an outline, in ink
+const STROKE: Record<Assignment, string> = { M: C.mountain, V: C.valley, B: C.ink, F: C.rule2, U: C.ink };
 
 /** A crease pattern thumbnail whose lines are drawn in by a pen, boundary first. */
 export function PatternThumb({ lesson, delay }: { lesson: Lesson; delay: number }) {

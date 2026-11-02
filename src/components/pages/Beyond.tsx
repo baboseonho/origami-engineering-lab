@@ -57,8 +57,8 @@ const TOPICS = (): Topic[] => [
   {
     id: 'mechanics', title: tr('7. 역학: 쌍안정, 강성, 메타물질', '7. Mechanics: bistability, stiffness, metamaterials'),
     body: tr(
-      '접힌 구조는 모양에 따라 성질이 크게 바뀐다. 미우라 접기는 오세틱(음의 푸아송비)이고, 워터밤과 Kresling은 두 모양 사이를 "딸깍" 하고 오가는 쌍안정을 보인다. 이런 성질은 충격 흡수, 진동 차단, 기억을 가진 구조, 스스로 판단하는 로봇의 재료가 된다. 이 앱의 Energy 계산은 이 현상들을 다루는 막대-힌지 모델이다.',
-      'A folded structure\'s properties change strongly with its shape. Miura-ori is auxetic (negative Poisson\'s ratio); waterbomb and Kresling patterns snap between two shapes (bistability). These effects are used for impact absorption, vibration isolation, structures with memory and robots that react without electronics. The Energy method in this app is the bar-and-hinge model used for such studies.',
+      '접힌 구조는 모양에 따라 성질이 크게 바뀐다. 미우라 접기는 오세틱(음의 푸아송비)이고, 워터밤과 Kresling은 실제 종이에서 두 모양 사이를 "딸깍" 하고 오가는 쌍안정을 보이기도 한다. 이런 성질은 충격 흡수, 진동 차단, 기억을 가진 구조, 스스로 판단하는 로봇의 재료가 된다. 이 앱의 Energy 계산은 이 현상들을 다루는 막대-힌지 모델이다.',
+      'A folded structure\'s properties change strongly with its shape. Miura-ori is auxetic (negative Poisson\'s ratio); waterbomb and Kresling patterns can snap between two shapes in real paper (bistability). These effects are used for impact absorption, vibration isolation, structures with memory and robots that react without electronics. The Energy method in this app is the bar-and-hinge model used for such studies.',
     ),
     inApp: ['l5-kresling', 'l5-yoshimura', 'l3-energy'], tools: ['swomps', 'sim-fast'],
   },

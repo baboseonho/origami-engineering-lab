@@ -73,3 +73,19 @@ export function ExplainerButton({ lessonId, variant = 'card' }: { lessonId: stri
     </>
   );
 }
+
+/**
+ * The sheet's motion explainer laid open in the page (phone theory tab): the
+ * step-by-step argument right under the formula, started by the reader.
+ */
+export function ExplainerInline({ lessonId }: { lessonId: string }) {
+  const entry = EXPLAINERS[lessonId];
+  if (!entry) return null;
+  return (
+    <section aria-label={entry.title()} className="mt-4">
+      <h3 className="flex items-center gap-1.5 text-[14px] font-semibold text-ink"><Clapperboard size={15} aria-hidden />{tr('애니메이션으로 보기', 'Watch it animated')}<span className="font-normal text-ink-3">({tr(`약 ${minutes(entry)}분`, `about ${minutes(entry)} min`)})</span></h3>
+      <p className="mb-2 mt-0.5 text-[14px] leading-snug text-ink-2">{entry.title()}</p>
+      <Explainer title={entry.title()} scenes={entry.scenes()} autoPlay={false} />
+    </section>
+  );
+}

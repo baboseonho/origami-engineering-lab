@@ -149,9 +149,10 @@ export function VerdictStrip({ phone = false }: { phone?: boolean } = {}) {
           className="-mx-2 flex min-h-11 w-[calc(100%+16px)] items-center gap-2 rounded-[4px] px-2 text-left hover:bg-paper-2">
           <span className="lettering text-[12px] text-ink-3">{tr('판정', 'Verdict')}</span>
           <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-0.5" aria-hidden>
-            {counts.map(([st, n]) => {
+            {counts.map(([st, n], i) => {
               const Icon = SUMMARY_ICON[st];
-              return <span key={st} className={`tnum inline-flex items-center gap-0.5 text-[14px] font-semibold ${SUMMARY_TONE[st]}`}><Icon size={14} strokeWidth={2.75} />{n}</span>;
+              // the icon keeps the colour code; the word says what it counts ("통과 3", not "✓3")
+              return <span key={st} className={`tnum inline-flex items-center gap-1 whitespace-nowrap text-[14px] font-semibold ${SUMMARY_TONE[st]}`}><Icon size={14} strokeWidth={2.75} /><span>{SUMMARY_WORD[st]()} {n}{i < counts.length - 1 ? ',' : ''}</span></span>;
             })}
           </span>
           <span className="flex shrink-0 items-center gap-0.5 border-l border-rule pl-2.5 text-[13px] text-ink-2" aria-hidden>

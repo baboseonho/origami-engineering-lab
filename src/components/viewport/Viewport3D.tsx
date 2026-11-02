@@ -16,7 +16,8 @@ import { useUI } from '../../state/uiStore';
 import { beginCreaseDrag, canDriveEdge, foldDirection } from '../../state/creaseDrag';
 import { ASSIGN_COLOR } from '../controls/ui';
 import { ViewToolbar } from './ViewToolbar';
-import { Legend } from './Legend';
+import { Legend, endPlateRims } from './Legend';
+import { experimentFrameLabel } from '../inspector/ExperimentCard';
 import { DrawingFrame } from './DrawingFrame';
 import { layerLift, layersFor } from './layerCache';
 import { C } from '../../theme/tokens';
@@ -240,6 +241,9 @@ function PenLines({ model }: { model: OrigamiModel }) {
   useEffect(() => { Object.values(layers).forEach((l) => l.material.resolution.set(size.width, size.height)); }, [layers, size]);
   const last = useRef(-1);
   useEffect(() => { last.current = -1; }, [selection, hover, drive, locked, theoryHover, model]);
+  // Kresling's end plates: their rims are 'U' in the model (assignment and solver unchanged),
+  // but on screen they are an outline, so they are drawn like the paper's edge
+  const rim = endPlateRims(model);
   useFrame(() => {
     if (last.current === engine.version) return;
     const x = engine.positions;
@@ -259,8 +263,9 @@ function PenLines({ model }: { model: OrigamiModel }) {
       const isSel = selection?.kind === 'edge' && selection.id === e.id;
       const isHov = hover?.kind === 'edge' && hover.id === e.id;
       const isTheory = theoryHover !== null && model.edu.creaseLabels[e.id] === theoryHover;
-      const key: PenKey = isSel || isHov || isTheory || e.id === drive ? 'strong' : e.assignment === 'B' ? 'boundary' : e.assignment === 'F' ? 'flat' : 'crease';
-      col.set(locked.includes(e.id) ? C.locked : e.assignment === 'B' ? C.ink : e.assignment === 'F' ? C.rule2 : ASSIGN_COLOR[e.assignment] ?? C.facet);
+      const outline = e.assignment === 'B' || (rim && e.assignment === 'U');
+      const key: PenKey = isSel || isHov || isTheory || e.id === drive ? 'strong' : outline ? 'boundary' : e.assignment === 'F' ? 'flat' : 'crease';
+      col.set(locked.includes(e.id) ? C.locked : outline ? C.ink : e.assignment === 'F' ? C.rule2 : ASSIGN_COLOR[e.assignment] ?? C.facet);
       if (isHov && !isSel) col.offsetHSL(0, 0, 0.1);
       const [i, j] = e.vertices;
       buf[key].p.push(x[3 * i] + ox, x[3 * i + 1] + oy, x[3 * i + 2] + oz, x[3 * j] + ox, x[3 * j + 1] + oy, x[3 * j + 2] + oz);
@@ -771,6 +776,36 @@ function NavHelpers({ model }: { model: OrigamiModel }) {
   );
 }
 
+/**
+ * When a press experiment has played to its last frame, frame the model once
+ * (keeping the direction it is seen from): a pressed tube is much shorter and
+ * would otherwise stay small in the corner of the view. Once per run.
+ */
+function ExperimentAutoFit() {
+  const { camera, controls, size } = useThree() as unknown as { camera: Cam; controls: Ctl; size: Size };
+  const latest = useRef({ camera, controls, size });
+  latest.current = { camera, controls, size };
+  useEffect(() => {
+    let fitted: unknown = null;
+    let prevIndex = -1;
+    return useSim.subscribe((s) => {
+      const ex = s.experiment;
+      if (!ex || ex.running || ex.samples.length < 2) { prevIndex = ex ? ex.index : -1; return; }
+      const end = ex.samples.length - 1;
+      // the last frame reached by playing or scrubbing (not the frame a finished computation stops on)
+      if (ex.index === end && prevIndex >= 0 && prevIndex < end && fitted !== ex.samples) {
+        fitted = ex.samples;
+        const { camera: cam, controls: ctl, size: sz } = latest.current;
+        const dir = cam.position.clone().sub(ctl?.target ?? new THREE.Vector3());
+        // positions of the last frame are set in the same tick; frame on the next one
+        requestAnimationFrame(() => frameModel(cam, ctl, sz, dir.lengthSq() > 1e-12 ? dir : VIEW_DIRS.fit));
+      }
+      prevIndex = ex.index;
+    });
+  }, []);
+  return null;
+}
+
 /** Hover readout beside the pointer: crease, vertex or face measurements of the current state. */
 function HoverReadout3D({ model, host }: { model: OrigamiModel | null; host: RefObject<HTMLDivElement | null> }) {
   const hover = useUI((s) => s.hover);
@@ -825,16 +860,17 @@ export function Viewport3D() {
         {model && <FirstFrame model={model} onReady={loader.onReady} />}
         <gridHelper args={[20, 40, C.nonphoto, C.nonphotoSoft]} position={[0, -0.001, 0]} />
         {model && <NavHelpers model={model} />}
+        {model && <ExperimentAutoFit />}
       </Canvas>
       {loader.show && <div className="pointer-events-none absolute inset-0"><SheetLoading label={tr('3D 모델을 펼치는 중', 'Unfolding the 3D model')} /></div>}
       <LabelLayer />
       <HoverReadout3D model={model} host={host} />
-      <ViewToolbar />
+      {/* status lines sit in the toolbar's flow, under its rows (one row on a desktop, one or two on a phone) */}
+      <ViewToolbar notes={(shownState || experiment) && <>
+        {shownState && <span className="rounded-[3px] border border-rule-2 bg-paper/95 px-2 py-1 text-[13px] text-ink-2">{tr(`구성된 상태 표시: ${shownState} — 정확한 강체 배치이며 솔버 경로가 아님`, `Showing constructed state: ${shownState} — an exact rigid configuration, not a solver path`)}</span>}
+        {experiment && <span className="tnum rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[13px] text-warn max-md:hidden" title={`u = ${experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'}`}>{tr('실험', 'Experiment')}: {experimentFrameLabel(model, experiment.kind, experiment.samples[experiment.index]?.u)} {tr('| 에너지 최소화 결과', '| energy-minimised result')}</span>}
+      </>} />
       <Legend />
-      <div className="pointer-events-none absolute right-[15px] top-[56px] flex max-w-[60%] flex-col items-end gap-1">
-        {shownState && <span className="max-w-[320px] rounded-[3px] border border-rule-2 bg-paper/95 px-2 py-1 text-[13px] text-ink-2">{tr(`구성된 상태 표시: ${shownState} — 정확한 강체 배치이며 솔버 경로가 아님`, `Showing constructed state: ${shownState} — an exact rigid configuration, not a solver path`)}</span>}
-        {experiment && <span className="rounded-[3px] border border-warn/40 bg-warn-soft px-2 py-1 text-[13px] text-warn">{tr('실험 프레임', 'Experiment frame')} <i className="greek">u</i> = {experiment.samples[experiment.index]?.u.toFixed(3) ?? '—'} {tr('(에너지 최소화 결과)', '(energy-minimized result)')}</span>}
-      </div>
       {!model && <div className="absolute inset-0 grid place-items-center text-ink-3">{tr('이 레슨에는 3D 모델이 없다', 'This lesson has no 3D model')}</div>}
       </DrawingFrame>
     </div>

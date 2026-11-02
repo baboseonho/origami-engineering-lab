@@ -95,7 +95,11 @@ export function TheoryPanel({ keys }: { keys?: TheoryKey[] }) {
   const lessonId = useModel((s) => s.lessonId);
   const showDerivation = useUI((s) => s.showDerivation);
   const list = keys ?? lessonById(lessonId)?.theory ?? ['convention'];
-  const extra: TheoryKey[] = showDerivation && !list.includes('stepwise') && (list.includes('miura') || lessonId === 'l4-miura') ? ['stepwise'] : [];
+  const miura = list.includes('miura') || lessonId === 'l4-miura';
+  const extra: TheoryKey[] = showDerivation && !list.includes('stepwise') && miura ? ['stepwise'] : [];
+  // "Derivation" adds the stepwise card (Miura) or the face normals drawn on the 3D model; a lab sheet has neither
+  const lesson = lessonById(lessonId);
+  const derivation = miura || lesson?.kind !== 'lab' || lesson.lab === 'conceptLab' || lesson.lab === 'stepwise';
   return (
     <div
       className="space-y-2"
@@ -105,10 +109,10 @@ export function TheoryPanel({ keys }: { keys?: TheoryKey[] }) {
       }}
       onMouseLeave={() => useUI.getState().setTheoryHover(null)}
     >
-      <div className="flex items-center justify-between gap-3">
-        {/* only where a pointer can hover; on a touch screen the view is on another tab anyway */}
-        <span className="text-[13px] text-ink-3 [@media(hover:none)]:invisible"><Rich text={tr('기호($\\rho_i$, $\\theta_i$)에 마우스를 올리면 뷰에서 강조된다.', 'Hover over a symbol ($\\rho_i$, $\\theta_i$) to highlight it in the view.')} /></span>
-        <Toggle checked={showDerivation} onChange={(b) => useUI.getState().setShowDerivation(b)} label={tr('유도', 'Derivation')} />
+      {/* the hint only where a pointer can hover (on a touch screen the view is on another tab anyway); the row goes when it would be empty */}
+      <div className={`flex items-center justify-between gap-3 ${derivation ? '' : '[@media(hover:none)]:hidden'}`}>
+        <span className="min-w-0 text-[13px] text-ink-3 [@media(hover:none)]:invisible"><Rich text={tr('기호($\\rho_i$, $\\theta_i$)에 마우스를 올리면 뷰에서 강조된다.', 'Hover over a symbol ($\\rho_i$, $\\theta_i$) to highlight it in the view.')} /></span>
+        {derivation && <Toggle className="shrink-0 whitespace-nowrap" checked={showDerivation} onChange={(b) => useUI.getState().setShowDerivation(b)} label={tr('유도', 'Derivation')} />}
       </div>
       {[...list, ...extra].map((k) => {
         const eq = EQUATIONS[k];

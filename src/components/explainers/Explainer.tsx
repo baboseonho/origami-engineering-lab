@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Pause, Play, RotateCcw } from 'lucide-react';
 import { tr } from '../../i18n';
 
@@ -61,7 +61,8 @@ function ViewTag({ scene, opacity, hidden }: { scene: Scene; opacity: number; hi
 export function Explainer({ title, scenes, autoPlay = true }: { title: string; scenes: Scene[]; autoPlay?: boolean }) {
   const spans = scenes.map(span);
   const total = spans.reduce((s, x) => s + x, 0);
-  const [time, setTime] = useState(0);
+  // a player that waits for the reader opens on the finished first drawing, not on a blank sheet
+  const [time, setTime] = useState(() => (autoPlay ? 0 : Math.min(LEAD + scenes[0].duration, spans[0] - 1)));
   const [playing, setPlaying] = useState(autoPlay && !reduceMotion());
   const [jumps, setJumps] = useState(0);
   const last = useRef(0);
@@ -139,8 +140,19 @@ export function Explainer({ title, scenes, autoPlay = true }: { title: string; s
           </button>
         )}
         <button type="button" className={btn} onClick={() => go(idx + 1)} disabled={idx === scenes.length - 1} aria-label={tr('다음 장면', 'Next scene')}><ChevronRight size={17} /></button>
-        {/* one segment per scene; click to jump. The bar is thin, the hit area is the full 44px row. */}
-        <div className="ml-1.5 flex min-w-0 flex-1">
+        {/* phone: scenes are too many for 44px each, so the whole bar is one slider; tick marks show where scenes begin */}
+        <div className="relative ml-1 min-w-0 flex-1 md:hidden">
+          <input type="range" className="range-touch block w-full" min={0} max={total} step={10} value={Math.round(time)}
+            aria-label={tr('장면 위치', 'Position in the explainer')} aria-valuetext={tr(`${idx + 1}/${scenes.length} 장면`, `Scene ${idx + 1} of ${scenes.length}`)}
+            style={{ '--p': `${(time / total) * 100}%` } as CSSProperties}
+            onPointerDown={() => setPlaying(false)}
+            onChange={(e) => { setPlaying(false); setTime(Math.min(total, Math.max(0, parseFloat(e.target.value)))); }} />
+          <div className="pointer-events-none absolute inset-x-[14px] bottom-[6px] h-1.5" aria-hidden>
+            {scenes.slice(1).map((_, i) => <span key={i} className="absolute top-0 h-full w-px bg-ink-3" style={{ left: `${(startOf(i + 1) / total) * 100}%` }} />)}
+          </div>
+        </div>
+        {/* one segment per scene; click to jump. The bar is thin, the hit area is the full row height. */}
+        <div className="ml-1.5 flex min-w-0 flex-1 max-md:hidden">
           {scenes.map((_, i) => {
             const f = i < idx ? 1 : i > idx ? 0 : into / spans[idx];
             return (
@@ -166,7 +178,7 @@ const SUB = /_(\{[^}]*\}|.)/;
 export function htmlMath(s: string): ReactNode {
   const parts = s.split(new RegExp(SUB.source, 'g'));
   if (parts.length === 1) return s;
-  return parts.map((p, i) => (i % 2 ? <sub key={i} className="text-[0.75em]">{p.startsWith('{') ? p.slice(1, -1) : p}</sub> : p));
+  return parts.map((p, i) => (i % 2 ? <sub key={i} className="text-[0.85em]">{p.startsWith('{') ? p.slice(1, -1) : p}</sub> : p));
 }
 
 /**
@@ -180,10 +192,10 @@ export function svgMath(s: string): ReactNode {
   let low = false;
   parts.forEach((p, i) => {
     if (i % 2) {
-      out.push(<tspan key={i} dy={low ? 0 : '0.3em'} fontSize="0.75em">{p.startsWith('{') ? p.slice(1, -1) : p}</tspan>);
+      out.push(<tspan key={i} dy={low ? 0 : '0.3em'} fontSize="0.85em">{p.startsWith('{') ? p.slice(1, -1) : p}</tspan>);
       low = true;
     } else if (p) {
-      out.push(<tspan key={i} dy={low ? '-0.225em' : undefined}>{p}</tspan>);
+      out.push(<tspan key={i} dy={low ? '-0.255em' : undefined}>{p}</tspan>);
       low = false;
     }
   });

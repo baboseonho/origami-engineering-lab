@@ -57,6 +57,8 @@ export interface Lesson {
   links?: { label: string; to: string }[];
   /** videos to watch (ids in resources.ts) */
   videos?: string[];
+  /** the cover tile's small line, when the theorem tags would not say what the sheet is (e.g. a terms sheet) */
+  coverNote?: string;
 }
 
 /**
@@ -71,6 +73,7 @@ export interface LessonText {
   presets?: { label?: string; note?: string }[];
   links?: string[];
   verdictNote?: string;
+  coverNote?: string;
 }
 
 function localize(l: Lesson, t: LessonText | undefined): Lesson {
@@ -79,6 +82,7 @@ function localize(l: Lesson, t: LessonText | undefined): Lesson {
     ...l,
     title: t.title ?? l.title,
     verdictNote: t.verdictNote ?? l.verdictNote,
+    coverNote: t.coverNote ?? l.coverNote,
     content: { ...l.content, ...t.content },
     challenges: l.challenges.map((c) => ({ ...c, ...t.challenges?.[c.id] })),
     presets: l.presets?.map((p, i) => ({ ...p, label: t.presets?.[i]?.label ?? p.label, note: t.presets?.[i]?.note ?? p.note })),
@@ -196,7 +200,7 @@ const LESSONS_KO: Lesson[] = [
   },
   // ───────────────────────────── Lecture 2
   {
-    id: 'l2-terms', lecture: 2, title: '용어 정리 & 평탄 ≠ 강체', kind: 'model', generator: 'squareTwist', params: { phi: 25, L: 1.6 }, patternFold: 'energy', energyPreset: 'veryFlexible', energyParams: { kAxial: 200 },
+    id: 'l2-terms', lecture: 2, title: '용어 정리 & 평탄 ≠ 강체', coverNote: '산, 골, 면, 크리스 같은 기본 용어', kind: 'model', generator: 'squareTwist', params: { phi: 25, L: 1.6 }, patternFold: 'energy', energyPreset: 'veryFlexible', energyParams: { kAxial: 200 },
     solver: 'rigid', enforceMV: true, panels: ['flatVsRigid'],
     content: {
       concept: '면(facet) = 강체 패널; 크리스(crease, 접는 선) = 힌지; 산접기(Mountain, M, $\\rho<0$, 빨강)는 관찰자로부터 멀어지는 방향으로, 골접기(Valley, V, $\\rho>0$, 파랑)는 관찰자 쪽으로 접힌다. M/V 배정은 크리스에 대한 레이블링이다. 평탄 접힘 가능(flat-foldable): 모든 $\\rho = \\pm 180^\\circ$이고 자기 교차가 없는 접힌 상태가 존재한다. 강체 접힘 가능(rigid-foldable): 모든 면이 강체로 유지되면서 평평한 시트로부터의 연속 운동이 존재한다. 테셀레이션(tessellation)은 주기적 크리스 패턴이며, 키리가미(kirigami)는 추가로 절개를 허용한다.',
@@ -314,7 +318,7 @@ const LESSONS_KO: Lesson[] = [
     links: [{ label: '비평탄 꼭짓점: 일반화 조건 (Maekawa)', to: 'l3-generalized' }],
   },
   {
-    id: 'l3-bag', lecture: 3, title: '쇼핑백 정리 (Shopping Bag)', kind: 'model', generator: 'shoppingBag', params: { W: 2, D: 1, H: 2 }, patternFold: 'energy',
+    id: 'l3-bag', lecture: 3, title: '쇼핑백 (쇼핑백 정리)', kind: 'model', generator: 'shoppingBag', params: { W: 2, D: 1, H: 2 }, patternFold: 'energy',
     verdictNote: '정리: 열린 쇼핑백은 강체로는 접히지 않는다. 이 판정의 강체 해는 지금 이 열린 모양 하나에 대한 답이고, 1차 가동성은 아주 작은 흔들림일 뿐 끝까지 접히는 운동으로 이어지지 않는다. 종이를 굽혀야(Energy) 납작해진다.',
     solver: 'rigid', enforceMV: false, panels: ['bagStates'], experiment: 'bagCollapse',
     content: {
@@ -463,7 +467,7 @@ const LESSONS_KO: Lesson[] = [
     id: 'l5-kresling', lecture: 5, title: 'Kresling 원통', kind: 'model', generator: 'kresling',
     params: { n: 6, R: 1, H: 1.2, phi: 45, cells: 3, chirality: 'right', caps: true }, solver: 'energy', enforceMV: false,
     experiment: 'kreslingAxial', panels: ['kreslingCompat'],
-    verdictNote: '평탄 접힘 조건의 ✕는 정상이다. 양 끝에 단단한 판(끝 다각형)이 붙어 있어, 이 원통은 평평하게 접는 패턴이 아니다. 대신 누르면 비틀리며 두 모양 사이를 오간다.',
+    verdictNote: '평탄 접힘 조건의 ✕는 정상이다. 양 끝에 단단한 판(끝 다각형)이 붙어 있어, 이 원통은 평평하게 접는 패턴이 아니다. 대신 위에서 누르면 비틀리며 납작해진다.',
     content: {
       concept: '종이 원통을 위에서 누르면 비틀리면서 짧아진다. Kresling 원통은 꼬인 다각형 고리들을 삼각형으로 이은 구조로, 축 하중을 받으면 짧아지면서 동시에 비틀린다(비틀림 좌굴). 고리를 평평하고 단단한 판으로 두면 강체 메커니즘이 아니다: 한 모양에서 다른 모양으로 가려면 패널이 변형되어야 한다.',
       observe: 'Rigid로 바꾸면: 끝 다각형이 있어 $\\text{DoF}_{\\text{local}} = 0$이고, 모든 구동이 실현 불가능하다. 해석적 적합성 그래프는 모든 삼각형 변을 유지하는 데 필요한 변형률을 보여준다. Energy(처음 열릴 때): 에너지 최소화로 비틀리며 압축되는 경로가 나타나고, 예측된 두 번째 안정 상태 위치에 두 번째 에너지 우물이 존재한다.',
@@ -474,7 +478,7 @@ const LESSONS_KO: Lesson[] = [
     theory: ['kresling', 'energy', 'reaction', 'dof'],
   },
   {
-    id: 'l5-yoshimura', lecture: 5, title: 'Yoshimura 좌굴', kind: 'model', generator: 'yoshimura',
+    id: 'l5-yoshimura', lecture: 5, title: 'Yoshimura 패턴 (좌굴)', kind: 'model', generator: 'yoshimura',
     params: { n: 8, R: 1, height: 2.4, rows: 4, variant: 'creased', imperfection: 0.01, caps: false }, solver: 'energy',
     experiment: 'yoshimuraCompression',
     verdictNote: '평탄 접힘 조건의 ✕는 이 모델에서는 정상이다. 평평한 종이를 접은 것이 아니라 원통 위에 다이아몬드 선을 그은 것이라, 꼭짓점 둘레 각의 합이 정확히 360°가 아니다. 이 도면의 질문은 "누르면 어떻게 찌그러지는가"다.',

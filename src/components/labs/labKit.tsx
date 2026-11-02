@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { C } from '../../theme/tokens';
 import { useUI } from '../../state/uiStore';
+import { tr } from '../../i18n';
+import { Button } from '../controls/ui';
 
 /**
  * Small shared pieces of the vertex and model labs: measuring a box in real
@@ -116,7 +118,8 @@ export function ThetaText({ x, y, i, value, size = 14, fill, anchor = 'middle', 
   /** width of the paper-coloured outline, in the same units as `size` */
   halo?: number;
 }) {
-  const sub = size * 0.72;
+  // a real subscript, but not so small that it drops under 12px at the usual label sizes
+  const sub = size * 0.85;
   return (
     <text x={x} y={y} fontSize={size} fontWeight={weight} fill={fill} textAnchor={anchor} stroke={C.paper} strokeWidth={halo} paintOrder="stroke" strokeLinejoin="round" className="tnum">
       <tspan fontStyle="italic">{symbol}</tspan>
@@ -143,5 +146,25 @@ export function Card({ title, children, className = '', label }: { title: ReactN
       <h3 className="lettering text-[12px] text-ink-3">{title}</h3>
       <div className="mt-1.5">{children}</div>
     </section>
+  );
+}
+
+/**
+ * A lab's preset patterns: a row of chips where there is room, one 44px
+ * select on a phone (six chips would take three rows there). Choosing loads
+ * the pattern; the select then goes back to its prompt, as a menu does.
+ */
+export function PresetPicker({ items }: { items: [label: string, load: () => void][] }) {
+  return (
+    <>
+      <span className="contents max-md:hidden">
+        {items.map(([label, load]) => <Button key={label} size="sm" onClick={load}>{label}</Button>)}
+      </span>
+      <select value="" aria-label={tr('프리셋 불러오기', 'Load a preset')} onChange={(e) => { items[+e.target.value]?.[1](); }}
+        className="h-11 min-w-0 flex-1 rounded-[4px] border border-rule-2 bg-paper px-2 text-[16px] text-ink md:hidden">
+        <option value="" disabled>{tr('프리셋 불러오기', 'Load a preset')}</option>
+        {items.map(([label], i) => <option key={label} value={i}>{label}</option>)}
+      </select>
+    </>
   );
 }

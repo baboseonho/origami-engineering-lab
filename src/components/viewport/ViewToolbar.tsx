@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Layers, Scan } from 'lucide-react';
-import { useUI, type OverlayKey } from '../../state/uiStore';
+import { useUI, type OverlayKey, type ViewMode } from '../../state/uiStore';
 import { tr } from '../../i18n';
 
 const overlayItems = (): { k: OverlayKey; label: string }[] => [
@@ -18,7 +18,29 @@ const overlayItems = (): { k: OverlayKey; label: string }[] => [
 
 const views = () => [['top', tr('위 (xy)', 'Top (xy)')], ['front', tr('정면 (xz)', 'Front (xz)')], ['side', tr('측면 (yz)', 'Side (yz)')], ['iso', tr('등각', 'Isometric')]] as const;
 
-export function ViewToolbar() {
+/**
+ * Phone only: the two views a visitor switches between, 3D and the crease
+ * pattern, as one 44px segmented control (the projection view stays in the
+ * "⋯" menu). The 2D sheet has no toolbar of its own, so it shows this too.
+ */
+export function PhoneViewSwitch({ className = '' }: { className?: string }) {
+  const viewMode = useUI((s) => s.viewMode);
+  // words only: with icons the switch would not fit on the toolbar's one row
+  const opts: [ViewMode, ReactNode][] = [['3d', '3D'], ['2d', tr('전개도', 'Pattern')]];
+  return (
+    <div role="radiogroup" aria-label={tr('보기', 'View')} className={`pointer-events-auto flex h-12 items-center gap-0.5 rounded-[4px] border border-ink/40 bg-paper/95 p-0.5 shadow-sm md:hidden ${className}`}>
+      {opts.map(([id, label]) => (
+        <button key={id} type="button" role="radio" aria-checked={viewMode === id} onClick={() => useUI.getState().setViewMode(id)}
+          className={`flex h-11 min-w-11 items-center justify-center gap-1 whitespace-nowrap rounded-[3px] px-2.5 text-[13px] transition-colors ${viewMode === id ? 'bg-paper font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'font-medium text-ink-2 hover:bg-paper-2 hover:text-ink'}`}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** `notes`: status lines for the view (experiment frame, constructed state), set below the toolbar rows so they never cover it. */
+export function ViewToolbar({ notes }: { notes?: ReactNode } = {}) {
   const camera = useUI((s) => s.camera);
   const overlays = useUI((s) => s.overlays);
   const [open, setOpen] = useState(false);
@@ -43,17 +65,22 @@ export function ViewToolbar() {
           <option value="">{tr('시점…', 'View…')}</option>
           {views().map(([p, l]) => <option key={p} value={p}>{l}</option>)}
         </select>
-        <span className="h-4 w-px bg-rule-2" />
-        <button type="button" className={btn} aria-pressed={camera === 'orthographic'} onClick={() => useUI.getState().setCamera(camera === 'perspective' ? 'orthographic' : 'perspective')}
+        {/* a phone keeps one row: this switch moves into "표시 항목" there, making room for 3D | 전개도 */}
+        <span className="h-4 w-px bg-rule-2 max-md:hidden" />
+        <button type="button" className={`${btn} max-md:hidden`} aria-pressed={camera === 'orthographic'} onClick={() => useUI.getState().setCamera(camera === 'perspective' ? 'orthographic' : 'perspective')}
           title={tr('원근 / 정사영 투영 전환', 'Switch perspective / orthographic projection')}>{camera === 'perspective' ? tr('원근', 'Perspective') : tr('정사영', 'Orthographic')}</button>
       </div>
       <div className="relative">
-        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}
+        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} aria-label={tr('표시 항목', 'Overlays')}
           className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[4px] border border-ink/40 bg-paper/95 px-2.5 text-[13px] text-ink-2 shadow-sm hover:text-ink max-md:h-12">
-          <Layers size={14} />{tr('표시 항목', 'Overlays')}
+          <Layers size={14} aria-hidden /><span className="max-md:hidden">{tr('표시 항목', 'Overlays')}</span><span className="md:hidden">{tr('표시', 'Show')}</span>
         </button>
         {open && (
           <div className="sheet absolute left-0 mt-1 w-56 rounded-[3px] border border-rule-2 p-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-[3px] border-b border-rule px-1.5 py-1 text-[13px] text-ink hover:bg-paper-2 max-md:min-h-11 md:hidden">
+              <input type="checkbox" checked={camera === 'orthographic'} onChange={() => useUI.getState().setCamera(camera === 'perspective' ? 'orthographic' : 'perspective')} />
+              {tr('정사영으로 보기 (끄면 원근)', 'Orthographic (off: perspective)')}
+            </label>
             {overlayItems().map((o) => (
               <label key={o.k} className="flex cursor-pointer items-center gap-2 rounded-[3px] px-1.5 py-1 text-[13px] text-ink hover:bg-paper-2 max-md:min-h-11">
                 <input type="checkbox" checked={overlays[o.k]} onChange={() => useUI.getState().toggleOverlay(o.k)} />
@@ -63,6 +90,8 @@ export function ViewToolbar() {
           </div>
         )}
       </div>
+      <PhoneViewSwitch />
+      {notes && <div style={{ pointerEvents: 'none' }} className="flex basis-full flex-col items-end gap-1 [&>*]:max-w-[min(100%,360px)]">{notes}</div>}
     </div>
   );
 }

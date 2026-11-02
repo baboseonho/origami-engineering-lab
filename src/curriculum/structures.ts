@@ -83,7 +83,7 @@ export const STRUCTURES: Structure[] = [
   {
     id: 'kresling', sheet: 'l5-kresling', level: 3,
     name: { ko: 'Kresling 원통', en: 'Kresling tube' },
-    hook: { ko: '누르면서 비틀면 "딸깍" 하고 납작해지는 원통. 두 모양을 기억하는 구조다.', en: 'Press and twist: a tube that snaps flat with a click, a structure that remembers two shapes.' },
+    hook: { ko: '위에서 누르면 비틀리며 납작해지는 원통. 윗판이 저절로 돈다.', en: 'Press it from the top and the tube twists as it flattens. The top plate turns on its own.' },
     fields: ['robotics', 'space', 'vehicles'],
     uses: [
       { ko: '접었다 펴는 전개 붐, 쌍안정 로봇 관절과 크롤링 로봇의 몸체로 연구된다.', en: 'Studied for deployable booms, bistable robot joints and crawling robot bodies.' },
@@ -93,7 +93,7 @@ export const STRUCTURES: Structure[] = [
       { label: { ko: '쌍안정과 에너지 지형', en: 'Bistability and the energy landscape' }, sheet: 'l5-kresling' },
       { label: { ko: '비틀림 좌굴 vs 압축 좌굴', en: 'Twist buckling vs compression buckling' }, sheet: 'l5-compare' },
     ],
-    motion: { ko: '압축과 비틀림이 함께 일어나며 두 상태 사이를 오간다', en: 'Compresses and twists together, snapping between two states' },
+    motion: { ko: '눌리는 만큼 윗판이 돌며 납작해진다 (Energy)', en: 'The top plate turns as it is pressed flat (Energy)' },
   },
   {
     id: 'waterbomb', sheet: 'l4-waterbomb', level: 2,

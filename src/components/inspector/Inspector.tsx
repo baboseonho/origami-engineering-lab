@@ -124,6 +124,11 @@ function CreaseControls({ id }: { id: number }) {
   );
 }
 
+/** The assignment colour as a short stroke beside ink text (the yellow of U is too pale for text). */
+function Swatch({ a }: { a: string }) {
+  return <span className="mr-1.5 inline-block h-[3px] w-3 rounded align-middle" style={{ background: ASSIGN_COLOR[a] }} aria-hidden />;
+}
+
 function CreaseInspector({ id, patternFold }: { id: number; patternFold: boolean }) {
   const model = useModel((s) => s.model)!;
   const rho = useSim((s) => s.rho);
@@ -147,7 +152,8 @@ function CreaseInspector({ id, patternFold }: { id: number; patternFold: boolean
           </span>
           {drive === id && <span className="rounded-[3px] border border-ink px-1.5 text-[13px] font-semibold text-ink">{tr('구동 중', 'Driving')}</span>}
         </div>
-        <div className="tnum mt-1 text-[13px] text-ink-3">{labelled && <>e{id} · </>}v{e.vertices[0]}–v{e.vertices[1]} · {tr('길이', 'length')} {num(e.restLength, 3)}</div>
+        {/* a named crease (ρ1) is read by its name; the edge and vertex numbers stay in the tooltip */}
+        <div className="tnum mt-1 text-[13px] text-ink-3" title={`e${id}, v${e.vertices[0]}–v${e.vertices[1]}`}>{!labelled && <>v{e.vertices[0]}–v{e.vertices[1]}, </>}{tr('길이', 'length')} {num(e.restLength, 3)}</div>
         <div className="mt-2.5 flex items-baseline justify-between">
           <span className="text-[14px] text-ink-3">{tr('현재 접힘각', 'Current fold angle')} <span className="greek">ρ</span></span>
           <span className="tnum text-[22px] font-semibold leading-tight text-ink">{deg(rho[id] ?? 0, 1, true)}</span>
@@ -190,7 +196,7 @@ function CreaseInspector({ id, patternFold }: { id: number; patternFold: boolean
                 const d = toDeg(x.after - x.before);
                 return (
                   <tr key={x.edge} className="cursor-pointer border-t border-rule hover:bg-paper-2" onClick={() => useUI.getState().select({ kind: 'edge', id: x.edge })}>
-                    <td className="py-1" style={{ color: ASSIGN_COLOR[model.edges[x.edge].assignment] }}><CreaseLabel name={n} /></td>
+                    <td className="py-1 text-ink"><Swatch a={model.edges[x.edge].assignment} /><CreaseLabel name={n} /></td>
                     <td className="py-1 text-right text-ink-3">{deg(x.before, 1)}</td>
                     <td className="py-1 text-right text-ink">{deg(x.after, 1)}</td>
                     <td className="py-1 text-right font-medium text-ink-2">{num(d, 1, true)}°</td>
@@ -263,7 +269,7 @@ function VertexInspector({ id }: { id: number }) {
                     onMouseEnter={() => useUI.getState().setTheoryHover(`θ${i + 1}`)} onMouseLeave={() => useUI.getState().setTheoryHover(null)}>
                     <td className="py-1 text-ink-3">{i + 1}</td>
                     <td className="py-1"><CreaseLabel name={n} /></td>
-                    <td className="py-1 font-semibold" style={{ color: ASSIGN_COLOR[r.assignments[i]] }}>{r.assignments[i]}</td>
+                    <td className="py-1 font-semibold text-ink"><Swatch a={r.assignments[i]} />{r.assignments[i]}</td>
                     <td className="py-1 text-right">{deg(r.sectors[i], 1)}</td>
                     <td className="py-1 text-right text-ink-2">{deg(rho[eid] ?? 0, 1, true)}</td>
                   </tr>
@@ -338,8 +344,8 @@ const patternFoldText = (): Record<string, { title: string; text: ReactNode; fro
   },
   shoppingBag: {
     title: tr('쇼핑백 접기', 'Fold the shopping bag'),
-    text: tr(<>모든 크리스가 <b className="text-ink">동시에</b> 접히고, 그 사이 종이 면이 휘어야 한다. 면을 강체로 두면 이 경로가 없다는 것이 이 정리다 (누르면 Energy 솔버로 계산한다).</>,
-      <>All creases fold <b className="text-ink">at once</b>, and the paper facets must bend on the way. The theorem says that with rigid facets this path does not exist (pressing it switches to the Energy solver).</>),
+    text: tr(<><b className="text-ink">면을 단단한 판으로 두면 열린 백에서 납작한 백까지 가는 길이 없다. 우리가 쇼핑백을 접을 수 있는 건 종이가 살짝 휘기 때문이다.</b> 그래서 여기서는 모든 크리스를 동시에 접으며 면이 휘도록 둔다 (누르면 Energy 솔버로 계산한다).</>,
+      <><b className="text-ink">If the faces were stiff plates, there would be no way from the open bag to the flat bag. We can fold a shopping bag only because the paper bends a little.</b> So here every crease folds at once and the faces are allowed to bend (pressing it switches to the Energy solver).</>),
     from: tr('열림', 'open'), to: tr('납작', 'flat'), fold: tr('납작하게 접기', 'Fold flat'), unfold: tr('다시 펼치기', 'Unfold again'),
   },
 });

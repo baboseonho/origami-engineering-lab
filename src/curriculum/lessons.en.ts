@@ -20,6 +20,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
   // ───────────────────────────── Part 2
   'l2-terms': {
     title: 'Terminology & flat ≠ rigid',
+    coverNote: 'Mountain, valley, facet, crease: the basic terms',
     content: {
       concept: 'Facet = a rigid panel. Crease = a hinge (a fold line). A mountain fold (M, $\\rho<0$, red) folds away from the viewer; a valley fold (V, $\\rho>0$, blue) folds toward the viewer. An M/V assignment is a labeling of the creases. Flat-foldable: there is a folded state in which every $\\rho = \\pm 180^\\circ$ and the paper does not pass through itself. Rigid-foldable: there is a continuous motion from the flat sheet during which every facet stays rigid. A tessellation is a periodic crease pattern; kirigami also allows cuts.',
       observe: 'The square twist folds flat: the flat state closes with a residual of about 1e-15, and every vertex passes the Kawasaki–Justin theorem and the crimp test. Yet with the given M/V assignment, driving any crease from the flat sheet is infeasible.',
@@ -133,7 +134,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
     links: ['Non-flat vertices: the generalized condition (Maekawa)'],
   },
   'l3-bag': {
-    title: 'The shopping bag theorem',
+    title: 'Shopping bag (the shopping-bag theorem)',
     verdictNote: 'Theorem: an open shopping bag cannot be folded rigidly. The rigid solution in this verdict answers for this one open shape only, and the first-order mobility is a tiny wobble that does not extend to a motion that folds all the way. The bag goes flat only when the paper bends (Energy).',
     content: {
       concept: 'With the faces as rigid plates, there is no way from the open bag to the flat bag. We can fold shopping bags every day only because the paper bends a little. This is the shopping-bag theorem of Balkcom, Demaine, Demaine et al.: a tall paper bag ($H > D/2$) with the traditional creases cannot be folded rigidly. In technical terms, the open state and the flat state are isolated points of the rigid configuration space (every shape reachable without bending the faces).',
@@ -279,7 +280,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
   },
   'l5-kresling': {
     title: 'Kresling cylinder',
-    verdictNote: 'The ✕ on the flat-fold conditions is expected. With rigid plates (end polygons) on both ends, this tube is not a pattern that folds flat. Instead, pressing it twists it between two shapes.',
+    verdictNote: 'The ✕ on the flat-fold conditions is expected. With rigid plates (end polygons) on both ends, this tube is not a pattern that folds flat. Instead, pressing it from the top makes it twist as it flattens.',
     content: {
       concept: 'Press a paper tube from the top and it twists as it shortens. A Kresling cylinder is a stack of twisted polygonal rings joined by triangles: under axial load it shortens and twists at the same time (twist buckling). If the rings are taken as flat, rigid plates, it is not a rigid mechanism: moving from one shape to the other requires the panels to deform.',
       observe: 'Switch to Rigid: with end polygons, $\\text{DoF}_{\\text{local}} = 0$, so every drive is infeasible. The analytic compatibility plot shows the strain needed to keep every triangle edge at its length. Energy (as the sheet opens): energy minimization reveals a path that twists as it compresses, and a second energy well sits where the second stable state is predicted.',
@@ -291,7 +292,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
     },
   },
   'l5-yoshimura': {
-    title: 'Yoshimura buckling',
+    title: 'Yoshimura pattern (buckling)',
     verdictNote: 'The ✕ on the flat-fold conditions is expected for this model. It is not a folded flat sheet but a cylinder with diamond lines drawn on it, so the angles around each vertex do not add up to exactly 360°. The question here is how it crumples when pressed.',
     presets: [
       { label: 'Cylinder with diamond lines (Yoshimura creases)' },

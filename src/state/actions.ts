@@ -384,7 +384,7 @@ export function resetSimulation() {
 
 /** Switch the solver; `reason` (an automatic switch) is announced to the student. */
 export function setSolverMode(mode: 'rigid' | 'energy', reason?: string) {
-  if (reason && useSim.getState().solverMode !== mode) useUI.getState().notify(tr(`${mode === 'energy' ? 'Energy' : 'Rigid'} 솔버로 바꿨다: ${reason}`, `Switched to the ${mode === 'energy' ? 'Energy' : 'Rigid'} solver: ${reason}`));
+  if (reason && useSim.getState().solverMode !== mode) useUI.getState().notify(`${reason} (${mode === 'energy' ? 'Energy' : 'Rigid'})`);
   const s = useSim.getState();
   if (s.solverMode === mode) return;
   pushHistory();
@@ -579,7 +579,7 @@ export function patternFoldProgress(): number {
 function foldRigidTo(q: number) {
   const model = engine.model!;
   const dd = model.edu.defaultDrive!;
-  if (useSim.getState().solverMode !== 'rigid') setSolverMode('rigid', tr('이 패턴은 강체 기구로 접는다', 'This pattern folds as a rigid mechanism'));
+  if (useSim.getState().solverMode !== 'rigid') setSolverMode('rigid', tr('면을 단단한 판으로 두고 접는다', 'Folding with the faces as stiff plates'));
   if (useSim.getState().drive !== dd.edge) setDriveEdge(dd.edge);
   const e = model.edges[dd.edge];
   const sense = e.assignment === 'M' ? -1 : 1;
@@ -597,7 +597,7 @@ function foldRigidTo(q: number) {
  */
 function foldEnergyTo(q: number) {
   const model = engine.model!;
-  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', tr('모든 크리스를 함께 접으려면 면이 휘어야 한다', 'Folding all creases together requires the faces to bend'));
+  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', tr('실제 종이처럼 면이 휘게 해서 접었다', 'Folded like real paper, letting the faces bend'));
   stopPlaying();
   if (useSim.getState().experiment) clearExperiment();
   if (!engine.energy) initEnergy();
@@ -758,7 +758,7 @@ export function runExperiment(kind: 'kreslingAxial' | 'yoshimuraCompression' | '
   const model = engine.model;
   if (!model || !m.generator) return;
   stopPlaying();
-  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', tr('실험은 에너지법으로 계산한다', 'Experiments are computed with the energy method'));
+  if (useSim.getState().solverMode !== 'energy') setSolverMode('energy', tr('실제 종이처럼 면이 휘게 해서 눌렀다', 'Pressed like real paper, letting the faces bend'));
   const params = useSim.getState().energyParams;
   worker?.terminate();
   worker = new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' });
@@ -820,6 +820,61 @@ export function scrubExperiment(i: number) {
   if (p) engine.setPositions(p);
   scheduleDiagnostics();
 }
+
+/**
+ * Where a pressed shell gives way: the largest drop of the reaction force between
+ * two samples, if it is more than numerical wobble (10 %). Read off the samples only.
+ */
+export function reactionSnap(samples: SweepSample[]): { index: number; drop: number } | null {
+  let index = -1, drop = 0;
+  for (let k = 1; k < samples.length; k++) {
+    const a = samples[k - 1].reaction, b = samples[k].reaction;
+    if (a > 0 && b < a && (a - b) / a > drop) { drop = (a - b) / a; index = k; }
+  }
+  return drop >= 0.1 ? { index, drop } : null;
+}
+
+/**
+ * Play the recorded samples back slowly enough to follow (about 5.5 s at 1×),
+ * holding on one frame (`hold.index`, e.g. where Yoshimura gives way) for
+ * `hold.ms`. Every frame shown is one of the recorded samples.
+ */
+export function playExperimentPaced(ms = 5500, hold?: { index: number; ms: number } | null) {
+  cancelAnimationFrame(playRaf);
+  const ex = useSim.getState().experiment;
+  if (!ex || ex.samples.length < 2) return;
+  const n = ex.samples.length - 1;
+  if (reducedMotion()) { scrubExperiment(n); return; }
+  const h = hold && hold.index > 0 && hold.index < n ? hold : null;
+  let t = 0, held = 0, last = performance.now(), shown = -1;
+  const step = (now: number) => {
+    const dt = Math.max(0, now - last) * foldSpeed();
+    last = now;
+    let i = Math.round(easeInOut(t) * n);
+    if (h && held < h.ms && i >= h.index) { i = h.index; held += dt; }
+    else t = Math.min(1, t + dt / ms);
+    if (i !== shown) { shown = i; scrubExperiment(i); }
+    if (t < 1 || shown !== n) playRaf = requestAnimationFrame(step);
+  };
+  playRaf = requestAnimationFrame(step);
+}
+
+/** runAndPlayExperiment with the paced playback (and the hold where the force drops, for Yoshimura). */
+export function runAndPlayExperimentPaced(kind: 'kreslingAxial' | 'yoshimuraCompression') {
+  runExperiment(kind);
+  const unsub = useSim.subscribe((s) => {
+    const ex = s.experiment;
+    if (!ex || ex.kind !== kind) { unsub(); return; }
+    if (ex.running) return;
+    unsub();
+    if (ex.error || ex.samples.length < 2) return;
+    const snap = kind === 'yoshimuraCompression' ? reactionSnap(ex.samples) : null;
+    playExperimentPaced(5500, snap ? { index: snap.index, ms: 650 } : null);
+  });
+}
+
+/** Stop a playback of the recorded samples where it is (the frame shown stays; the samples are kept). */
+export function stopExperimentPlayback() { cancelAnimationFrame(playRaf); }
 
 export function clearExperiment() {
   worker?.terminate();

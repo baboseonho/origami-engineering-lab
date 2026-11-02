@@ -1,7 +1,7 @@
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as THREE from 'three';
 import {
   analyzeSectors, closureMargin, flatFoldedRays, fmtSigned, solveVertex3D,
@@ -14,6 +14,7 @@ import { C } from '../../theme/tokens';
 import { Button, SpeedControl } from '../controls/ui';
 import { Rich } from '../controls/Rich';
 import { EVEN, ODD, Sci, ThetaText } from './labKit';
+import { SUB_MIN } from '../analysis/num';
 
 /* odd sectors (θ1, θ3, …) and even sectors (θ2, θ4, …) keep apart from the M/V red/blue: ODD, EVEN in labKit */
 const colorOf = (i: number) => (i % 2 === 0 ? ODD : EVEN);
@@ -72,17 +73,18 @@ function AngleControls({ theta, setTheta }: { theta: number[]; setTheta: (t: num
   return (
     <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
       {theta.map((t, i) => (
-        <label key={i} className="flex w-[118px] flex-col gap-0.5 text-[13px]">
+        <label key={i} className="flex w-[118px] flex-col gap-0.5 text-[13px] max-md:w-[calc(50%-6px)]">
           <span className="flex items-baseline justify-between">
-            <span className="font-semibold" style={{ color: colorOf(i) }}>θ<sub>{i + 1}</sub> {i % 2 === 0 ? tr('(+, 홀수)', '(+, odd)') : tr('(−, 짝수)', '(−, even)')}</span>
+            <span className={`font-semibold ${SUB_MIN}`} style={{ color: colorOf(i) }}>θ<sub>{i + 1}</sub> {i % 2 === 0 ? tr('(+, 홀수)', '(+, odd)') : tr('(−, 짝수)', '(−, even)')}</span>
           </span>
           <span className="flex items-center gap-1">
             <input type="number" min={1} max={179} step={0.5} value={t} aria-label={`θ${i + 1}`}
               onChange={(e) => { const v = parseFloat(e.target.value); if (Number.isFinite(v)) set(i, v); }}
-              className="tnum h-7 w-[64px] rounded-[3px] border border-rule-2 bg-paper px-1.5 text-[14px]" />
+              className="tnum h-7 w-[64px] rounded-[3px] border border-rule-2 bg-paper px-1.5 text-[14px] max-md:h-11 max-md:w-[76px] max-md:text-[16px]" />
             <span className="text-ink-3">°</span>
           </span>
-          <input type="range" min={1} max={179} step={0.5} value={t} aria-label={tr(`θ${i + 1} 슬라이더`, `θ${i + 1} slider`)} onChange={(e) => set(i, parseFloat(e.target.value))} style={{ accentColor: colorOf(i) }} />
+          <input type="range" min={1} max={179} step={0.5} value={t} aria-label={tr(`θ${i + 1} 슬라이더`, `θ${i + 1} slider`)} onChange={(e) => set(i, parseFloat(e.target.value))}
+            className="range-touch" style={{ accentColor: colorOf(i), '--fill': colorOf(i), '--p': `${((t - 1) / 178) * 100}%` } as CSSProperties} />
         </label>
       ))}
       <div className="flex gap-1 pb-1">
@@ -240,7 +242,8 @@ function AngularWalk({ r }: { r: SectorReport }) {
         {playing ? <Button size="sm" onClick={pause}><Pause size={13} />{tr('정지', 'Pause')}</Button> : <Button size="sm" kind="primary" onClick={play}><Play size={13} />{tr('재생', 'Play')}</Button>}
         <Button size="sm" onClick={step}><SkipForward size={13} />{tr('한 단계', 'Step')}</Button>
         <Button size="sm" onClick={reset}><RotateCcw size={13} />{tr('처음', 'Restart')}</Button>
-        <SpeedControl />
+        {/* on a phone the speed chips show while the walk plays */}
+        <SpeedControl className={playing ? '' : 'max-md:hidden'} />
       </div>
       {/* the cumulative sequence */}
       <div className="tnum mt-2 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-[13px]">
@@ -401,7 +404,7 @@ function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; 
       <div role="tablist" aria-label={tr('3D 보기', '3D view')} className="flex flex-wrap gap-1">
         {([['vertex', tr('3D 꼭짓점', '3D vertex')], ['flat', tr('평탄 접힘 각도 지도', 'Flat-fold angle map')]] as [View3D, string][]).map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}
-            className={`h-7 rounded-[3px] px-2.5 text-[13px] font-medium disabled:opacity-35 ${view === id ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'border border-rule-2 text-ink-2 hover:text-ink'}`}>{label}</button>
+            className={`h-7 rounded-[3px] px-2.5 text-[13px] font-medium disabled:opacity-35 max-md:h-11 max-md:flex-1 max-md:px-3 ${view === id ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'border border-rule-2 text-ink-2 hover:text-ink'}`}>{label}</button>
         ))}
       </div>
       <div className="relative mt-1.5 min-h-[260px] flex-1 overflow-hidden rounded-[3px] border border-rule-2 bg-paper-2/50">
@@ -422,7 +425,8 @@ function Vertex3DPanel({ theta, r, shape }: { theta: number[]; r: SectorReport; 
               <><b className="text-ink">Flat-locked: these rigid panels cannot open in 3D.</b> In the closure condition <Rich text={closure} />, <Rich text={subsetTex} /> is exactly at equality (margin {deg1(cm.margin)}). So the only closed shape lies in one plane: the flat fold wound once around. For a 6-panel vertex, S = ±360° is the largest value S can take.</>)}</p>
             <label className="block">
               <span className="flex justify-between"><span>{tr(<>가까운 꼭짓점 열어 보기: <Rich text={subsetList} />를 ε만큼 줄임</>, <>Open a nearby vertex: shrink <Rich text={subsetList} /> by ε</>)}</span><b className="tnum text-ink">ε = {eps.toFixed(1)}°</b></span>
-              <input type="range" className="w-full" min={0.2} max={12} step={0.1} value={eps} onChange={(e) => setEps(parseFloat(e.target.value))} aria-label="ε" />
+              <input type="range" className="range-touch w-full" min={0.2} max={12} step={0.1} value={eps} onChange={(e) => setEps(parseFloat(e.target.value))} aria-label="ε"
+                style={{ '--p': `${((eps - 0.2) / 11.8) * 100}%` } as CSSProperties} />
             </label>
             <p className="tnum">{tr(<>지금 보이는 것은 <b className="text-ink">다른 꼭짓점</b> θ′ = [{near.theta.map((x) => deg1(x)).join(', ')}] (S′ = {fmtSigned(near.report.S)}, 잔차 <Sci x={near.shape.residual} d={1} />). ε → 0이면 안장이 납작해지며 한 바퀴 감긴 평탄 상태로 수렴한다.</>,
               <>What you see is a <b className="text-ink">different vertex</b> θ′ = [{near.theta.map((x) => deg1(x)).join(', ')}] (S′ = {fmtSigned(near.report.S)}, residual <Sci x={near.shape.residual} d={1} />). As ε → 0 the saddle flattens and approaches the flat state wound once around.</>)}</p>
@@ -462,7 +466,7 @@ export function GKawasakiLab() {
         <span className="lettering mr-1 text-[12px] text-ink-3">{tr('예제', 'Examples')}</span>
         {GK_CASES.map((c) => (
           <button key={c.id} type="button" onClick={() => pick(c)} aria-pressed={caseId === c.id}
-            className={`rounded-[3px] border px-2.5 py-1 text-left text-[13px] transition-colors ${caseId === c.id ? 'border-ink bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'border-rule-2 bg-paper text-ink-2 hover:border-ink hover:text-ink'}`}>
+            className={`rounded-[3px] border px-2.5 py-1 text-left text-[13px] transition-colors max-md:min-h-11 ${caseId === c.id ? 'border-ink bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'border-rule-2 bg-paper text-ink-2 hover:border-ink hover:text-ink'}`}>
             <b>Case {c.id}</b> <span className="opacity-80">{c.title}</span>
           </button>
         ))}

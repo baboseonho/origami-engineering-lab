@@ -58,7 +58,7 @@ export function SheetLink({ to, children }: { to: string; children?: ReactNode }
 
 export function ExtLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer noopener" className="inline-flex items-baseline gap-0.5 text-info underline decoration-info/40 underline-offset-2 hover:decoration-info">
+    <a href={href} target="_blank" rel="noreferrer noopener" className="inline-flex items-baseline gap-0.5 text-info underline decoration-info/40 underline-offset-2 hover:decoration-info max-md:min-h-11 max-md:items-center">
       {children}<ExternalLink size={12} className="self-center" aria-hidden />
     </a>
   );
@@ -113,7 +113,7 @@ export function VideoCard({ video, compact }: { video: Video; compact?: boolean 
         </div>
       )}
       <div className="px-3 py-2.5">
-        <a href={video.url} target="_blank" rel="noreferrer noopener" className="text-[14px] font-semibold leading-snug text-ink hover:underline">{video.title}</a>
+        <a href={video.url} target="_blank" rel="noreferrer noopener" className="text-[14px] font-semibold leading-snug text-ink hover:underline max-md:-my-1 max-md:flex max-md:min-h-11 max-md:items-center">{video.title}</a>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-3">
           <span>{video.channel}</span>
           <span>· {SPOKEN[video.lang]()}</span>
@@ -150,7 +150,7 @@ export function ToolCard({ tool }: { tool: Tool }) {
   return (
     <div className="flex flex-col rounded-[3px] border border-rule-2 bg-paper px-3.5 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-        <a href={tool.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-[15px] font-semibold text-ink hover:underline">
+        <a href={tool.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-[15px] font-semibold text-ink hover:underline max-md:min-h-11">
           {tool.name}<ExternalLink size={13} className="text-ink-3" aria-hidden />
         </a>
         <span className="lettering text-[12px] text-ink-3">{KIND[tool.kind]()}</span>
@@ -161,7 +161,7 @@ export function ToolCard({ tool }: { tool: Tool }) {
       <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2 text-[12px] text-ink-3">
         <LevelTag level={tool.level} />
         {tool.license && <span>{tr('라이선스', 'Licence')}: {tool.license}</span>}
-        {tool.repo && <a href={tool.repo} target="_blank" rel="noreferrer noopener" className="underline-offset-2 hover:text-ink hover:underline">{tr('소스 코드', 'Source')}</a>}
+        {tool.repo && <a href={tool.repo} target="_blank" rel="noreferrer noopener" className="underline-offset-2 hover:text-ink hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{tr('소스 코드', 'Source')}</a>}
       </div>
     </div>
   );

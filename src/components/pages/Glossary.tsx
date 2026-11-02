@@ -46,7 +46,7 @@ const GROUPS = (): { title: string; terms: Term[] }[] => [
     title: tr('모양과 성질', 'Shape and behaviour'),
     terms: [
       { ko: '오세틱 (음의 푸아송비)', en: 'Auxetic (negative Poisson\'s ratio)', defKo: '한 방향으로 줄이면 옆 방향도 함께 줄어드는 성질. 미우라 접기가 대표적이다.', defEn: 'Shrinking in one direction makes it shrink sideways too. Miura-ori is the classic example.', sheet: 'l4-miura' },
-      { ko: '쌍안정', en: 'Bistable', defKo: '두 개의 안정한 모양 사이를 "딸깍" 하고 오가는 구조. Kresling 원통이 그렇다.', defEn: 'A structure that snaps between two stable shapes, like the Kresling tube.', sheet: 'l5-kresling' },
+      { ko: '쌍안정', en: 'Bistable', defKo: '두 개의 안정한 모양 사이를 "딸깍" 하고 오가는 구조. 종이로 접은 Kresling 원통에서 볼 수 있다(이 사이트의 계산 모델은 눌리는 만큼 부드럽게 비틀린다).', defEn: 'A structure that snaps between two stable shapes, as a paper Kresling tube can (the model in this app twists smoothly as it is pressed).', sheet: 'l5-kresling' },
       { ko: '가전개 (developable)', en: 'Developable', defKo: '찢거나 늘리지 않고 평면으로 펼 수 있는 곡면. 종이는 늘어나지 않으므로 항상 가전개 상태를 유지한다.', defEn: 'A surface that flattens without tearing or stretching. Paper does not stretch, so it always stays developable.', sheet: 'l4-waterbomb' },
       { ko: '가우스 곡률', en: 'Gaussian curvature', defKo: '곡면이 공처럼 휘었는지(양수), 안장처럼 휘었는지(음수)를 나타내는 값. 접힌 패턴 전체를 큰 곡면으로 보면 곡률을 가질 수 있다.', defEn: 'Whether a surface curves like a ball (positive) or a saddle (negative). A folded pattern seen as one coarse surface can have curvature.', sheet: 'l6-hypar' },
       { ko: '막대-힌지 모델', en: 'Bar-and-hinge model', defKo: '종이를 막대(늘어남)와 힌지(접힘, 면 휨)의 그물로 보고 에너지를 계산하는 모델. 이 앱의 Energy 계산 방법이다.', defEn: 'A model of paper as a network of bars (stretching) and hinges (folding, face bending) whose energy is minimised; the app\'s Energy method.', sheet: 'l3-energy' },

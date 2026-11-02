@@ -14,7 +14,7 @@ import { VertexDiagram } from './VertexDiagram';
 import { C } from '../../theme/tokens';
 import { tr } from '../../i18n';
 import {
-  Card, CreasePill, EVEN, Group, ODD, ThetaText, creaseColor, creaseDash, degTxt, mix, parityColor, useBoxWidth, useTween,
+  Card, CreasePill, EVEN, Group, ODD, PresetPicker, ThetaText, creaseColor, creaseDash, degTxt, mix, parityColor, useBoxWidth, useTween,
 } from './labKit';
 
 const deg = (r: number) => (r * 180) / Math.PI;
@@ -196,10 +196,12 @@ export function KawasakiLab() {
       <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
-          <Button size="sm" onClick={() => load([91.5, 88, 90, 90.5], ['V', 'M', 'M', 'M'])}>{tr('"정리 깨기" 프리셋', '"Break the theorem" preset')}</Button>
-          <Button size="sm" onClick={() => load([60, 40, 70, 80, 50, 60], ['M', 'V', 'M', 'M', 'V', 'M'])}>{tr('6차', 'Degree 6')}</Button>
-          {[4, 6, 8].map((n) => <Button size="sm" key={n} onClick={() => setN(n)}>n = {n} {tr('(등분)', '(equal)')}</Button>)}
-          <Button size="sm" onClick={() => setN(5)}>n = 5 {tr('(홀수)', '(odd)')}</Button>
+          <PresetPicker items={[
+            [tr('"정리 깨기" 프리셋', '"Break the theorem" preset'), () => load([91.5, 88, 90, 90.5], ['V', 'M', 'M', 'M'])],
+            [tr('6차', 'Degree 6'), () => load([60, 40, 70, 80, 50, 60], ['M', 'V', 'M', 'M', 'V', 'M'])],
+            ...[4, 6, 8].map((n): [string, () => void] => [`n = ${n} ${tr('(등분)', '(equal)')}`, () => setN(n)]),
+            [`n = 5 ${tr('(홀수)', '(odd)')}`, () => setN(5)],
+          ]} />
         </Group>
         <Group caption={tr('고치기', 'Fix')}>
           {fixBlocked ? (
@@ -211,7 +213,8 @@ export function KawasakiLab() {
             </Button>
           )}
           <Button size="sm" onClick={() => openIn3D(v.sectors, v.mv)} disabled={!ok}>{tr('3D로 접기', 'Fold in 3D')}<ArrowRight size={14} /></Button>
-          <SpeedControl />
+          {/* on a phone the speed chips show only while something moves */}
+          <SpeedControl className={moving ? '' : 'max-md:hidden'} />
         </Group>
       </div>
 
@@ -270,10 +273,12 @@ export function MaekawaLab() {
       <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
-          <Button size="sm" onClick={() => v.load([70, 100, 110, 80], ['V', 'M', 'V', 'V'])}>{tr('유효한 4차', 'Valid degree 4')}</Button>
-          <Button size="sm" onClick={() => v.load([70, 100, 110, 80], ['V', 'V', 'M', 'V'])}>{tr('|M − V| = 2지만 접히지 않음', '|M − V| = 2 but does not fold')}</Button>
-          <Button size="sm" onClick={() => v.load([90, 90, 90, 90], ['M', 'V', 'M', 'V'])}>M = 2, V = 2</Button>
-          <Button size="sm" onClick={() => v.load([60, 40, 70, 80, 50, 60], ['M', 'V', 'M', 'M', 'V', 'M'])}>{tr('6차', 'Degree 6')}</Button>
+          <PresetPicker items={[
+            [tr('유효한 4차', 'Valid degree 4'), () => v.load([70, 100, 110, 80], ['V', 'M', 'V', 'V'])],
+            [tr('|M − V| = 2지만 접히지 않음', '|M − V| = 2 but does not fold'), () => v.load([70, 100, 110, 80], ['V', 'V', 'M', 'V'])],
+            ['M = 2, V = 2', () => v.load([90, 90, 90, 90], ['M', 'V', 'M', 'V'])],
+            [tr('6차', 'Degree 6'), () => v.load([60, 40, 70, 80, 50, 60], ['M', 'V', 'M', 'M', 'V', 'M'])],
+          ]} />
         </Group>
       </div>
 
@@ -472,9 +477,11 @@ export function MVCrimpLab() {
       <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
-          <Button size="sm" onClick={() => v.load([70, 100, 110, 80], ['V', 'M', 'V', 'V'])}>{tr('4차', 'Degree 4')}</Button>
-          <Button size="sm" onClick={() => v.load([60, 40, 70, 80, 50, 60], ['M', 'V', 'M', 'M', 'V', 'M'])}>{tr('6차', 'Degree 6')}</Button>
-          <Button size="sm" onClick={() => v.load([30, 50, 40, 60, 45, 35, 65, 35], ['V', 'M', 'V', 'V', 'M', 'V', 'V', 'V'])}>{tr('8차', 'Degree 8')}</Button>
+          <PresetPicker items={[
+            [tr('4차', 'Degree 4'), () => v.load([70, 100, 110, 80], ['V', 'M', 'V', 'V'])],
+            [tr('6차', 'Degree 6'), () => v.load([60, 40, 70, 80, 50, 60], ['M', 'V', 'M', 'M', 'V', 'M'])],
+            [tr('8차', 'Degree 8'), () => v.load([30, 50, 40, 60, 45, 35, 65, 35], ['V', 'M', 'V', 'V', 'M', 'V', 'V', 'V'])],
+          ]} />
         </Group>
         <Group caption={tr('증명', 'Proof')}>
           <Button kind="primary" size="sm" disabled={steps.length === 0 || (finished && !auto)} onClick={() => setAuto((a) => !a)}>
@@ -483,7 +490,7 @@ export function MVCrimpLab() {
           <Button size="sm" disabled={!!anim || finished} onClick={() => startStep(done)}>{tr('한 단계', 'One step')}<StepForward size={14} /></Button>
           <Button size="sm" disabled={!!anim || done === 0} onClick={() => { setAuto(false); setDone((d) => Math.max(0, d - 1)); }}><StepBack size={14} />{tr('되돌리기', 'Back')}</Button>
           <Button size="sm" onClick={reset}><RotateCcw size={14} />{tr('처음', 'Restart')}</Button>
-          <SpeedControl />
+          <SpeedControl className={anim || auto ? '' : 'max-md:hidden'} />
         </Group>
       </div>
 
@@ -660,15 +667,17 @@ export function GeneralizedLab() {
       <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
-          <Button size="sm" onClick={() => load([120, 90, 60, 90], ['M', 'M', 'M', 'V'])}>Σθ = 360° · A = 0</Button>
-          <Button size="sm" onClick={() => load([90, 45, 45, 90], ['M', 'M', 'M', 'V'])}>{tr('Σθ = 270° · 쇼핑백 모서리', 'Σθ = 270° · shopping-bag corner')}</Button>
-          <Button size="sm" onClick={() => load([200, 20, 200, 20], ['M', 'V', 'M', 'V'])}>Σθ = 440° · A = +360°</Button>
-          <Button size="sm" onClick={() => load([20, 200, 20, 200], ['M', 'V', 'M', 'V'])}>A = −360°</Button>
-          <Button size="sm" onClick={() => load([80, 70, 60, 90], ['M', 'M', 'M', 'V'])}>{tr('일반 원뿔 (위반)', 'Generic cone (fails)')}</Button>
+          <PresetPicker items={[
+            ['Σθ = 360° · A = 0', () => load([120, 90, 60, 90], ['M', 'M', 'M', 'V'])],
+            [tr('Σθ = 270° · 쇼핑백 모서리', 'Σθ = 270° · shopping-bag corner'), () => load([90, 45, 45, 90], ['M', 'M', 'M', 'V'])],
+            ['Σθ = 440° · A = +360°', () => load([200, 20, 200, 20], ['M', 'V', 'M', 'V'])],
+            ['A = −360°', () => load([20, 200, 20, 200], ['M', 'V', 'M', 'V'])],
+            [tr('일반 원뿔 (위반)', 'Generic cone (fails)'), () => load([80, 70, 60, 90], ['M', 'M', 'M', 'V'])],
+          ]} />
         </Group>
         <Group caption={tr('경로', 'Walk')}>
           <Button kind="primary" size="sm" disabled={walking} onClick={draw}><Play size={14} />{tr('한 섹터씩 그리기', 'Draw sector by sector')}</Button>
-          <SpeedControl />
+          <SpeedControl className={walking ? '' : 'max-md:hidden'} />
         </Group>
       </div>
 

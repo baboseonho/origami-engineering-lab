@@ -2,7 +2,7 @@ import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ComponentTy
 import { lessonById, PAGE_LABS, type LabId } from '../curriculum/lessons';
 import { tr } from '../i18n';
 import { PageAside } from '../components/pages/PageAside';
-import { ExplainerButton } from '../components/explainers/ExplainerButton';
+import { ExplainerButton, ExplainerInline } from '../components/explainers/ExplainerButton';
 import { LessonBrief, useBriefInMain } from '../components/layout/LessonBrief';
 import { useModel } from '../state/modelStore';
 import { useUI } from '../state/uiStore';
@@ -176,7 +176,7 @@ function PhoneShell() {
       ? [['learn', tr('설명', 'Learn'), BookOpen], ['view', tr('모델', 'Model'), Box], ['analysis', tr('분석', 'Analysis'), ChartLine], ['index', tr('목록', 'Sheets'), List]]
       : [['learn', tr('설명', 'Learn'), BookOpen], ['view', tr('실습', 'Lab'), FlaskConical], ['side', tr('이론', 'Theory'), Sigma], ['index', tr('목록', 'Sheets'), List]];
   return (
-    <div className="flex h-[100dvh] flex-col gap-1.5 overflow-hidden bg-board p-1.5">
+    <div className="flex h-[100dvh] flex-col gap-1.5 overflow-hidden bg-board p-2">
       <TopBar mobile />
       <main className="sheet relative min-h-0 flex-1 overflow-hidden rounded-[3px]">
         {tab === 'learn' && lesson && (
@@ -200,6 +200,8 @@ function PhoneShell() {
         {tab === 'side' && (
           <div className="theory-aside h-full overflow-y-auto p-4">
             <Suspense fallback={<SheetLoading label={tr('이론을 불러오는 중', 'Loading the theory')} />}><TheoryPanel /></Suspense>
+            {/* the step-by-step argument lies open under the formula, so the tab never ends after one lone card */}
+            <ExplainerInline lessonId={lessonId} />
           </div>
         )}
         {tab === 'analysis' && <div className="h-full"><SheetBoundary label={tr('분석 패널', 'Analysis panel')}><BottomPanel phone /></SheetBoundary></div>}
@@ -258,7 +260,8 @@ export default function App() {
                 <SheetBoundary label={tr('실습', 'Lab')} resetKey={lessonId}><Suspense fallback={<SheetLoading label={tr('도면을 펼치는 중', 'Unfolding the sheet')} />}><Lab key={lessonId} /></Suspense></SheetBoundary>
               ) : (
                 <DrawingFrame title={lesson!.title}>
-                  <div className="absolute inset-[8px] overflow-y-auto px-3 pb-16 pt-3">
+                  {/* the scroll ends above the title block (bottom right), so the block never covers the text */}
+                  <div className="absolute inset-x-[8px] bottom-[50px] top-[8px] overflow-y-auto px-3 pb-6 pt-3">
                     <div className="mx-auto max-w-[1280px]">
                     {briefInMain && lesson && <div className="mb-3 rounded-[3px] border border-rule-2 bg-paper"><LessonBrief lesson={lesson} /></div>}
                     {!briefInMain && <ExplainerButton lessonId={lessonId} variant="bar" />}

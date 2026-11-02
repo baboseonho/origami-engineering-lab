@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { ArrowRight, ChevronRight, Download, Printer } from 'lucide-react';
 import { LECTURE_TITLES, LESSONS, PAGE_LABS, PARTS, lessonById, sheetNumber, type Lesson } from '../../curriculum/lessons';
 import { tr } from '../../i18n';
@@ -89,9 +89,9 @@ function ParamsPanel() {
   if (!generator) return null;
   const specs = GENERATORS[generator].specs;
   if (!specs.length) return null;
-  const field = 'rounded-[4px] border border-rule-2 bg-paper px-2 py-1 text-[14px] text-ink focus:border-ink focus:outline-none';
+  const field = 'rounded-[4px] border border-rule-2 bg-paper px-2 py-1 text-[14px] text-ink focus:border-ink focus:outline-none max-md:min-h-11 max-md:text-[16px]';
   return (
-    <Section title={tr('치수', 'Dimensions')} foldable>
+    <Section title={tr('치수 바꾸기 (모양을 새로 만든다)', 'Change dimensions (builds a new shape)')} foldable>
       <div className="space-y-3">
         {specs.map((sp) => {
           const v = params[sp.key];
@@ -106,8 +106,8 @@ function ParamsPanel() {
             );
           if (sp.kind === 'bool')
             return (
-              <label key={sp.key} className="flex items-center gap-2 text-[14px] text-ink-2">
-                <input type="checkbox" checked={!!v} onChange={(e) => applyParams({ [sp.key]: e.target.checked })} /> {sp.label}
+              <label key={sp.key} className="flex cursor-pointer items-center gap-2 text-[14px] text-ink-2 max-md:min-h-11">
+                <input type="checkbox" className="max-md:h-5 max-md:w-5" checked={!!v} onChange={(e) => applyParams({ [sp.key]: e.target.checked })} /> {sp.label}
               </label>
             );
           if (sp.kind === 'list')
@@ -126,7 +126,8 @@ function ParamsPanel() {
                 <span>{sp.label}</span>
                 <NumberField label={sp.label} value={num} step={sp.step ?? 1} min={sp.min} max={sp.max} width="w-16" onCommit={(x) => applyParams({ [sp.key]: sp.kind === 'int' ? Math.round(x) : x })} />
               </div>
-              <input type="range" aria-label={sp.label} className="mt-1 w-full" min={sp.min} max={sp.max} step={sp.kind === 'int' ? 1 : sp.step ?? 0.01} value={num}
+              <input type="range" aria-label={sp.label} className="range-touch mt-1 w-full max-md:mt-0" min={sp.min} max={sp.max} step={sp.kind === 'int' ? 1 : sp.step ?? 0.01} value={num}
+                style={{ '--p': `${sp.max !== undefined && sp.min !== undefined && sp.max > sp.min ? ((Math.min(sp.max, Math.max(sp.min, num)) - sp.min) / (sp.max - sp.min)) * 100 : 0}%` } as CSSProperties}
                 onChange={(e) => applyParams({ [sp.key]: sp.kind === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value) })} />
             </div>
           );
@@ -170,8 +171,8 @@ function Challenges({ lesson, prominent }: { lesson: Lesson; prominent?: boolean
           const key = `${lesson.id}:${c.id}`;
           return (
             <li key={c.id} className="text-[14px] leading-relaxed text-ink-2">
-              <label className="flex cursor-pointer gap-2.5">
-                <input type="checkbox" className="mt-1" checked={!!done[key]} onChange={() => toggle(key)} />
+              <label className="flex cursor-pointer gap-2.5 max-md:min-h-11 max-md:items-center">
+                <input type="checkbox" className="mt-1 shrink-0 max-md:mt-0 max-md:h-5 max-md:w-5" checked={!!done[key]} onChange={() => toggle(key)} />
                 <span className={done[key] ? 'text-ink-3 line-through' : ''}><span className="tnum mr-1 text-ink-3">{i + 1}.</span><Rich text={c.text} /></span>
               </label>
               <div className="ml-6 mt-1 flex gap-3 text-[13px]">
@@ -279,7 +280,7 @@ function FoldItYourself() {
 function Watch({ lesson }: { lesson: Lesson }) {
   if (!lesson.videos?.length || (lesson.lab && PAGE_LABS.includes(lesson.lab))) return null;
   return (
-    <Section title={tr('영상으로 보기', 'Watch')} foldable defaultOpen={false}>
+    <Section title={tr('참고 영상', 'Videos')} foldable defaultOpen={false}>
       <div className="-mt-3"><VideoGrid ids={lesson.videos} compact /></div>
     </Section>
   );
@@ -311,9 +312,7 @@ export function Sidebar({ hideNav = false, hideLesson = false }: { hideNav?: boo
       {!hideNav && <div className="stable-gutter max-h-[36%] shrink-0 overflow-y-auto"><Navigator /></div>}
       <div className="stable-gutter min-h-0 flex-1 overflow-y-auto">
         {lesson && <ModeTabs />}
-        {lesson && appMode === 'learn' && !hideLesson && (briefInMain
-          ? <p className="border-b border-dashed border-rule-2 px-4 py-3 text-[14px] leading-relaxed text-ink-3">{tr('설명은 가운데 화면 위쪽에 있다. 여기서는 치수, 프리셋, 과제를 다룬다.', 'The explanation is at the top of the main view. Dimensions, presets and tasks are here.')}</p>
-          : <LessonContent lesson={lesson} />)}
+        {lesson && appMode === 'learn' && !hideLesson && !briefInMain && <LessonContent lesson={lesson} />}
         {lesson && appMode === 'challenge' && <Challenges lesson={lesson} prominent />}
         {lesson && <Presets lesson={lesson} />}
         <ParamsPanel />

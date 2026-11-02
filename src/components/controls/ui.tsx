@@ -118,7 +118,7 @@ export function Button({ children, onClick, active, disabled, title, kind = 'def
   children: ReactNode; onClick?: () => void; active?: boolean; disabled?: boolean; title?: string;
   kind?: 'default' | 'primary' | 'ghost' | 'danger'; className?: string; size?: 'sm' | 'md';
 }) {
-  const base = `inline-flex items-center justify-center gap-1.5 rounded-[4px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3 text-[14px]'} max-md:h-11`;
+  const base = `inline-flex items-center justify-center gap-1.5 rounded-[4px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3 text-[14px]'} max-md:h-11 max-md:min-w-11`;
   const styles = {
     default: active ? 'bg-paper text-ink border border-ink font-semibold shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'bg-paper text-ink border border-rule-2 hover:border-ink-3 hover:bg-paper-2',
     primary: 'bg-ink text-paper border border-ink hover:bg-ink-2',
@@ -132,16 +132,16 @@ export function Button({ children, onClick, active, disabled, title, kind = 'def
   );
 }
 
-export function Toggle({ checked, onChange, label, title }: { checked: boolean; onChange: (b: boolean) => void; label: ReactNode; title?: string }) {
+export function Toggle({ checked, onChange, label, title, className = '' }: { checked: boolean; onChange: (b: boolean) => void; label: ReactNode; title?: string; className?: string }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 py-1 text-[14px] text-ink-2 max-md:min-h-11" title={title}>
-      <input type="checkbox" className="h-3.5 w-3.5" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label className={`flex cursor-pointer items-center gap-2 py-1 text-[14px] text-ink-2 max-md:min-h-11 ${className}`} title={title}>
+      <input type="checkbox" className="h-3.5 w-3.5 max-md:h-5 max-md:w-5" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
   );
 }
 
-const inputCls = 'rounded-[4px] border border-rule-2 bg-paper px-2 py-1 tnum text-[14px] text-ink transition-colors focus:border-ink focus:outline-none';
+const inputCls = 'rounded-[4px] border border-rule-2 bg-paper px-2 py-1 tnum text-[14px] text-ink transition-colors focus:border-ink focus:outline-none max-md:h-11 max-md:min-w-16 max-md:text-[16px]';
 
 /** Number as shown in an input: up to 6 decimals, Unicode minus. */
 const fieldText = (v: number) => (Number.isFinite(v) ? (+v.toFixed(6)).toString().replace('-', '−') : '');
