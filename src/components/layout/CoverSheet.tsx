@@ -9,12 +9,12 @@ import { C } from '../../theme/tokens';
 import { FeaturedStrip } from '../landing/FeaturedStrip';
 import { PatternThumb } from '../landing/PatternThumb';
 import { EXPLAINERS } from '../explainers/ExplainerButton';
-import { span } from '../explainers/Explainer';
+import { spans } from '../explainers/Explainer';
 
 /** Length of a sheet's motion explainer in whole minutes (at least 1), for the tile's badge. */
 const explainerMinutes = (id: string) => {
   const e = EXPLAINERS[id];
-  return e ? Math.max(1, Math.round(e.scenes().reduce((t, x) => t + span(x), 0) / 60000)) : 0;
+  return e ? Math.max(1, Math.round(spans(e.scenes()).reduce((t, x) => t + x, 0) / 60000)) : 0;
 };
 
 export { PatternThumb };

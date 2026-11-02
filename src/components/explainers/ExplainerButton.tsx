@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Clapperboard, X } from 'lucide-react';
 import { tr } from '../../i18n';
-import { Explainer, span, type Scene } from './Explainer';
+import { Explainer, spans, type Scene } from './Explainer';
 import { kawasakiScenes } from './Kawasaki';
 import { maekawaScenes } from './Maekawa';
-import { bagScenes, hyparScenes } from './Demaine';
+import { bagScenes } from './Bag';
+import { hyparScenes } from './Hypar';
 
 interface Entry { title: () => string; scenes: () => Scene[] }
 
 const KAWASAKI: Entry = { title: () => tr('Kawasaki 정리: 접힌 길은 제자리로 돌아와야 한다', 'Kawasaki\'s theorem: the folded walk must come home'), scenes: kawasakiScenes };
 const MAEKAWA: Entry = { title: () => tr('Maekawa 정리: 산과 골의 차는 왜 2일까', 'Maekawa\'s theorem: why mountains and valleys differ by two'), scenes: maekawaScenes };
 const BAG: Entry = { title: () => tr('쇼핑백 정리: 단단한 종이로는 접히지 않는다', 'The shopping-bag theorem: rigid paper will not fold it'), scenes: bagScenes };
-const HYPAR: Entry = { title: () => tr('하이파: 직선만 접었는데 왜 면이 휘어야 할까', 'The hypar: straight creases, yet the faces must bend'), scenes: hyparScenes };
+const HYPAR: Entry = { title: () => tr('하이파: 그려진 선만으로는 왜 접히지 않을까', 'The hypar: why the drawn creases alone cannot fold it'), scenes: hyparScenes };
 
 /** Which motion explainer belongs to which sheet. */
 export const EXPLAINERS: Record<string, Entry> = {
@@ -25,7 +26,7 @@ export const EXPLAINERS: Record<string, Entry> = {
   'l6-hypar': HYPAR,
 };
 
-const minutes = (e: Entry) => Math.max(1, Math.round(e.scenes().reduce((s, x) => s + span(x), 0) / 60000));
+const minutes = (e: Entry) => Math.max(1, Math.round(spans(e.scenes()).reduce((s, x) => s + x, 0) / 60000));
 
 /** A button that opens the sheet's motion explainer in a large player. */
 export function ExplainerButton({ lessonId, variant = 'card' }: { lessonId: string; variant?: 'card' | 'bar' }) {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { arc, BAD, INK3, OK, rad } from './Explainer';
+import { arc, BAD, INK, INK3, MARK, OK, rad } from './Explainer';
 
 /**
  * A single-vertex fold seen from above, folded one crease at a time.
@@ -58,7 +58,7 @@ export function levels(plan: FoldPlan, k: number) {
 export interface EdgeStyle { stroke: string; width?: number; dash?: string }
 
 export function FoldedVertex({
-  th, mv, cx, cy, r, progress, fill = 1, edgeK, edgeStyle, rim, rimOpacity = 1, circle, rayLabel, closure = 0,
+  th, mv, cx, cy, r, progress, fill = 1, edgeK, edgeStyle, rim, rimOpacity = 1, circle, rayLabel, closure = 0, hinge = 0, lift = true,
 }: {
   th: readonly number[]; mv: readonly MV[]; cx: number; cy: number; r: number;
   /** 0 = flat, k = k folds done; fractional = a fold under way */
@@ -76,6 +76,10 @@ export function FoldedVertex({
   rayLabel?: (ray: number, x: number, y: number) => ReactNode;
   /** after the last fold: green where the far edge meets crease 1, red gap where it misses */
   closure?: number;
+  /** highlight the crease the next (or current) fold turns about, 0..1; it also lights up by itself while a fold is under way */
+  hinge?: number;
+  /** while a fold is under way: the flap darkens as it turns edge-on and casts a soft shadow, so it reads as lifted paper */
+  lift?: boolean;
 }) {
   const plan = foldPlan(th, mv);
   const n = th.length;
@@ -133,22 +137,44 @@ export function FoldedVertex({
   })();
   const closed = Math.abs(far) < 0.5;
 
+  // a fold under way: sin(πp) is how high the flap stands, |cos(πp)| how much of it faces the light
+  const mid = p > 0 && p < 1;
+  const up = mid ? Math.sin(Math.PI * p) : 0;
+  const edgeOn = mid ? 1 - Math.abs(Math.cos(Math.PI * p)) : 0;
+  const sectorPath = (i: number) => `M${cx},${cy} ${line(samples(i, r - LAYER_OFF * level(i))).replace(/^M/, 'L')} Z`;
+  const firstMoving = order.findIndex(moving);
+  const hk = Math.max(hinge, mid ? Math.min(1, 6 * p, 6 * (1 - p)) : 0);
+  const ha = k < plan.axes.length ? plan.axes[k] : null;
   return (
     <g strokeLinejoin="round">
-      {order.map((i) => {
+      {order.map((i, oi) => {
         const rho = r - LAYER_OFF * level(i);
         const pts = samples(i, rho);
         const a0 = plan.starts[i], a1 = a0 + th[i];
+        const lifted = lift && moving(i) && mid;
         return (
           <g key={i}>
+            {/* the lifted flap's shadow falls on the paper under it */}
+            {lift && mid && oi === firstMoving && fill > 0.5 && (
+              <g transform={`translate(${(6 * up).toFixed(2)} ${(9 * up).toFixed(2)})`} filter="url(#xp-soft)" opacity={0.14 * up * fill}>
+                {order.filter(moving).map((j) => <path key={j} d={sectorPath(j)} fill={INK} />)}
+              </g>
+            )}
             <path d={`M${cx},${cy} ${line(pts).replace(/^M/, 'L')} Z`} fill={flips(i) % 2 ? BACK : FRONT} fillOpacity={fill} stroke={INK3} strokeWidth={0.9} strokeOpacity={fill} />
-            {rim && rimOpacity > 0 && <path d={line(pts)} fill="none" stroke={rim(i)} strokeWidth={3.5} strokeOpacity={rimOpacity} strokeLinecap="round" />}
+            {lifted && edgeOn > 0.01 && <path d={`M${cx},${cy} ${line(pts).replace(/^M/, 'L')} Z`} fill={INK} fillOpacity={0.36 * edgeOn * fill} />}
+            {rim && rimOpacity > 0 && <path d={line(pts)} fill="none" stroke={rim(i)} strokeWidth={lifted ? 3.5 + 1.5 * up : 3.5} strokeOpacity={rimOpacity} strokeLinecap="round" />}
             {circle && circle.opacity > 0 && <path d={line(samples(i, circle.r - LAYER_OFF * level(i)))} fill="none" stroke={circle.color ?? 'var(--color-ink)'} strokeWidth={3} opacity={circle.opacity} strokeLinecap="round" />}
             {edge(i, a0, i, rho)}
             {edge(i, a1, (i + 1) % n, rho)}
           </g>
         );
       })}
+      {hk > 0.01 && ha !== null && (
+        <g opacity={hk} strokeLinecap="round">
+          <line x1={cx} y1={cy} x2={cx + (r + 6) * Math.cos(rad(ha))} y2={cy - (r + 6) * Math.sin(rad(ha))} stroke={MARK} strokeWidth={9} opacity={0.75} />
+          <line x1={cx} y1={cy} x2={cx + (r + 6) * Math.cos(rad(ha))} y2={cy - (r + 6) * Math.sin(rad(ha))} stroke={INK} strokeWidth={2.6} />
+        </g>
+      )}
       {closure > 0 && (closed ? (
         <line x1={cx} y1={cy} x2={cx + r + 8} y2={cy} stroke={OK} strokeWidth={4.5} strokeLinecap="round" opacity={closure} />
       ) : (

@@ -353,7 +353,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
   'l6-hypar': {
     title: 'Hypar: a saddle from straight lines',
     content: {
-      concept: 'Concentric squares alternately mountain and valley, plus the diagonals. Only straight lines are folded, yet the whole sheet bends into a saddle (a hyperbolic paraboloid). Demaine et al. (2011) proved that this classic hypar cannot fold using exactly these creases: the faces must bend.',
+      concept: 'Concentric squares alternately mountain and valley, plus the diagonals. Only straight lines are folded, yet the whole sheet bends into a saddle (a hyperbolic paraboloid). Demaine et al. (2011) proved that this classic hypar cannot fold using exactly these creases. Real paper folds it with small extra creases, or with faces that bend and stretch a little.',
       observe: 'Fold the whole structure with Energy: the trapezoid faces bend and the two diagonals curve in opposite directions, with face strain of a few per cent. The "triangulated" preset adds one line per trapezoid and becomes a rigid mechanism with one DoF.',
       experiment: 'Switch the classic hypar to Rigid and drive it (it locks at once). Then fold the triangulated preset as a whole and check the saddle in the Projections view.',
       meaning: 'Fold lines and face bending shape the form together. This leads on to curved creases and thin shell structures.',
