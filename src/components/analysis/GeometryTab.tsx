@@ -16,7 +16,7 @@ import { Rich } from '../controls/Rich';
 import { Caption, Lead, More, Readout } from './parts';
 import { Num, TINY, deg, num, plainNum } from './num';
 import { Plot } from './Plot';
-import { SERIES } from '../../theme/tokens';
+import { DIVERGE, SERIES, withAlpha } from '../../theme/tokens';
 import { tr } from '../../i18n';
 
 /** Schenk & Guest (2013) unit-cell dimensions; θ = facet-to-plane angle, γ = acute angle. */
@@ -131,14 +131,14 @@ function CurvaturePanel() {
         <figure className="m-0">
           <figcaption className="mb-1 flex flex-wrap items-center gap-x-3 text-[13px] text-ink-2">
             <span className="font-medium text-ink">{tr('꼭짓점별 K', 'K at each vertex')}</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: 'rgb(239,68,68)' }} />{tr('양수 (돔)', 'positive (dome)')}</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: 'rgb(59,130,246)' }} />{tr('음수 (안장)', 'negative (saddle)')}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: DIVERGE.pos }} />{tr('양수 (돔)', 'positive (dome)')}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: DIVERGE.neg }} />{tr('음수 (안장)', 'negative (saddle)')}</span>
             <span className="text-ink-3">{tr('진할수록 큼', 'darker = larger')}</span>
           </figcaption>
           <svg viewBox={`${x0 - 0.5} ${-y1 - 0.5} ${x1 - x0 + 1} ${y1 - y0 + 1}`} className="h-44 w-full rounded-[3px] border border-rule bg-paper-2" role="img" aria-label={tr('꼭짓점별 곡률 지도', 'Curvature map by vertex')}>
             {pts.map((q, i) => {
               const t = q.k / scaleK;
-              return <circle key={i} cx={q.p[0]} cy={-q.p[1]} r={0.22} fill={t >= 0 ? `rgba(239,68,68,${0.25 + 0.75 * t})` : `rgba(59,130,246,${0.25 - 0.75 * t})`}><title>{deg(q.k, 2)}</title></circle>;
+              return <circle key={i} cx={q.p[0]} cy={-q.p[1]} r={0.22} fill={t >= 0 ? withAlpha(DIVERGE.pos, 0.25 + 0.75 * t) : withAlpha(DIVERGE.neg, 0.25 - 0.75 * t)}><title>{deg(q.k, 2)}</title></circle>;
             })}
           </svg>
         </figure>

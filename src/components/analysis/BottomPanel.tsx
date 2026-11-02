@@ -18,22 +18,26 @@ const tabs = (): { id: BottomTab; label: string }[] => [
   { id: 'theory', label: tr('이론', 'Theory') },
 ];
 
-/** Analysis sheet: folds down to its tab strip (signature fold). */
-export function BottomPanel() {
+/**
+ * Analysis sheet: folds down to its tab strip (signature fold). On a phone it
+ * is a whole screen of its own, so there is nothing to fold and the tab row
+ * gets the full width.
+ */
+export function BottomPanel({ phone = false }: { phone?: boolean } = {}) {
   const tab = useUI((s) => s.bottomTab);
   const folded = useUI((s) => s.bottomFolded);
   return (
     <div className="sheet flex h-full flex-col overflow-hidden rounded-[3px]">
       <div className="flex shrink-0 items-end justify-between gap-2 border-b border-rule-2 bg-paper-2 px-2 pt-1.5">
         <Tabs tabs={tabs()} value={tab} onChange={(t) => { useUI.getState().setBottomTab(t); useUI.getState().setBottomFolded(false); }} />
-        <button type="button" onClick={() => useUI.getState().setBottomFolded(!folded)} aria-expanded={!folded}
+        {!phone && <button type="button" onClick={() => useUI.getState().setBottomFolded(!folded)} aria-expanded={!folded}
           className="mb-1 flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-[3px] px-2 text-[13px] text-ink-3 hover:bg-paper hover:text-ink">
           {folded ? <ChevronsUp size={15} /> : <ChevronsDown size={15} />}
           {folded ? tr('분석 열기', 'Open analysis') : tr('분석 접기', 'Fold analysis')}
-        </button>
+        </button>}
       </div>
-      <div className="@container min-h-0 flex-1 overflow-y-auto" inert={folded}>
-        <div className="fold-body h-full p-4" data-folded={folded}>
+      <div className="@container min-h-0 flex-1 overflow-y-auto" inert={folded && !phone}>
+        <div className="fold-body h-full p-4" data-folded={folded && !phone}>
           {tab === 'angles' && <AnglesTab />}
           {tab === 'constraints' && <ConstraintsTab />}
           {tab === 'dof' && <DofTab />}

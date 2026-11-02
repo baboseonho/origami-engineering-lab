@@ -50,8 +50,20 @@ export const C = {
 
 export type ColorToken = keyof typeof C;
 
-/** Categorical chart series, legible as ink on paper (not M/V-coded). */
-export const SERIES = ['#2463c9', '#c8352b', '#1d7448', '#9a5a00', '#6d28d9', '#b5307a', '#0e7490', '#a3541c', '#4d7c0f', '#86198f'] as const;
+/**
+ * Categorical chart series, legible as ink on paper. Mountain red and valley
+ * blue are NOT in this list: on a chart they mean a mountain or a valley
+ * crease and nothing else (DESIGN.md, the Red Pencil, Blue Ink Rule). A series
+ * that is a crease takes its assignment's colour and dash (`creaseStroke`).
+ * Order: ochre, green, violet, teal, plum, olive, graphite.
+ */
+export const SERIES = ['#9a5a00', '#1d7448', '#6d28d9', '#0e7490', '#86198f', '#4d7c0f', '#58626e'] as const;
+
+/** The folding-diagram dash patterns: mountain dash-dot, valley dash. */
+export const ASSIGN_DASH: Partial<Record<string, string>> = { M: '6 2.5 1.5 2.5', V: '5 3' };
+
+/** A diverging pair for signed quantities that are not creases (curvature: dome vs saddle). */
+export const DIVERGE = { pos: '#9a5a00', neg: '#0e7490' } as const;
 
 /** `#rrggbb` + alpha (0..1) → `#rrggbbaa`. */
 export const withAlpha = (hex: string, a: number): string =>

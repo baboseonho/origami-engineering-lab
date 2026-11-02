@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { AlertTriangle, Check, ChevronDown, Info, Minus, X } from 'lucide-react';
 import { toDeg, toRad } from '../../core/geometry/angles';
 import { C } from '../../theme/tokens';
@@ -40,7 +40,7 @@ export function Section({ title, children, right, dense, foldable, defaultOpen =
       <div className="mb-2 flex min-h-6 items-center justify-between gap-2">
         {foldable ? (
           <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}
-            className="group -ml-1 flex items-center gap-1 rounded px-1 text-left hover:bg-paper-2">
+            className="group -ml-1 flex items-center gap-1 rounded px-1 text-left hover:bg-paper-2 max-md:-my-2.5 max-md:min-h-11 max-md:pr-3">
             <ChevronDown size={14} className={`text-ink-3 transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
             {head}
           </button>
@@ -68,7 +68,8 @@ const STAMP: Record<Status, string> = {
   ok: 'text-ok border-ok',
   warn: 'text-warn border-warn',
   bad: 'text-bad border-bad',
-  na: 'text-ink-3 border-ink-3/60',
+  // n/a stays readable: full-strength soft graphite on a dashed (not inked) outline
+  na: 'text-ink-3 border-dashed border-ink-3',
   info: 'text-info border-info',
 };
 const STAMP_ICON: Record<Status, typeof Check> = { ok: Check, warn: AlertTriangle, bad: X, na: Minus, info: Info };
@@ -117,7 +118,7 @@ export function Button({ children, onClick, active, disabled, title, kind = 'def
   children: ReactNode; onClick?: () => void; active?: boolean; disabled?: boolean; title?: string;
   kind?: 'default' | 'primary' | 'ghost' | 'danger'; className?: string; size?: 'sm' | 'md';
 }) {
-  const base = `inline-flex items-center justify-center gap-1.5 rounded-[4px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3 text-[14px]'}`;
+  const base = `inline-flex items-center justify-center gap-1.5 rounded-[4px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3 text-[14px]'} max-md:h-11`;
   const styles = {
     default: active ? 'bg-paper text-ink border border-ink font-semibold shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'bg-paper text-ink border border-rule-2 hover:border-ink-3 hover:bg-paper-2',
     primary: 'bg-ink text-paper border border-ink hover:bg-ink-2',
@@ -133,7 +134,7 @@ export function Button({ children, onClick, active, disabled, title, kind = 'def
 
 export function Toggle({ checked, onChange, label, title }: { checked: boolean; onChange: (b: boolean) => void; label: ReactNode; title?: string }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 py-1 text-[14px] text-ink-2" title={title}>
+    <label className="flex cursor-pointer items-center gap-2 py-1 text-[14px] text-ink-2 max-md:min-h-11" title={title}>
       <input type="checkbox" className="h-3.5 w-3.5" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
@@ -172,9 +173,10 @@ export function AngleSlider({ value, onChange, onStart, min = -180, max = 180, s
   const ticks = [-180, -135, -90, -45, 0, 45, 90, 135, 180].filter((t) => t >= min && t <= max);
   return (
     <div>
-      <input type="range" aria-label={label} className="w-full" min={min} max={max} step={step} value={toDeg(value)}
+      <input type="range" aria-label={label} className="range-touch w-full" min={min} max={max} step={step} value={toDeg(value)}
+        style={{ '--p': `${((Math.min(max, Math.max(min, toDeg(value))) - min) / (max - min)) * 100}%` } as CSSProperties}
         onPointerDown={onStart} onKeyDown={onStart} onChange={(e) => onChange(toRad(parseFloat(e.target.value)))} />
-      <div className="relative mx-[7px] h-5" aria-hidden>
+      <div className="relative mx-[7px] h-5 max-md:mx-[14px]" aria-hidden>
         {ticks.map((t) => {
           const x = ((t - min) / (max - min)) * 100;
           const major = t % 90 === 0;
@@ -194,11 +196,31 @@ export function AngleSlider({ value, onChange, onStart, min = -180, max = 180, s
 
 /** Drawing-set tabs: the active tab is the sheet on top. */
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string }[]; value: T; onChange: (t: T) => void }) {
+  // a row that scrolls says so: the edge that has more tabs behind it fades out
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState({ left: false, right: false });
+  const measure = () => {
+    const el = ref.current;
+    if (!el) return;
+    const left = el.scrollLeft > 2, right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setMore((m) => (m.left === left && m.right === right ? m : { left, right }));
+  };
+  useEffect(() => {
+    measure();
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // keep the chosen tab in view
+  useEffect(() => { ref.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); }, [value]);
   return (
-    <div role="tablist" className="no-scrollbar flex min-w-0 gap-0.5 overflow-x-auto">
+    <div ref={ref} role="tablist" onScroll={measure} data-more-left={more.left || undefined} data-more-right={more.right || undefined}
+      className="scroll-fade no-scrollbar flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
       {tabs.map((t) => (
         <button key={t.id} role="tab" type="button" aria-selected={value === t.id} onClick={() => onChange(t.id)}
-          className={`-mb-px shrink-0 whitespace-nowrap rounded-t-[4px] border border-b-0 px-3 py-1.5 text-[14px] font-medium transition-colors ${value === t.id ? 'border-rule-2 bg-paper text-ink shadow-[inset_0_2px_0_var(--color-ink)]' : 'border-transparent text-ink-3 hover:text-ink'}`}>
+          className={`-mb-px shrink-0 whitespace-nowrap rounded-t-[4px] border border-b-0 px-3 py-1.5 text-[14px] font-medium transition-colors max-md:min-h-11 ${value === t.id ? 'border-rule-2 bg-paper text-ink shadow-[inset_0_2px_0_var(--color-ink)]' : 'border-transparent text-ink-3 hover:text-ink'}`}>
           {t.label}
         </button>
       ))}
@@ -221,7 +243,7 @@ export function SpeedControl({ className = '' }: { className?: string }) {
         {FOLD_SPEEDS.map((s) => (
           <button key={s} type="button" role="radio" aria-checked={v === s} title={s < 1 ? tr(`${Math.round(1 / s)}배 느리게`, `${Math.round(1 / s)}× slower`) : s > 1 ? tr('2배 빠르게', '2× faster') : tr('보통 속도', 'Normal speed')}
             onClick={() => useUI.getState().setFoldSpeed(s)}
-            className={`tnum h-6 whitespace-nowrap rounded-[2px] px-1.5 text-[12px] transition-colors ${v === s ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
+            className={`tnum h-6 whitespace-nowrap rounded-[2px] px-1.5 text-[12px] transition-colors max-md:h-11 max-md:min-w-11 max-md:px-2 max-md:text-[13px] ${v === s ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
             {s}×
           </button>
         ))}

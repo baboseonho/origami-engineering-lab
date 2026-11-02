@@ -52,7 +52,8 @@ export function symPlain(text: string): string {
 }
 
 /** Class of an HTML subscript that leaves the line height alone. */
-export const SUB_CLASS = 'relative -bottom-[0.22em] align-baseline text-[0.75em] leading-[0]';
+/** 0.82em: a 13px label gets a 10.7px subscript (at least 10.5px, so the index stays readable). */
+export const SUB_CLASS = 'relative -bottom-[0.22em] align-baseline text-[0.82em] leading-[0]';
 
 /** Greek letters in the serif maths face, so ρ and θ match the typeset formulas. */
 function Runs({ text }: { text: string }) {
@@ -84,14 +85,14 @@ export function SymList({ items, sep = ', ' }: { items: string[]; sep?: string }
 
 /**
  * SVG: the same text as tspans for use inside a <text>. The subscript is
- * 0.72em and dropped by 0.22em of the surrounding size with `dy` (rather than
+ * 0.82em and dropped by 0.22em of the surrounding size with `dy` (rather than
  * `baseline-shift`, which Firefox ignores); the next run moves back up by the
  * same amount, so the rest of the label stays on its baseline.
  */
 export function SvgSym({ text }: { text: string }) {
   const parts = symParts(text);
   const DROP = 0.22; // in the surrounding em
-  const SIZE = 0.72;
+  const SIZE = 0.82;
   return (
     <>
       {parts.map((p, i) => {

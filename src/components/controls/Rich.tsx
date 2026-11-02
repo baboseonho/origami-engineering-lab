@@ -83,7 +83,7 @@ function stackAtSeparators(tex: string): string | null {
  * is wider than the available width it is scaled down (not clipped, not
  * wrapped mid-expression); a floor keeps it legible, beyond which it scrolls.
  */
-export function FitTex({ tex, minScale = 0.7 }: { tex: string; minScale?: number }) {
+export function FitTex({ tex, minScale = 0.85 }: { tex: string; minScale?: number }) {
   const k = useKatex();
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);

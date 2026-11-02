@@ -6,6 +6,8 @@ import { checkMVAssignment, type VertexState } from '../../core/constraints/mvAs
 import { generalizedFlatFold, generalizedMaekawa } from '../../core/constraints/generalizedFlatFold';
 import { DEG } from '../../core/numerics/tolerances';
 import { applyParams, loadLesson } from '../../state/actions';
+import { useModel } from '../../state/modelStore';
+import { EXPLAINERS, ExplainerButton } from '../explainers/ExplainerButton';
 import { Badge, Button, NumberField, SpeedControl } from '../controls/ui';
 import { Rich } from '../controls/Rich';
 import { VertexDiagram } from './VertexDiagram';
@@ -55,6 +57,16 @@ function useVertex(initial: number[], initialMV: MV[]) {
 }
 
 // ───────────────────────────────────────── shared pieces
+
+/**
+ * Phone only: the sheet's motion explainer as the first row of the lab tab,
+ * where a visitor lands. On wider screens it sits next to the lesson text.
+ */
+function LabExplainer() {
+  const lessonId = useModel((s) => s.lessonId);
+  if (!EXPLAINERS[lessonId]) return null;
+  return <div className="md:hidden [&>button]:mt-0"><ExplainerButton lessonId={lessonId} /></div>;
+}
 
 const th = (i: number | string) => `$\\theta_{${i}}$`;
 const holds = (ok: boolean) => (ok ? tr('성립', 'holds') : tr('위반', 'fails'));
@@ -160,6 +172,10 @@ export function KawasakiLab() {
   const load = (s: number[], m: MV[]) => { halt(); v.load(s, m); };
   const setN = (n: number) => load(Array.from({ length: n }, () => 360 / n), Array.from({ length: n }, (_, i) => (i === 0 ? 'V' : 'M')) as MV[]);
   const target = sel ?? 0;
+  /** why the fix cannot run, in words (null: it can) */
+  const fixBlocked = ok ? tr('이미 평탄 접힘 가능', 'Already flat-foldable')
+    : !k.evenDegree ? tr('홀수 차수는 고칠 수 없다', 'Odd degree: cannot be fixed')
+      : sel === null ? tr('먼저 섹터를 고른다', 'Select a sector first') : null;
 
   /** Rotate the one ray that the fix moves, smoothly, so the sum is seen going to zero. */
   const fix = () => {
@@ -177,6 +193,7 @@ export function KawasakiLab() {
 
   return (
     <div className="grid gap-3">
+      <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
           <Button size="sm" onClick={() => load([91.5, 88, 90, 90.5], ['V', 'M', 'M', 'M'])}>{tr('"정리 깨기" 프리셋', '"Break the theorem" preset')}</Button>
@@ -185,15 +202,20 @@ export function KawasakiLab() {
           <Button size="sm" onClick={() => setN(5)}>n = 5 {tr('(홀수)', '(odd)')}</Button>
         </Group>
         <Group caption={tr('고치기', 'Fix')}>
-          <Button kind="primary" size="sm" disabled={sel === null || ok || !k.evenDegree || !!moving} onClick={fix}>
-            {tr('평탄 접힘 가능하게 수정', 'Make flat-foldable')} <span className="font-normal opacity-80">· <Rich text={th(target + 1)} />{tr(' 옆 광선 하나 이동', ': move one of its rays')}</span>
-          </Button>
+          {fixBlocked ? (
+            // nothing to do: an outlined button that says why, never a filled primary
+            <Button size="sm" disabled title={fixBlocked}>{ok && <Check size={14} />}{fixBlocked}</Button>
+          ) : (
+            <Button kind="primary" size="sm" disabled={!!moving} onClick={fix}>
+              {tr('평탄 접힘 가능하게 수정', 'Make flat-foldable')} <span className="font-normal opacity-80">· <Rich text={th(target + 1)} />{tr(' 옆 광선 하나 이동', ': move one of its rays')}</span>
+            </Button>
+          )}
           <Button size="sm" onClick={() => openIn3D(v.sectors, v.mv)} disabled={!ok}>{tr('3D로 접기', 'Fold in 3D')}<ArrowRight size={14} /></Button>
           <SpeedControl />
         </Group>
       </div>
 
-      <Stage caption={tr('꼭짓점 · 위에서 본 크리스 패턴', 'Vertex · crease pattern from above')} hint={tr('광선이나 손잡이를 끌어 움직이고, 섹터를 눌러 고른다', 'Drag a ray or its handle to move it; click a sector to select it')}>
+      <Stage caption={tr('꼭짓점 · 위에서 본 크리스 패턴', 'Vertex · crease pattern from above')} hint={tr('광선이나 손잡이를 끌어 움직이고, 섹터를 눌러 고른다', 'Drag a ray or its handle to move it; tap a sector to select it')}>
         <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-4 px-4 pb-4 md:grid-cols-[minmax(0,460px)_260px] md:justify-center">
           <VertexDiagram rays={v.rays} mv={v.mv} onDrag={(i, a) => { halt(); v.drag(i, a); }} onSectorClick={setSel} selectedSector={sel}
             highlightRays={moving ? [moving.ray] : undefined} ghostRays={moving ? [moving.from] : undefined} size={460} />
@@ -245,6 +267,7 @@ export function MaekawaLab() {
   const full = k.satisfied ? checkMVAssignment(v.sectors, v.mv) : null;
   return (
     <div className="grid gap-3">
+      <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
           <Button size="sm" onClick={() => v.load([70, 100, 110, 80], ['V', 'M', 'V', 'V'])}>{tr('유효한 4차', 'Valid degree 4')}</Button>
@@ -254,7 +277,7 @@ export function MaekawaLab() {
         </Group>
       </div>
 
-      <Stage caption={tr('꼭짓점 · 산접기와 골접기', 'Vertex · mountains and valleys')} hint={tr('크리스나 손잡이를 누르면 산 ↔ 골이 바뀐다', 'Click a crease or its handle to swap mountain ↔ valley')}>
+      <Stage caption={tr('꼭짓점 · 산접기와 골접기', 'Vertex · mountains and valleys')} hint={tr('크리스나 손잡이를 누르면 산 ↔ 골이 바뀐다', 'Tap a crease or its handle to swap mountain ↔ valley')}>
         <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-4 px-4 pb-4 md:grid-cols-[minmax(0,460px)_260px] md:justify-center">
           <VertexDiagram rays={v.rays} mv={v.mv} onRayClick={v.toggle} size={460} />
           <div className="grid content-center gap-3">
@@ -446,6 +469,7 @@ export function MVCrimpLab() {
 
   return (
     <div className="grid gap-3">
+      <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
           <Button size="sm" onClick={() => v.load([70, 100, 110, 80], ['V', 'M', 'V', 'V'])}>{tr('4차', 'Degree 4')}</Button>
@@ -463,7 +487,7 @@ export function MVCrimpLab() {
         </Group>
       </div>
 
-      <Stage caption={tr('꼭짓점과 펼친 띠', 'The vertex and its unrolled band')} hint={tr('크리스나 손잡이를 누르면 산 ↔ 골이 바뀐다', 'Click a crease or its handle to swap mountain ↔ valley')}>
+      <Stage caption={tr('꼭짓점과 펼친 띠', 'The vertex and its unrolled band')} hint={tr('크리스나 손잡이를 누르면 산 ↔ 골이 바뀐다', 'Tap a crease or its handle to swap mountain ↔ valley')}>
         <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-2 px-4 pb-1 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
           <VertexDiagram rays={v.rays} mv={v.mv} onRayClick={v.toggle} size={360} highlightRays={cur && kOk ? cur.removed : undefined} rayAlpha={rayAlpha} />
           <div className="text-[14px] leading-relaxed text-ink-2">
@@ -633,6 +657,7 @@ export function GeneralizedLab() {
 
   return (
     <div className="grid gap-3">
+      <LabExplainer />
       <div className="flex flex-wrap items-stretch gap-2">
         <Group caption={tr('패턴', 'Pattern')}>
           <Button size="sm" onClick={() => load([120, 90, 60, 90], ['M', 'M', 'M', 'V'])}>Σθ = 360° · A = 0</Button>

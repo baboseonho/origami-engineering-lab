@@ -23,6 +23,8 @@ import { C } from '../../theme/tokens';
 import { tr } from '../../i18n';
 import { HoverCard, PointerTip, edgeTip, faceTip, useDwell, vertexTip } from './HoverTip';
 import { useEngineVersion } from './measure';
+import { creaseName } from '../../core/topology/names';
+import { SheetLoading } from '../layout/SheetLoading';
 
 const tmpM = new THREE.Matrix4();
 const tmpQ = new THREE.Quaternion();
@@ -372,6 +374,42 @@ function Vertices({ model }: { model: OrigamiModel }) {
   );
 }
 
+/**
+ * Reports once the model's geometry has been drawn: the second frame after the
+ * engine holds positions for this model (the first one renders them).
+ */
+function FirstFrame({ model, onReady }: { model: OrigamiModel; onReady: (m: OrigamiModel) => void }) {
+  const n = useRef(0);
+  useEffect(() => { n.current = 0; }, [model]);
+  useFrame(() => {
+    if (n.current > 1 || engine.positions.length !== model.vertices.length * 3) return;
+    n.current++;
+    if (n.current === 2) onReady(model);
+  });
+  return null;
+}
+
+/**
+ * The 3D loader: shown from the first mount until the model is on screen, so a
+ * slow first frame (a large tube relaxing as it folds in) never looks like an
+ * empty view. On later model changes it waits 250 ms before showing, so a
+ * quick switch does not flash it.
+ */
+function useFirstFrameLoader(model: OrigamiModel | null) {
+  const [readyFor, setReadyFor] = useState<OrigamiModel | null>(null);
+  const everReady = useRef(false);
+  const [late, setLate] = useState(false);
+  const waiting = !!model && readyFor !== model;
+  useEffect(() => {
+    setLate(false);
+    if (!waiting || !everReady.current) return;
+    const t = setTimeout(() => setLate(true), 250);
+    return () => clearTimeout(t);
+  }, [waiting, model]);
+  const onReady = (m: OrigamiModel) => { everReady.current = true; setReadyFor(m); };
+  return { show: waiting && (!everReady.current || late), onReady };
+}
+
 /** Re-render React overlays at a modest rate when positions change. */
 function useEngineTick(hz = 12) {
   const [, setT] = useState(0);
@@ -395,7 +433,7 @@ function Labels({ model }: { model: OrigamiModel }) {
   const rho = useSim((s) => s.rho);
   useEffect(() => {
     const specs: LabelSpec[] = [];
-    const style = 'rounded-[2px] px-1 lbl-greek text-[13px]';
+    const style = 'rounded-[2px] px-1 lbl-greek text-[14px]';
     const nLabels = Object.keys(model.edu.creaseLabels).length;
     if (overlays.foldLabels && nLabels <= 4)
       for (const [k, lab] of Object.entries(model.edu.creaseLabels)) {
@@ -406,11 +444,10 @@ function Labels({ model }: { model: OrigamiModel }) {
     if (overlays.vertexIds && model.vertices.length <= 400)
       model.vertices.forEach((v) => specs.push({ id: 'v' + v.id, text: 'v' + v.id, cls: `${style} text-ink-3`, at: vAnchor(v.id), dx: 8, dy: -8 }));
     if (overlays.edgeIds && model.edges.length <= 500)
-      model.edges.forEach((e) => specs.push({ id: 'e' + e.id, text: 'e' + e.id, cls: `${style} text-ink-2`, at: eAnchor(e.vertices[0], e.vertices[1]) }));
+      model.edges.forEach((e) => specs.push({ id: 'e' + e.id, text: creaseName(model, e.id), cls: `${style} text-ink-2`, at: eAnchor(e.vertices[0], e.vertices[1]) }));
     if (selection?.kind === 'edge' && model.edges[selection.id]) {
       const e = model.edges[selection.id];
-      const lab = model.edu.creaseLabels[e.id];
-      specs.push({ id: 'sel', text: `${lab ?? 'e' + e.id} ${fmtDeg(rho[e.id] ?? 0, 1)}`, cls: 'lbl-greek rounded-[2px] bg-mark/85 px-1.5 py-0.5 text-[14px] font-semibold text-ink', at: eAnchor(e.vertices[0], e.vertices[1]), dx: 64, dy: -104, leader: true });
+      specs.push({ id: 'sel', text: `${creaseName(model, e.id)} ${fmtDeg(rho[e.id] ?? 0, 1)}`, cls: 'lbl-greek rounded-[2px] bg-mark/85 px-1.5 py-0.5 text-[14px] font-semibold text-ink', at: eAnchor(e.vertices[0], e.vertices[1]), dx: 64, dy: -104, leader: true });
     }
     publishLabels('main', specs);
   }, [model, overlays, selection, rho]);
@@ -658,11 +695,11 @@ function GizmoHead({ dir, label, onPick }: { dir: THREE.Vector3; label?: string;
 }
 
 /** Ink-on-paper orientation gizmo: click an axis end to look along it (top, front, side and their opposites). */
-function AxisGizmo({ onPick }: { onPick: (d: THREE.Vector3) => void }) {
+function AxisGizmo({ onPick, scale = 30 }: { onPick: (d: THREE.Vector3) => void; scale?: number }) {
   const disc = useMemo(() => gizmoTexture('disc'), []);
   useEffect(() => () => disc.dispose(), [disc]);
   return (
-    <group scale={30}>
+    <group scale={scale}>
       <sprite scale={2.9} renderOrder={-1} raycast={() => null}>
         <spriteMaterial map={disc} depthWrite={false} depthTest={false} transparent toneMapped={false} />
       </sprite>
@@ -678,6 +715,20 @@ function AxisGizmo({ onPick }: { onPick: (d: THREE.Vector3) => void }) {
       ))}
     </group>
   );
+}
+
+/** True below 768px, the phone shell's breakpoint. */
+function usePhoneWidth() {
+  const q = '(max-width: 767px)';
+  const [m, setM] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(q);
+    if (!mq) return;
+    const f = () => setM(mq.matches);
+    mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  }, []);
+  return m;
 }
 
 /**
@@ -710,10 +761,12 @@ function NavHelpers({ model }: { model: OrigamiModel }) {
     el.addEventListener('dblclick', dbl);
     return () => el.removeEventListener('dblclick', dbl);
   }, [gl]);
+  const phone = usePhoneWidth();
   if (size.width < 300 || size.height < 300) return null;
+  // phone: smaller and tucked into the bottom-right corner (the title block is hidden there), clear of the model
   return (
-    <GizmoHelper alignment="bottom-right" margin={[60, 164]}>
-      <AxisGizmo onPick={snap} />
+    <GizmoHelper alignment="bottom-right" margin={phone ? [42, 42] : [60, 164]}>
+      <AxisGizmo onPick={snap} scale={phone ? 20 : 30} />
     </GizmoHelper>
   );
 }
@@ -744,6 +797,7 @@ export function Viewport3D() {
   const playing = useSim((s) => s.playing);
   const solverMode = useSim((s) => s.solverMode);
   const host = useRef<HTMLDivElement>(null);
+  const loader = useFirstFrameLoader(model);
   return (
     <div ref={host} className="relative h-full w-full" onPointerLeave={() => hoverTo(null)}>
       <DrawingFrame title={tr('3D 모델', '3D model')} grid={false} status={solverMode === 'rigid' ? tr('Rigid 강체 기구학', 'Rigid kinematics') : `${tr('Energy 에너지법', 'Energy method')}${playing ? tr(' · 계산 중', ' · computing') : ''}`} statusTone={solverMode === 'rigid' ? 'info' : 'ok'}>
@@ -768,9 +822,11 @@ export function Viewport3D() {
             <DerivationOverlay model={model} />
           </group>
         )}
+        {model && <FirstFrame model={model} onReady={loader.onReady} />}
         <gridHelper args={[20, 40, C.nonphoto, C.nonphotoSoft]} position={[0, -0.001, 0]} />
         {model && <NavHelpers model={model} />}
       </Canvas>
+      {loader.show && <div className="pointer-events-none absolute inset-0"><SheetLoading label={tr('3D 모델을 펼치는 중', 'Unfolding the 3D model')} /></div>}
       <LabelLayer />
       <HoverReadout3D model={model} host={host} />
       <ViewToolbar />

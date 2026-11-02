@@ -1,6 +1,6 @@
 import { creaseName } from '../../core/topology/names';
 import { AlertTriangle, Pause, Play } from 'lucide-react';
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toDeg } from '../../core/geometry/angles';
 import { isCrease } from '../../core/topology/types';
 import { finiteDifferenceForce } from '../../core/analysis/experiments';
@@ -9,74 +9,216 @@ import { useSim } from '../../state/simulationStore';
 import { useUI } from '../../state/uiStore';
 import { lessonById } from '../../curriculum/lessons';
 import {
-  applyEnergyPreset, clearExperiment, computeSweep, initEnergy, playExperiment, relaxNow, runExperiment, scrubExperiment, setCreaseRest, setEnergyParams, togglePlay,
+  applyEnergyPreset, applyParams, clearExperiment, computeSweep, initEnergy, playExperiment, relaxNow, runExperiment, scrubExperiment, setCreaseRest, setEnergyParams, togglePlay,
 } from '../../state/actions';
 import { ASSIGN_COLOR, Badge, Button, KV, SpeedControl } from '../controls/ui';
 import { Rich } from '../controls/Rich';
-import { PALETTE, Plot, type Series } from './Plot';
+import { Plot, SeriesSwatch, type Series } from './Plot';
 import { Caption, Lead, More, Readout } from './parts';
-import { CreaseLabel, Num, TINY, deg, num } from './num';
+import { CreaseLabel, Num, SUB_MIN, TINY, deg, num } from './num';
 import { SymList } from '../controls/sym';
-import { C, SERIES } from '../../theme/tokens';
+import { ASSIGN_DASH, C, SERIES } from '../../theme/tokens';
 import { tr } from '../../i18n';
+
+/** Phone width (the same breakpoint as the app's phone shell). */
+function useNarrow() {
+  const q = '(max-width: 767px)';
+  const [m, setM] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(q);
+    if (!mq) return;
+    const f = () => setM(mq.matches);
+    mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  }, []);
+  return m;
+}
+
+type ExperimentKind = 'kreslingAxial' | 'yoshimuraCompression' | 'bagCollapse';
+
+/** The button name of a lesson's experiment (the same words in every tab). */
+const experimentLabel = (k: ExperimentKind) =>
+  k === 'kreslingAxial' ? tr('축 압축 실험 (비틀림 자유)', 'Axial compression test (free twist)') : k === 'yoshimuraCompression' ? tr('압축 실험 실행', 'Run compression test') : tr('납작하게 접기', 'Fold flat');
+
+/** What the experiment shows, in one sentence. */
+const experimentWhat = (k: ExperimentKind) =>
+  k === 'kreslingAxial'
+    ? tr('축 압축 실험이 위를 조금씩 누르며 단계마다 에너지를 최소화해, 짧아지면서 비틀리는 경로를 계산한다.', 'The axial compression test presses the top down step by step and minimizes the energy at each step, finding the path that shortens and twists.')
+    : k === 'yoshimuraCompression'
+      ? tr('압축 실험이 위를 조금씩 누르며 단계마다 에너지를 최소화해, 원통이 좌굴하는 경로를 계산한다.', 'The compression test presses the top down step by step and minimizes the energy at each step, finding the path along which the cylinder buckles.')
+      : tr('"납작하게 접기"는 면이 휘고 늘어나는 것을 허용하고, 열린 백을 평탄 상태까지 접는 경로를 계산한다.', '"Fold flat" lets the facets bend and stretch and computes the path from the open bag down to flat.');
+
+const openEnergyTab = () => { useUI.getState().setBottomTab('energy'); useUI.getState().setBottomFolded(false); };
+
+/** One sentence of why a panel is empty, and the button that does the useful thing instead. */
+function EmptyNote({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="rounded-[3px] border border-dashed border-rule-2 bg-paper-2 px-3 py-2.5">
+      <p className="text-[14px] leading-relaxed text-ink-2">{children}</p>
+      {actions && <div className="mt-2 flex flex-wrap gap-1.5 [&_button]:whitespace-nowrap">{actions}</div>}
+    </div>
+  );
+}
+
+/** Run the lesson's experiment and show its plots (they live in the energy tab). */
+function ExperimentActions({ kind }: { kind: ExperimentKind }) {
+  const ex = useSim((s) => s.experiment);
+  return (
+    <>
+      {ex
+        ? <Button kind="primary" onClick={openEnergyTab}>{ex.running ? tr(`실행 중 ${ex.samples.length}/${ex.total + 1}… 결과 보기`, `Running ${ex.samples.length}/${ex.total + 1}… see results`) : tr('실험 결과 보기 (에너지 탭)', 'See the results (Energy tab)')}</Button>
+        : <Button kind="primary" onClick={() => { runExperiment(kind); openEnergyTab(); }}>{experimentLabel(kind)}</Button>}
+      {!ex && <Button onClick={openEnergyTab}>{tr('에너지 탭 보기', 'Open the Energy tab')}</Button>}
+    </>
+  );
+}
+
+/** Crease name in ink, after a short stroke in its assignment's colour and dash (readable for every assignment). */
+function CreaseTag({ name, a }: { name: string; a: string }) {
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-1.5 text-ink ${SUB_MIN}`}>
+      <SeriesSwatch color={ASSIGN_COLOR[a] ?? C.facet} dash={ASSIGN_DASH[a]} w={14} />
+      <CreaseLabel name={name} />
+    </span>
+  );
+}
+
+/** On a phone: the driving crease and the three creases that move most with it come first. */
+const PHONE_FIRST = 4;
 
 export function AnglesTab() {
   const model = useModel((s) => s.model);
+  const lessonId = useModel((s) => s.lessonId);
   const rho = useSim((s) => s.rho);
   const sweep = useSim((s) => s.sweep);
   const drive = useSim((s) => s.drive);
   const target = useSim((s) => s.target);
   const solverMode = useSim((s) => s.solverMode);
   const selection = useUI((s) => s.selection);
+  const narrow = useNarrow();
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => setShowAll(false), [model]);
+  const lesson = lessonById(lessonId);
   const creases = useMemo(() => (model ? model.edges.filter((e) => e.faces[1] >= 0 && isCrease(e.assignment)) : []), [model]);
   const series: Series[] = useMemo(() => {
     if (!sweep || !model) return [];
     const labelled = Object.keys(model.edu.creaseLabels).map(Number).filter((e) => e !== sweep.edge);
     const pick = labelled.length ? labelled : creases.map((c) => c.id).filter((e) => e !== sweep.edge)
       .sort((a, b) => Math.abs(sweep.rho[sweep.rho.length - 1]?.[b] ?? 0) - Math.abs(sweep.rho[sweep.rho.length - 1]?.[a] ?? 0)).slice(0, 6);
-    return pick.map((eid, i) => ({
-      label: creaseName(model, eid),
-      color: PALETTE[i % PALETTE.length],
-      x: sweep.drive.map(toDeg),
-      y: sweep.rho.map((r) => toDeg(r[eid])),
-    }));
+    // each line is a crease: drawn in its assignment's colour and dash, named at its end
+    return pick.map((eid) => {
+      const a = model.edges[eid].assignment;
+      return {
+        label: creaseName(model, eid),
+        color: ASSIGN_COLOR[a] ?? C.facet,
+        dash: ASSIGN_DASH[a],
+        x: sweep.drive.map(toDeg),
+        y: sweep.rho.map((r) => toDeg(r[eid])),
+      };
+    });
   }, [sweep, model, creases]);
+  // order: the driving crease, the lecture-labelled creases (ρ1 …, the names the 3D view shows), then by how far
+  // each crease moves with it over the sweep (or, without a sweep, the creases that share a vertex with it)
+  const ordered = useMemo(() => {
+    if (!model) return [];
+    const score = new Map<number, number>();
+    if (sweep && sweep.edge === drive) {
+      for (const e of creases) {
+        let lo = Infinity, hi = -Infinity;
+        for (const r of sweep.rho) { const v = r[e.id]; if (Number.isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+        score.set(e.id, hi > lo ? hi - lo : 0);
+      }
+    } else if (drive !== null && model.edges[drive]) {
+      const [a, b] = model.edges[drive].vertices;
+      for (const e of creases) score.set(e.id, e.vertices.includes(a) || e.vertices.includes(b) ? 1 : 0);
+    }
+    const lab = (id: number) => (model.edu.creaseLabels[id] !== undefined ? 1 : 0);
+    return [...creases].sort((x, y) =>
+      (y.id === drive ? 1 : 0) - (x.id === drive ? 1 : 0)
+      || lab(y.id) - lab(x.id)
+      || (score.get(y.id) ?? 0) - (score.get(x.id) ?? 0)
+      || x.id - y.id);
+  }, [model, creases, sweep, drive]);
   if (!model) return <Empty />;
+  const kind = lesson?.experiment as ExperimentKind | undefined;
+  const creasedPreset = lesson?.presets?.find((p) => (p.params as Record<string, unknown>).variant === 'creased' && (model.params as Record<string, unknown>).variant !== 'creased');
+  const collapsed = narrow && !showAll && ordered.length > PHONE_FIRST + 1;
+  const cards = (collapsed ? ordered.slice(0, PHONE_FIRST) : ordered).slice(0, 240);
+  // the rigid sweep cannot show these sheets folding; their experiment does
+  const sweepUnavailable = drive === null || solverMode !== 'rigid';
   return (
     <div>
       <Lead title={tr('크리스별 접힘각', 'Fold angle of each crease')}>
-        <Rich text={tr('부호가 방향이다: $\\rho > 0$ 골접기, $\\rho < 0$ 산접기. 칸을 누르면 그 크리스가 선택된다.', 'The sign is the direction: $\\rho > 0$ valley, $\\rho < 0$ mountain. Click a cell to select its crease.')} />
+        <Rich text={tr('부호가 방향이다: $\\rho > 0$ 골접기, $\\rho < 0$ 산접기. 칸을 누르면 그 크리스가 선택된다.', 'The sign is the direction: $\\rho > 0$ valley, $\\rho < 0$ mountain. Tap a cell to select its crease.')} />
       </Lead>
       <div className="grid grid-cols-1 gap-5 @2xl:grid-cols-2">
-        <div className="flex flex-wrap content-start gap-1">
-          {creases.slice(0, 240).map((e) => {
-            const v = toDeg(rho[e.id] ?? 0);
-            const sel = selection?.kind === 'edge' && selection.id === e.id;
-            return (
-              <button key={e.id} type="button" onClick={() => useUI.getState().select({ kind: 'edge', id: e.id })}
-                onMouseEnter={() => useUI.getState().setHover({ kind: 'edge', id: e.id })} onMouseLeave={() => useUI.getState().setHover(null)}
-                className={`w-[96px] rounded-[3px] border px-2 py-1 text-left tnum transition-colors ${sel ? 'border-ink bg-mark/50' : 'border-rule hover:border-ink-3'} ${e.id === drive && !sel ? 'bg-paper-3' : !sel ? 'bg-paper' : ''}`}>
-                <div className="flex items-baseline justify-between text-[13px]">
-                  <span style={{ color: ASSIGN_COLOR[e.assignment] }}><CreaseLabel name={creaseName(model, e.id)} /></span>
-                  <span className="text-[12px] text-ink-3">{e.assignment}</span>
-                </div>
-                <div className="relative mt-1 h-1 rounded bg-paper-3">
-                  <div className="absolute top-0 h-1 rounded" style={{ left: v < 0 ? `${50 + v / 3.6}%` : '50%', width: `${Math.abs(v) / 3.6}%`, background: ASSIGN_COLOR[v < 0 ? 'M' : 'V'] }} />
-                </div>
-                <div className="mt-0.5 text-right text-[14px] font-medium text-ink">{num(v, 1)}°</div>
-              </button>
-            );
-          })}
+        <div className="min-w-0">
+          {creases.length === 0 ? (
+            <EmptyNote actions={<>
+              {creasedPreset && <Button kind={kind ? 'default' : 'primary'} onClick={() => applyParams(creasedPreset.params)}>{tr(`"${creasedPreset.label}"로 바꾸기`, `Switch to "${creasedPreset.label}"`)}</Button>}
+              {kind && <ExperimentActions kind={kind} />}
+            </>}>
+              {tr('이 모델에는 접는 선(산 M, 골 V)이 없다. 모서리가 모두 면 안의 선(F)이나 경계(B)라서 크리스별 접힘각이 없다.', 'This model has no fold lines (mountain M, valley V): every edge is a facet line (F) or the boundary (B), so there are no crease fold angles.')}
+              {kind && <> {experimentWhat(kind)}</>}
+            </EmptyNote>
+          ) : (
+            <>
+              {narrow && ordered.length > PHONE_FIRST + 1 && (
+                <p className="mb-1.5 text-[13px] text-ink-3">
+                  {collapsed
+                    ? drive !== null
+                      ? tr(`구동 크리스와, 함께 움직이는 크리스 ${PHONE_FIRST - 1}개`, `The driving crease and ${PHONE_FIRST - 1} creases that move with it`)
+                      : tr(`크리스 ${ordered.length}개 중 ${PHONE_FIRST}개`, `${PHONE_FIRST} of ${ordered.length} creases`)
+                    : tr(`크리스 ${ordered.length}개 모두`, `All ${ordered.length} creases`)}
+                </p>
+              )}
+              <div className="grid gap-1 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))]">
+                {cards.map((e) => {
+                  const v = toDeg(rho[e.id] ?? 0);
+                  const sel = selection?.kind === 'edge' && selection.id === e.id;
+                  return (
+                    <button key={e.id} type="button" onClick={() => useUI.getState().select({ kind: 'edge', id: e.id })}
+                      onMouseEnter={() => useUI.getState().setHover({ kind: 'edge', id: e.id })} onMouseLeave={() => useUI.getState().setHover(null)}
+                      title={e.id === drive ? tr('구동 크리스', 'Driving crease') : undefined}
+                      className={`min-w-0 rounded-[3px] border px-2 py-1.5 text-left tnum transition-colors ${sel ? 'border-ink bg-mark/50' : e.id === drive ? 'border-ink-3 bg-paper-3' : 'border-rule bg-paper hover:border-ink-3'}`}>
+                      <div className="flex items-baseline justify-between gap-1 text-[14px]">
+                        <CreaseTag name={creaseName(model, e.id)} a={e.assignment} />
+                        <span className="shrink-0 text-[12px] text-ink-3">{e.id === drive ? tr('구동', 'drive') : e.assignment}</span>
+                      </div>
+                      <div className="relative mt-1 h-1 rounded bg-paper-3">
+                        <div className="absolute top-0 h-1 rounded" style={{ left: v < 0 ? `${50 + v / 3.6}%` : '50%', width: `${Math.abs(v) / 3.6}%`, background: ASSIGN_COLOR[v < 0 ? 'M' : 'V'] }} />
+                      </div>
+                      <div className="mt-0.5 text-right text-[14px] font-medium text-ink">{num(v, 1)}°</div>
+                    </button>
+                  );
+                })}
+              </div>
+              {narrow && ordered.length > PHONE_FIRST + 1 && (
+                <button type="button" onClick={() => setShowAll(!showAll)} aria-expanded={!collapsed}
+                  className="mt-1.5 flex min-h-11 w-full items-center justify-center gap-1 rounded-[3px] border border-rule-2 bg-paper text-[14px] font-medium text-ink-2 hover:border-ink-3 hover:text-ink">
+                  {collapsed ? tr(`모두 보기 (${ordered.length})`, `Show all (${ordered.length})`) : tr('줄이기', 'Show fewer')}
+                </button>
+              )}
+            </>
+          )}
         </div>
-        <div>
+        {creases.length > 0 && <div className="min-w-0">
           <div className="mb-1 flex items-center justify-between gap-2">
             <Caption className="mb-0">{tr('구동각에 따른 다른 접힘각 (강체 스윕)', 'Other fold angles vs. the driving angle (rigid sweep)')}</Caption>
-            <Button size="sm" onClick={computeSweep} disabled={drive === null || solverMode !== 'rigid'}>{tr('스윕 계산', 'Compute sweep')}</Button>
+            {!(kind && sweepUnavailable) && <Button size="sm" onClick={computeSweep} disabled={sweepUnavailable}>{tr('스윕 계산', 'Compute sweep')}</Button>}
           </div>
-          <Plot series={series} emptyText={drive === null ? tr('구동 크리스를 정하면 스윕을 계산할 수 있다', 'Set a driving crease to compute a sweep') : solverMode !== 'rigid' ? tr('스윕은 Rigid 솔버에서 계산한다', 'Sweeps are computed in the Rigid solver') : tr('"스윕 계산"을 누르면 그래프가 그려진다', 'Press "Compute sweep" to draw the graph')}
-            xLabel={tr('구동 크리스 ρ (°)', 'Driving crease ρ (°)')} yLabel={tr('접힘각 ρ (°)', 'Fold angle ρ (°)')} markerX={drive !== null && sweep?.edge === drive ? toDeg(target) : undefined} />
-          {sweep && <p className="mt-1 text-[13px] text-ink-3">{tr(`점 ${sweep.drive.length}개, 모두 정확한 강체 배치다 (연속법).`, `${sweep.drive.length} points, each an exact rigid configuration (continuation).`)}</p>}
-        </div>
+          {kind && !sweep ? (
+            <EmptyNote actions={<ExperimentActions kind={kind} />}>
+              {tr('이 도면은 크리스 하나를 돌리는 강체 스윕으로는 접히는 모습을 볼 수 없다.', 'This sheet does not show its folding in a rigid sweep that turns one crease.')} {experimentWhat(kind)}
+            </EmptyNote>
+          ) : (
+            <>
+              <Plot series={series} endLabels emptyText={drive === null ? tr('구동 크리스를 정하면 스윕을 계산할 수 있다', 'Set a driving crease to compute a sweep') : solverMode !== 'rigid' ? tr('스윕은 Rigid 솔버에서 계산한다', 'Sweeps are computed in the Rigid solver') : tr('"스윕 계산"을 누르면 그래프가 그려진다', 'Press "Compute sweep" to draw the graph')}
+                xLabel={tr('구동 크리스 ρ (°)', 'Driving crease ρ (°)')} yLabel={tr('접힘각 ρ (°)', 'Fold angle ρ (°)')} markerX={drive !== null && sweep?.edge === drive ? toDeg(target) : undefined} />
+              {sweep && <p className="mt-1 text-[13px] text-ink-3">{tr(`점 ${sweep.drive.length}개, 모두 정확한 강체 배치다 (연속법). 선의 색과 무늬는 크리스의 배정(산 M, 골 V)이다.`, `${sweep.drive.length} points, each an exact rigid configuration (continuation). Line colour and dash are the crease's assignment (mountain M, valley V).`)}</p>}
+            </>
+          )}
+        </div>}
       </div>
     </div>
   );
@@ -214,8 +356,8 @@ export function EnergyTab() {
             <Plot
               series={[
                 { label: tr('전체', 'Total'), color: C.ink, x: h.map((q) => q.t), y: h.map((q) => q.total) },
-                { label: tr('늘어남', 'Stretch'), color: SERIES[1], x: h.map((q) => q.t), y: h.map((q) => q.axial) },
-                { label: tr('크리스', 'Crease'), color: SERIES[0], x: h.map((q) => q.t), y: h.map((q) => q.crease) },
+                { label: tr('늘어남', 'Stretch'), color: SERIES[0], x: h.map((q) => q.t), y: h.map((q) => q.axial) },
+                { label: tr('크리스', 'Crease'), color: SERIES[1], x: h.map((q) => q.t), y: h.map((q) => q.crease) },
                 { label: tr('면 굽힘', 'Facet bending'), color: SERIES[2], x: h.map((q) => q.t), y: h.map((q) => q.facet) },
               ]}
               emptyText={energyOn ? tr('"동역학 실행"이나 "이완"을 누르면 기록된다', 'Press "Run dynamics" or "Relax" to record') : tr('Energy 솔버에서 기록된다', 'Recorded in the Energy solver')}
@@ -227,7 +369,7 @@ export function EnergyTab() {
               <Caption>{tr('실험', 'Experiment')}</Caption>
               <div className="mb-2 flex flex-wrap items-center gap-1.5 [&_button]:whitespace-nowrap">
                 <Button kind="primary" onClick={() => runExperiment(lesson.experiment!)} disabled={ex?.running} title={lesson.experiment === 'bagCollapse' ? tr('면의 굽힘·신장을 허용하고 열린 백을 평탄 상태까지 접는다', 'Allow facet bending and stretching and fold the open bag down to flat') : undefined}>
-                  {ex?.running ? tr(`실행 중 ${ex.samples.length}/${ex.total + 1}…`, `Running ${ex.samples.length}/${ex.total + 1}…`) : lesson.experiment === 'kreslingAxial' ? tr('축 압축 실험 (비틀림 자유)', 'Axial compression test (free twist)') : lesson.experiment === 'yoshimuraCompression' ? tr('압축 실험 실행', 'Run compression test') : tr('납작하게 접기', 'Fold flat')}
+                  {ex?.running ? tr(`실행 중 ${ex.samples.length}/${ex.total + 1}…`, `Running ${ex.samples.length}/${ex.total + 1}…`) : experimentLabel(lesson.experiment as ExperimentKind)}
                 </Button>
                 {ex && !ex.running && ex.samples.length > 1 && <Button onClick={() => playExperiment()}>{tr('다시 재생', 'Replay')}</Button>}
                 {ex && <Button onClick={clearExperiment}>{tr('지우기', 'Clear')}</Button>}
@@ -306,8 +448,8 @@ function ExperimentPlots() {
   const cur = ex.samples[ex.index];
   const energySeries = [
     { label: tr('전체', 'Total'), color: C.ink, x: xs, y: ex.samples.map((q) => q.energy.total) },
-    { label: tr('늘어남', 'Stretch'), color: SERIES[1], x: xs, y: ex.samples.map((q) => q.energy.axial) },
-    { label: tr('크리스', 'Crease'), color: SERIES[0], x: xs, y: ex.samples.map((q) => q.energy.crease) },
+    { label: tr('늘어남', 'Stretch'), color: SERIES[0], x: xs, y: ex.samples.map((q) => q.energy.axial) },
+    { label: tr('크리스', 'Crease'), color: SERIES[1], x: xs, y: ex.samples.map((q) => q.energy.crease) },
     { label: tr('면 굽힘', 'Facet bending'), color: SERIES[2], x: xs, y: ex.samples.map((q) => q.energy.facet) },
   ];
   const minE = tr('최소 에너지 V', 'Minimum energy V');

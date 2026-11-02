@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, ExternalLink, Play } from 'lucide-react';
 import { getLang, tr } from '../../i18n';
-import { loadLesson } from '../../state/actions';
+import { openSheet } from '../../app/navigation';
 import { lessonById, sheetNumber } from '../../curriculum/lessons';
 import { videoById, type Level, type Reading, type Tool, type Video } from '../../curriculum/resources';
 
@@ -47,8 +47,8 @@ export function SheetLink({ to, children }: { to: string; children?: ReactNode }
   const l = lessonById(to);
   if (!l) return null;
   return (
-    <button type="button" onClick={() => loadLesson(to)}
-      className="inline-flex items-center gap-1.5 rounded-[4px] border border-rule-2 bg-paper px-2.5 py-1 align-middle text-[14px] text-ink transition-colors hover:border-ink hover:bg-paper-2">
+    <button type="button" onClick={() => openSheet(to)}
+      className="inline-flex items-center gap-1.5 rounded-[4px] border border-rule-2 bg-paper px-2.5 py-1 align-middle text-[14px] max-md:min-h-11 text-ink transition-colors hover:border-ink hover:bg-paper-2">
       <span className="tnum text-[12px] text-ink-3">{sheetNumber(to)}</span>
       <span>{children ?? l.title}</span>
       <ArrowRight size={14} className="text-ink-3" />

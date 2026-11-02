@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Anchor, ArrowLeft, ArrowRight, Lock, LockOpen, MousePointerClick, Play, Rewind } from 'lucide-react';
 import { analyzeVertex } from '../../core/analysis/metrics';
 import { toDeg, toRad } from '../../core/geometry/angles';
@@ -14,6 +14,7 @@ import { lessonById } from '../../curriculum/lessons';
 import { TUBE_SYMMETRY_NOTE } from '../../models/generators/waterbombTube';
 import { ASSIGN_COLOR, ASSIGN_LABEL, AngleSlider, Badge, Button, KV, NumberField, Section, SpeedControl, Toggle } from '../controls/ui';
 import { VerdictStrip } from './FeasibilityBoard';
+import { ExperimentCard } from './ExperimentCard';
 import { layersFor } from '../viewport/layerCache';
 import { getLang, tr } from '../../i18n';
 import { Rich } from '../controls/Rich';
@@ -331,14 +332,14 @@ const patternFoldText = (): Record<string, { title: string; text: ReactNode; fro
   },
   waterbomb: {
     title: tr('패턴 전체 접기 · 워터밤', 'Fold the whole pattern · Waterbomb'),
-    text: tr(<>크리스 하나로는 접히지 않는다. 모든 크리스를 <b className="text-ink">함께</b> 완전 접힘각으로 옮기며 매 단계 평형을 푼다 (Energy). 중간에는 면이 조금 휜다.</>,
-      <>One crease alone will not fold it. All creases move <b className="text-ink">together</b> to their fully folded angles, solving for equilibrium at each step (Energy). The facets bend a little on the way.</>),
+    text: tr(<>크리스 하나로는 접히지 않는다. 모든 크리스를 <b className="text-ink">함께</b> 완전 접힘각으로 옮기며 매 단계 평형을 푼다 (누르면 Energy 솔버로 계산한다). 중간에는 면이 조금 휜다.</>,
+      <>One crease alone will not fold it. All creases move <b className="text-ink">together</b> to their fully folded angles, solving for equilibrium at each step (pressing it switches to the Energy solver). The facets bend a little on the way.</>),
     from: tr('평면', 'flat'), to: tr('완전 접힘', 'fully folded'), fold: tr('전체 접기', 'Fold all'), unfold: tr('펼치기', 'Unfold'), sizes: [3, 4, 6],
   },
   shoppingBag: {
     title: tr('쇼핑백 접기', 'Fold the shopping bag'),
-    text: tr(<>모든 크리스가 <b className="text-ink">동시에</b> 접히고, 그 사이 종이 면이 휘어야 한다. 면을 강체로 두면 이 경로가 없다는 것이 이 정리다 (Energy).</>,
-      <>All creases fold <b className="text-ink">at once</b>, and the paper facets must bend on the way. The theorem says that with rigid facets this path does not exist (Energy).</>),
+    text: tr(<>모든 크리스가 <b className="text-ink">동시에</b> 접히고, 그 사이 종이 면이 휘어야 한다. 면을 강체로 두면 이 경로가 없다는 것이 이 정리다 (누르면 Energy 솔버로 계산한다).</>,
+      <>All creases fold <b className="text-ink">at once</b>, and the paper facets must bend on the way. The theorem says that with rigid facets this path does not exist (pressing it switches to the Energy solver).</>),
     from: tr('열림', 'open'), to: tr('납작', 'flat'), fold: tr('납작하게 접기', 'Fold flat'), unfold: tr('다시 펼치기', 'Unfold again'),
   },
 });
@@ -347,8 +348,12 @@ const patternFoldText = (): Record<string, { title: string; text: ReactNode; fro
  * The one primary way to fold this sheet: a 1-DoF pattern (Miura) through its
  * driving crease, a non-mechanism (waterbomb, shopping bag) by moving every
  * crease together in the energy model.
+ *
+ * On a phone the card sits right under the 3D view, so it opens with what a
+ * thumb needs: the progress, a slider with a 44px hit row, and the fold /
+ * unfold buttons on one row. The explanation and the rest follow below.
  */
-function PatternFoldCard({ mode }: { mode: 'rigid' | 'energy' }) {
+function PatternFoldCard({ mode, phone = false }: { mode: 'rigid' | 'energy'; phone?: boolean }) {
   const generator = useModel((s) => s.generator) ?? '';
   const params = useModel((s) => s.params) as Record<string, number>;
   const model = useModel((s) => s.model)!;
@@ -363,7 +368,7 @@ function PatternFoldCard({ mode }: { mode: 'rigid' | 'energy' }) {
   const cfgs = patternFoldText();
   const generic = mode === 'rigid'
     ? { title: tr('구조 전체 접기', 'Fold the whole structure'), text: tr(<>이 구조는 <b className="text-ink">한 가지 방식</b>으로만 움직인다. 진행률이 곧 접힘 정도이고, 모든 단계가 면을 휘지 않는 정확한 강체 해다 (Rigid).</>, <>This structure moves in <b className="text-ink">one way</b> only. Progress is how far it is folded, and every step is an exact rigid solution with no face bending (Rigid).</>), from: tr('평면', 'flat'), to: tr('완전 접힘', 'fully folded'), fold: tr('전체 접기', 'Fold all'), unfold: tr('펼치기', 'Unfold') }
-    : { title: tr('구조 전체 접기', 'Fold the whole structure'), text: tr(<>모든 크리스를 <b className="text-ink">함께</b> 목표 각도로 옮기며 매 단계 평형을 푼다 (Energy). 크리스를 하나씩 맞출 필요가 없고, 면이 휘어야 하는 곳은 그만큼 휜다.</>, <>Every crease moves <b className="text-ink">together</b> towards its target, solving for equilibrium at each step (Energy). No need to set creases one by one; faces bend where they have to.</>), from: tr('평면', 'flat'), to: tr('접힘', 'folded'), fold: tr('전체 접기', 'Fold all'), unfold: tr('펼치기', 'Unfold') };
+    : { title: tr('구조 전체 접기', 'Fold the whole structure'), text: tr(<>모든 크리스를 <b className="text-ink">함께</b> 목표 각도로 옮기며 매 단계 평형을 푼다 (누르면 Energy 솔버로 계산한다). 크리스를 하나씩 맞출 필요가 없고, 면이 휘어야 하는 곳은 그만큼 휜다.</>, <>Every crease moves <b className="text-ink">together</b> towards its target, solving for equilibrium at each step (pressing it switches to the Energy solver). No need to set creases one by one; faces bend where they have to.</>), from: tr('평면', 'flat'), to: tr('접힘', 'folded'), fold: tr('전체 접기', 'Fold all'), unfold: tr('펼치기', 'Unfold') };
   const cfg = cfgs[generator] ?? generic;
   const pending = useRef<number | null>(null);
   const raf = useRef(0);
@@ -381,21 +386,32 @@ function PatternFoldCard({ mode }: { mode: 'rigid' | 'energy' }) {
     if (keep > 0) animatePatternFold(keep, 1800);
   };
   return (
-    <section aria-label={cfg.title} className="border-b border-rule-2 px-4 pb-4 pt-3.5">
-      <h3 className="text-[15px] font-semibold text-ink">{cfg.title}</h3>
-      <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{cfg.text}</p>
-      <div className="mt-3 flex items-baseline justify-between">
+    <section aria-label={cfg.title} className={`border-b border-rule-2 px-4 pb-4 ${phone ? 'pt-2.5' : 'pt-3.5'}`}>
+      {!phone && (
+        <>
+          <h3 className="text-[15px] font-semibold text-ink">{cfg.title}</h3>
+          <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{cfg.text}</p>
+        </>
+      )}
+      <div className={`flex items-baseline justify-between ${phone ? '' : 'mt-3'}`}>
         <span className="text-[14px] text-ink-2">{tr('접힘 진행률', 'Fold progress')}</span>
         <span className="tnum text-[22px] font-semibold leading-none text-ink">{Math.round(p * 100)}%</span>
       </div>
-      <input type="range" className="mt-1.5 w-full" min={0} max={1} step={0.005} value={p} aria-label={tr('패턴 전체 접힘 진행률', 'Whole-pattern fold progress')}
+      <input type="range" className={`range-touch w-full ${phone ? '' : 'mt-1.5'}`} min={0} max={1} step={0.005} value={p} aria-label={tr('패턴 전체 접힘 진행률', 'Whole-pattern fold progress')}
+        style={{ '--p': `${p * 100}%` } as CSSProperties}
         onChange={(e) => onSlide(parseFloat(e.target.value))} />
       <div className="flex justify-between text-[13px] text-ink-3"><span>{cfg.from}</span><span>{cfg.to}</span></div>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">{tr('어디서든 멈추면 그 순간의 모양이 그대로 남는다. 투영 보기와 아래 분석 탭으로 그 상태를 살펴보자.', 'Stop anywhere and that exact shape stays. Inspect it with the Projections view and the analysis tabs below.')}</p>
-      <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+      <div className={`grid grid-cols-2 gap-1.5 ${phone ? 'mt-2' : 'mt-2.5'}`}>
         <Button kind="primary" onClick={() => animatePatternFold(1)}><Play size={14} />{cfg.fold}</Button>
         <Button onClick={() => animatePatternFold(0)}><Rewind size={14} />{cfg.unfold}</Button>
       </div>
+      {phone && (
+        <>
+          <h3 className="mt-3.5 text-[15px] font-semibold text-ink">{cfg.title}</h3>
+          <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{cfg.text}</p>
+        </>
+      )}
+      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">{tr('어디서든 멈추면 그 순간의 모양이 그대로 남는다. 투영 보기와 아래 분석 탭으로 그 상태를 살펴보자.', 'Stop anywhere and that exact shape stays. Inspect it with the Projections view and the analysis tabs below.')}</p>
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
         <SpeedControl />
         {cfg.sizes && (
@@ -404,7 +420,7 @@ function PatternFoldCard({ mode }: { mode: 'rigid' | 'energy' }) {
             <div role="radiogroup" aria-label={tr('패턴 크기', 'Pattern size')} className="flex rounded-[3px] border border-rule-2 bg-paper-2 p-0.5">
               {cfg.sizes.map((n) => (
                 <button key={n} type="button" role="radio" aria-checked={params.rows === n && params.cols === n} onClick={() => resize(n)}
-                  className={`tnum h-7 whitespace-nowrap rounded-[2px] px-2 text-[13px] transition-colors ${params.rows === n && params.cols === n ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
+                  className={`tnum h-7 whitespace-nowrap rounded-[2px] px-2 text-[13px] transition-colors max-md:h-11 max-md:min-w-11 ${params.rows === n && params.cols === n ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}>
                   {n}×{n}
                 </button>
               ))}
@@ -431,7 +447,12 @@ function PatternFoldCard({ mode }: { mode: 'rigid' | 'energy' }) {
   );
 }
 
-export function Inspector() {
+/**
+ * The inspector sheet. Desktop order: verdict (pinned), fold card, experiment,
+ * selection, model info. On a phone (under the 3D view) the fold card comes
+ * first, then the experiment, then the verdict as a summary row.
+ */
+export function Inspector({ phone = false }: { phone?: boolean } = {}) {
   const model = useModel((s) => s.model);
   const selection = useUI((s) => s.selection);
   const lessonId = useModel((s) => s.lessonId);
@@ -440,11 +461,15 @@ export function Inspector() {
   if (!model) return <div className="p-4 text-[14px] text-ink-3">{tr('이 레슨은 전용 실습 화면을 사용한다.', 'This lesson uses its own lab screen.')}</div>;
   return (
     <div className="stable-gutter h-full overflow-y-auto">
-      <VerdictStrip />
-      {foldMode && <PatternFoldCard mode={foldMode} />}
+      {!phone && <VerdictStrip />}
+      {foldMode && <PatternFoldCard mode={foldMode} phone={phone} />}
+      <ExperimentCard />
+      {/* without a fold card the selected crease's controls are the way to fold, so on a phone they come before the verdict */}
+      {phone && foldMode && <VerdictStrip phone />}
       {selection?.kind === 'edge' && model.edges[selection.id] && <CreaseInspector id={selection.id} patternFold={!!foldMode} />}
       {selection?.kind === 'vertex' && model.vertices[selection.id] && <VertexInspector id={selection.id} />}
       {selection?.kind === 'face' && model.faces[selection.id] && <FaceInspector id={selection.id} />}
+      {phone && !foldMode && <VerdictStrip phone />}
       {!selection && (
         <div className="flex gap-3 border-b border-rule-2 px-4 py-4 text-[14px] leading-relaxed text-ink-2">
           <MousePointerClick size={20} className="mt-0.5 shrink-0 text-ink-3" />

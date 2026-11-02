@@ -14,7 +14,8 @@ import { waterbombTubeMetrics } from '../../models/generators/waterbombTube';
 import { GENERATORS } from '../../models/registry';
 import { useModel } from '../../state/modelStore';
 import { useUI, type AppMode } from '../../state/uiStore';
-import { applyParams, exportCurrentFold, loadLesson } from '../../state/actions';
+import { applyParams, exportCurrentFold } from '../../state/actions';
+import { openSheet } from '../../app/navigation';
 import { FoldBody, NumberField, Section } from '../controls/ui';
 import { Rich } from '../controls/Rich';
 
@@ -27,12 +28,12 @@ export function Navigator() {
     <nav aria-label={tr('도면 목록', 'Sheet index')} className="border-b border-rule-2 px-2 py-2">
       <div className="flex items-center justify-between px-2 pb-1">
         <span className="lettering text-[12px] text-ink-3">{tr('도면 목록', 'Sheets')}</span>
-        <button type="button" onClick={() => { useUI.getState().setDrawer(null); useUI.getState().setCoverOpen(true); }} className="rounded px-1 text-[13px] text-ink-3 hover:bg-paper-2 hover:text-ink">{tr('표지 보기', 'Cover')}</button>
+        <button type="button" onClick={() => { useUI.getState().setDrawer(null); useUI.getState().setCoverOpen(true); }} className="rounded px-1 text-[13px] text-ink-3 hover:bg-paper-2 hover:text-ink max-md:min-h-11 max-md:px-3">{tr('표지 보기', 'Cover')}</button>
       </div>
       {PARTS.map((l) => (
         <div key={l}>
           <button type="button" aria-expanded={!!open[l]} onClick={() => setOpen((o) => ({ ...o, [l]: !o[l] }))}
-            className="flex w-full items-center gap-1.5 rounded-[3px] px-2 py-1.5 text-left text-[14px] hover:bg-paper-2">
+            className="flex w-full items-center gap-1.5 rounded-[3px] px-2 py-1.5 text-left text-[14px] hover:bg-paper-2 max-md:min-h-11">
             <ChevronRight size={14} className={`shrink-0 text-ink-3 transition-transform duration-200 ${open[l] ? 'rotate-90' : ''}`} />
             <span className="tnum shrink-0 font-semibold text-ink">{l}</span>
             <span className="truncate text-ink-3">{LECTURE_TITLES[l]}</span>
@@ -43,8 +44,8 @@ export function Navigator() {
                 const active = x.id === lessonId;
                 return (
                   <li key={x.id}>
-                    <button type="button" onClick={() => loadLesson(x.id)} aria-current={active ? 'page' : undefined}
-                      className={`group relative flex w-full items-center gap-2 py-1.5 pl-3 pr-2 text-left text-[14px] transition-colors ${active ? 'font-semibold text-ink' : 'text-ink-2 hover:text-ink'}`}>
+                    <button type="button" onClick={() => openSheet(x.id)} aria-current={active ? 'page' : undefined}
+                      className={`group relative flex w-full items-center gap-2 py-1.5 pl-3 pr-2 text-left text-[14px] transition-colors max-md:min-h-11 ${active ? 'font-semibold text-ink' : 'text-ink-2 hover:text-ink'}`}>
                       {active && <span className="absolute inset-y-1 left-1 right-1 -z-0 rounded-[2px] bg-mark/70" aria-hidden />}
                       <span className="tnum relative w-7 shrink-0 self-start pt-px text-[12px] text-ink-3">{sheetNumber(x.id)}</span>
                       <span className="relative min-w-0 flex-1 leading-snug [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{x.title}</span>
@@ -142,7 +143,7 @@ function Presets({ lesson }: { lesson: Lesson }) {
       <div className="flex flex-wrap gap-1.5">
         {lesson.presets.map((p) => (
           <button key={p.label} type="button" title={p.note} onClick={() => applyParams(p.params, p.generator)}
-            className="rounded-[4px] border border-rule-2 bg-paper px-2.5 py-1 text-left text-[13px] text-ink transition-colors hover:border-ink hover:bg-paper-2"><Rich text={p.label} /></button>
+            className="rounded-[4px] border border-rule-2 bg-paper px-2.5 py-1 text-left text-[13px] text-ink transition-colors hover:border-ink hover:bg-paper-2 max-md:min-h-11"><Rich text={p.label} /></button>
         ))}
       </div>
     </Section>
@@ -174,9 +175,9 @@ function Challenges({ lesson, prominent }: { lesson: Lesson; prominent?: boolean
                 <span className={done[key] ? 'text-ink-3 line-through' : ''}><span className="tnum mr-1 text-ink-3">{i + 1}.</span><Rich text={c.text} /></span>
               </label>
               <div className="ml-6 mt-1 flex gap-3 text-[13px]">
-                {c.hint && <details className="text-ink-3"><summary className="cursor-pointer hover:text-ink">{tr('힌트', 'Hint')}</summary><p className="mt-1"><Rich text={c.hint} /></p></details>}
+                {c.hint && <details className="text-ink-3"><summary className="cursor-pointer hover:text-ink max-md:flex max-md:min-h-11 max-md:items-center">{tr('힌트', 'Hint')}</summary><p className="mt-1"><Rich text={c.hint} /></p></details>}
                 {c.answer && (
-                  <button type="button" className="text-info underline-offset-2 hover:underline" onClick={() => setReveal((r) => ({ ...r, [c.id]: !r[c.id] }))}>
+                  <button type="button" className="text-info underline-offset-2 hover:underline max-md:min-h-11" onClick={() => setReveal((r) => ({ ...r, [c.id]: !r[c.id] }))}>
                     {reveal[c.id] ? tr('답 숨기기', 'Hide answer') : tr('답 보기', 'Show answer')}
                   </button>
                 )}
@@ -194,7 +195,7 @@ function Note({ n, label, text, open = true }: { n: number; label: string; text:
   const [o, setO] = useState(open);
   return (
     <div className="border-t border-dashed border-rule first:border-t-0">
-      <button type="button" aria-expanded={o} onClick={() => setO((x) => !x)} className="flex w-full items-center gap-2 py-2 text-left">
+      <button type="button" aria-expanded={o} onClick={() => setO((x) => !x)} className="flex w-full items-center gap-2 py-2 text-left max-md:min-h-11">
         <span className="tnum flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-ink-3 text-[12px] text-ink-2">{n}</span>
         <span className="text-[14px] font-semibold text-ink">{label}</span>
         <ChevronRight size={14} className={`ml-auto text-ink-3 transition-transform duration-200 ${o ? 'rotate-90' : ''}`} />
@@ -223,14 +224,14 @@ function LessonContent({ lesson }: { lesson: Lesson }) {
         <div className="mt-2 rounded-[3px] border border-rule-2 bg-paper-2 px-3 py-2.5 text-[14px] leading-relaxed">
           <div className="font-semibold text-ink">{tr('질문', 'Question')}</div>
           <div className="text-ink-2"><Rich text={lesson.content.question} /></div>
-          <button type="button" className="mt-1 text-[13px] text-info underline-offset-2 hover:underline" onClick={() => setAns((a) => !a)}>{ans ? tr('결론 숨기기', 'Hide the conclusion') : tr('기대되는 결론 보기', 'Show the expected conclusion')}</button>
+          <button type="button" className="mt-1 text-[13px] text-info underline-offset-2 hover:underline max-md:min-h-11" onClick={() => setAns((a) => !a)}>{ans ? tr('결론 숨기기', 'Hide the conclusion') : tr('기대되는 결론 보기', 'Show the expected conclusion')}</button>
           {ans && <div className="mt-1.5 rounded-[3px] bg-ok-soft px-2 py-1.5 text-ink"><Rich text={lesson.content.answer ?? ''} /></div>}
         </div>
       )}
       {lesson.links && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {lesson.links.map((l) => (
-            <button key={l.to} type="button" className="inline-flex items-center gap-1 rounded-[4px] border border-rule-2 px-2 py-1 text-[13px] text-info hover:border-info" onClick={() => loadLesson(l.to)}>
+            <button key={l.to} type="button" className="inline-flex items-center gap-1 rounded-[4px] border border-rule-2 px-2 py-1 text-[13px] text-info hover:border-info max-md:min-h-11" onClick={() => openSheet(l.to)}>
               {l.label}<ArrowRight size={13} />
             </button>
           ))}
@@ -252,7 +253,7 @@ function FoldItYourself() {
   const lessonId = useModel((s) => s.lessonId);
   if (!model) return null;
   const title = lessonById(lessonId)?.title ?? model.metadata.name;
-  const btn = 'inline-flex items-center gap-1.5 rounded-[4px] border border-rule-2 bg-paper px-2.5 py-1 text-[13px] text-ink transition-colors hover:border-ink hover:bg-paper-2';
+  const btn = 'inline-flex items-center gap-1.5 rounded-[4px] border border-rule-2 bg-paper px-2.5 py-1 text-[13px] text-ink transition-colors hover:border-ink hover:bg-paper-2 max-md:min-h-11';
   return (
     <Section title={tr('직접 접어 보기', 'Fold it yourself')} foldable defaultOpen={false}>
       <p className="text-[14px] leading-relaxed text-ink-2">{tr('지금 보이는 전개도를 A4에 인쇄해 직접 접어 본다. 치수를 바꾸면 바뀐 패턴이 인쇄된다.', 'Print the crease pattern on screen on A4 and fold it by hand. Change the dimensions first and the changed pattern is printed.')}</p>
@@ -269,7 +270,7 @@ function FoldItYourself() {
         }}><Download size={14} />{tr('FOLD 저장', 'Save FOLD')}</button>
       </div>
       <p className="mt-2 text-[13px] leading-relaxed text-ink-3">{tr('빨간 일점쇄선은 산접기, 파란 점선은 골접기. 모든 선을 한 번씩 미리 접은 뒤 모아 접는다.', 'Red dash-dot lines are mountains, blue dashed lines valleys. Pre-crease every line, then collapse.')}</p>
-      <button type="button" onClick={() => loadLesson('l0-first')} className="mt-1 inline-flex items-center gap-1 text-[13px] text-info underline-offset-2 hover:underline">{tr('손으로 접는 요령', 'Folding tips')}<ArrowRight size={13} /></button>
+      <button type="button" onClick={() => openSheet('l0-first')} className="mt-1 inline-flex items-center gap-1 text-[13px] text-info underline-offset-2 hover:underline max-md:min-h-11">{tr('손으로 접는 요령', 'Folding tips')}<ArrowRight size={13} /></button>
     </Section>
   );
 }
@@ -291,7 +292,7 @@ function ModeTabs() {
     <div role="tablist" aria-label={tr('레슨 보기 방식', 'How the lesson reads')} className="sticky top-0 z-10 flex gap-1 border-b border-rule-2 bg-paper px-3 pb-2 pt-2.5">
       {MODES().map((m) => (
         <button key={m.id} type="button" role="tab" aria-selected={appMode === m.id} title={m.hint} onClick={() => useUI.getState().setAppMode(m.id)}
-          className={`h-7 flex-1 rounded-[3px] text-[13px] font-medium transition-colors ${appMode === m.id ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper-2 hover:text-ink'}`}>
+          className={`h-7 flex-1 rounded-[3px] text-[13px] font-medium transition-colors max-md:h-11 ${appMode === m.id ? 'bg-paper text-ink font-semibold shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'text-ink-2 hover:bg-paper-2 hover:text-ink'}`}>
           {m.label}
         </button>
       ))}

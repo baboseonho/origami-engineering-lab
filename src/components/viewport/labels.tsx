@@ -40,6 +40,9 @@ function allSpecs(): LabelSpec[] {
 
 const SHOULDER = 14;
 
+/** Subscripts in 3D labels stay at 12px or more (the app-wide 0.75em would be 10.5px in a 14px label). */
+const SUB_MIN = '[&_sub]:text-[length:max(12px,0.75em)]';
+
 /** Inside <Canvas>: project anchors each frame. */
 export function LabelProjector() {
   const { camera, size } = useThree();
@@ -104,7 +107,7 @@ export function LabelLayer() {
         ))}
       </svg>
       {specs.map((s) => (
-        <div key={s.id} ref={(el) => { if (el) nodes.set(s.id, el); else nodes.delete(s.id); }} className={`absolute left-0 top-0 whitespace-nowrap ${s.cls}`} style={{ display: 'none' }}>
+        <div key={s.id} ref={(el) => { if (el) nodes.set(s.id, el); else nodes.delete(s.id); }} className={`absolute left-0 top-0 whitespace-nowrap ${SUB_MIN} ${s.cls}`} style={{ display: 'none' }}>
           <Sym text={s.text} />
         </div>
       ))}

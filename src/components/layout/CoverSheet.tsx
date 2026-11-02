@@ -1,94 +1,16 @@
 import { X } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
-import { LECTURE_TITLES, LESSONS, PAGE_LABS, PARTS, THEORY_TAG, sheetNumber, type LabId, type Lesson } from '../../curriculum/lessons';
+import { useEffect, useRef } from 'react';
+import { LECTURE_TITLES, LESSONS, PAGE_LABS, PARTS, THEORY_TAG, sheetNumber } from '../../curriculum/lessons';
 import { tr } from '../../i18n';
-import type { Vec2 } from '../../core/geometry/vectors';
-import type { Assignment } from '../../core/topology/types';
-import { buildFromRegistry, type Params } from '../../models/registry';
 import { useModel } from '../../state/modelStore';
 import { useUI } from '../../state/uiStore';
-import { loadLesson } from '../../state/actions';
+import { isFirstVisit, openSheet } from '../../app/navigation';
 import { C } from '../../theme/tokens';
+import { FeaturedStrip } from '../landing/FeaturedStrip';
+import { PatternThumb } from '../landing/PatternThumb';
 
+export { PatternThumb };
 
-/** The crease pattern each lab sheet is about (labs have no generator of their own). */
-const LAB_PATTERN: Partial<Record<LabId, { generator: string; params: Params }>> = {
-  conceptLab: { generator: 'miura', params: { rows: 4, cols: 6, a: 1, b: 1, alpha: 60 } },
-  stepwise: { generator: 'singleVertex', params: { sectors: '60,120,120,60', mv: 'V,M,M,M' } },
-  kreslingVsYoshimura: { generator: 'kresling', params: {} },
-  kawasaki: { generator: 'singleVertex', params: { sectors: '70,100,110,80', mv: 'V,M,V,V' } },
-  maekawa: { generator: 'singleVertex', params: { sectors: '60,40,70,80,50,60', mv: 'M,V,M,M,V,M' } },
-  mvCrimp: { generator: 'singleVertex', params: { sectors: '60,40,70,80,50,60', mv: 'M,V,M,M,V,M' } },
-  generalized: { generator: 'singleVertex', params: { sectors: '80,100,90,70', mv: 'V,M,V,V' } },
-  gkawasaki: { generator: 'singleVertex', params: { sectors: '110,10,110,10,110,10', mv: 'M,V,M,V,M,V' } },
-  // reading pages get a pattern that hints at their subject
-  welcome: { generator: 'miura', params: { rows: 3, cols: 4, a: 1, b: 1, alpha: 60 } },
-  firstFolds: { generator: 'waterbombBase', params: {} },
-  atlas: { generator: 'waterbomb', params: { cols: 3, rows: 2 } },
-  glossary: { generator: 'singleVertex', params: { sectors: '45,45,45,45,45,45,45,45', mv: 'M,V,M,V,M,V,M,M' } },
-  beyond: { generator: 'resch', params: { m: 2, n: 2 } },
-  tools: { generator: 'boxpleat', params: { n: 4, preset: 'grid' } },
-  hobby: { generator: 'squareTwist', params: {} },
-};
-
-interface Thumb { segs: { a: Vec2; b: Vec2; as: Assignment }[]; box: [number, number, number, number] }
-
-const thumbCache = new Map<string, Thumb | null>();
-
-function thumbFor(lesson: Lesson): Thumb | null {
-  if (thumbCache.has(lesson.id)) return thumbCache.get(lesson.id)!;
-  let out: Thumb | null = null;
-  const src = lesson.generator ? { generator: lesson.generator, params: lesson.params ?? {} } : lesson.lab ? LAB_PATTERN[lesson.lab] : undefined;
-  if (src) {
-    try {
-      const m = buildFromRegistry(src.generator, src.params);
-      const over = m.edu.layout2D?.edgeOverrides ?? {};
-      const segs = m.edges.map((e) => {
-        const [a, b] = over[e.id] ?? [m.vertices[e.vertices[0]].initialPosition2D, m.vertices[e.vertices[1]].initialPosition2D];
-        return { a, b, as: e.assignment };
-      });
-      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      for (const { a, b } of segs) for (const p of [a, b]) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
-      out = { segs, box: [x0, y0, x1 - x0, y1 - y0] };
-    } catch { out = null; }
-  }
-  thumbCache.set(lesson.id, out);
-  return out;
-}
-
-const STROKE: Record<Assignment, string> = { M: C.mountain, V: C.valley, B: C.ink, F: C.rule2, U: C.unassigned };
-
-/** A crease pattern thumbnail whose lines are drawn in by a pen, boundary first. */
-export function PatternThumb({ lesson, delay }: { lesson: Lesson; delay: number }) {
-  const t = useMemo(() => thumbFor(lesson), [lesson]);
-  if (!t) {
-    // the 1D strip lab: a strip of paper with alternating parallel creases
-    return (
-      <svg viewBox="0 0 100 60" className="h-full w-full" aria-hidden>
-        <rect x="6" y="20" width="88" height="20" fill={C.paperFront} stroke={C.ink} strokeWidth="0.8" className="pen-draw" pathLength={1} style={{ animationDelay: `${delay}ms` }} />
-        {[22, 38, 51, 69, 80].map((x, i) => (
-          <line key={x} x1={x} y1="20" x2={x} y2="40" stroke={i % 2 ? C.mountain : C.valley} strokeWidth="1.1" pathLength={1}
-            className="pen-draw" style={{ animationDelay: `${delay + 200 + i * 60}ms` }} />
-        ))}
-      </svg>
-    );
-  }
-  const [x, y, w, h] = t.box;
-  const pad = Math.max(w, h) * 0.08;
-  const lw = Math.max(w, h) / 90;
-  const order = [...t.segs].sort((p, q) => (p.as === 'B' ? -1 : 0) - (q.as === 'B' ? -1 : 0));
-  return (
-    <svg viewBox={`${x - pad} ${-(y + h) - pad} ${w + 2 * pad} ${h + 2 * pad}`} className="h-full w-full" aria-hidden preserveAspectRatio="xMidYMid meet">
-      <g transform="scale(1,-1)">
-        {order.map((s, i) => (
-          <line key={i} x1={s.a[0]} y1={s.a[1]} x2={s.b[0]} y2={s.b[1]} pathLength={1}
-            stroke={STROKE[s.as]} strokeWidth={s.as === 'B' ? lw * 1.1 : s.as === 'F' ? lw * 0.5 : lw * 0.9} strokeLinecap="round"
-            className="pen-draw" style={{ animationDelay: `${delay + Math.min(i, 60) * 9}ms` }} />
-        ))}
-      </g>
-    </svg>
-  );
-}
 
 /**
  * 표지 · drawing index: every lesson is a plate in the set, shown with its
@@ -108,10 +30,18 @@ export function CoverSheet() {
     return () => { window.removeEventListener('keydown', onKey); before?.focus?.(); };
   }, [open]);
   if (!open) return null;
-  let plate = 0;
+  const firstVisit = isFirstVisit();
+  let plate = 3;
   return (
     <div className="cover-backdrop fixed inset-0 z-50 overflow-y-auto bg-board/95 p-2 sm:p-4" onClick={close}>
       <div role="dialog" aria-modal="true" aria-label={tr('도면 목록', 'Sheet index')} className="cover-sheet sheet relative mx-auto max-w-[1280px] rounded-[3px]" onClick={(e) => e.stopPropagation()}>
+        {/* stays at the top of the screen while the long index scrolls, so it is always one tap away */}
+        <div className="sticky top-2 z-20 h-0">
+          <button ref={closeBtn} type="button" onClick={close} aria-label={tr('도면 목록 닫기', 'Close the sheet index')}
+            className="absolute right-5 top-3 inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-[4px] border border-ink bg-paper px-3 text-[14px] font-medium text-ink shadow-[0_1px_1px_rgb(23_32_42/0.06),0_2px_8px_-2px_rgb(23_32_42/0.14)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:right-7 sm:top-5">
+            <X size={18} aria-hidden /><span aria-hidden>{tr('닫기', 'Close')}</span>
+          </button>
+        </div>
         <div className="grid-paper pointer-events-none absolute inset-0 opacity-60" aria-hidden />
         <div className="relative border-[1.5px] border-ink m-2 sm:m-3">
           {/* title block */}
@@ -123,7 +53,7 @@ export function CoverSheet() {
                 {tr('종이 한 장이 접힘선(crease)을 따라 움직이는 방식을 직접 움직여 보며 배우는 도면집. 처음이라면 0단원 "시작하기"부터 펼쳐 보자.', 'A set of drawings for learning how a sheet of paper moves along its creases, by moving it yourself. New here? Start with Part 0.')}
               </p>
             </div>
-            <dl className="ml-auto grid grid-cols-2 border border-rule-2 text-[13px]">
+            <dl className="ml-auto grid grid-cols-2 border border-rule-2 text-[13px] max-sm:hidden">
               {[[tr('도면', 'Sheets'), String(LESSONS.length)], [tr('단원', 'Parts'), String(PARTS.length)]].map(([k, v]) => (
                 <div key={k} className="border-l border-rule-2 px-3 py-1.5 first:border-l-0">
                   <dt className="lettering text-[12px] text-ink-3">{k}</dt>
@@ -131,9 +61,9 @@ export function CoverSheet() {
                 </div>
               ))}
             </dl>
-            <button ref={closeBtn} type="button" onClick={close} aria-label={tr('도면 목록 닫기', 'Close the sheet index')}
-              className="absolute right-2 top-2 rounded-[4px] p-1.5 text-ink-3 hover:bg-paper-2 hover:text-ink"><X size={18} /></button>
           </header>
+
+          <FeaturedStrip delay={120} />
 
           {PARTS.map((lec) => (
             <section key={lec} className="border-b border-rule-2 px-4 pb-4 pt-3 last:border-b-0 sm:px-6">
@@ -147,16 +77,18 @@ export function CoverSheet() {
                   plate += 1;
                   const delay = plate * 45;
                   const here = l.id === current;
+                  // on a first visit nothing has been opened yet: the welcome sheet behind the cover is not "current"
+                  const badge = here && !firstVisit;
                   return (
                     <button key={l.id} type="button"
-                      onClick={() => { close(); if (!here) loadLesson(l.id); }}
-                      className={`plate group flex flex-col overflow-hidden rounded-[2px] border bg-paper text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-ink hover:shadow-[0_6px_14px_-8px_rgb(23_32_42/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${here ? 'border-ink ring-2 ring-mark' : 'border-rule-2'}`}
+                      onClick={() => openSheet(l.id)}
+                      className={`plate group flex flex-col overflow-hidden rounded-[2px] border bg-paper text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-ink hover:shadow-[0_6px_14px_-8px_rgb(23_32_42/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${badge ? 'border-ink ring-2 ring-mark' : 'border-rule-2'}`}
                       style={{ animationDelay: `${delay}ms` }}>
                       <div className="relative aspect-[4/3] shrink-0 border-b border-rule bg-paper-2/60">
                         <div className="absolute inset-x-3 bottom-2.5 top-5"><PatternThumb lesson={l} delay={delay + 180} /></div>
                         <span className="absolute left-1.5 top-1 tnum text-[12px] text-ink-3">{sheetNumber(l.id)}</span>
                         {l.kind === 'lab' && <span className="lettering absolute right-1.5 top-1 text-[12px] text-ink-3">{l.lab && PAGE_LABS.includes(l.lab) ? tr('읽기', 'Read') : tr('실습', 'Lab')}</span>}
-                        {here && <span className="lettering absolute bottom-1 right-1.5 rounded-[2px] bg-mark px-1 text-[12px] text-mark-ink">{tr('현재 도면', 'Current')}</span>}
+                        {badge && <span className="lettering absolute bottom-1 right-1.5 rounded-[2px] bg-mark px-1 text-[12px] text-mark-ink">{tr('현재 도면', 'Current')}</span>}
                       </div>
                       <div className="px-2.5 py-2">
                         <div className="text-[14px] font-medium leading-snug text-ink group-hover:underline group-hover:decoration-mark group-hover:decoration-2 group-hover:underline-offset-2">{l.title}</div>
@@ -170,7 +102,7 @@ export function CoverSheet() {
           ))}
           <footer className="flex flex-wrap justify-between gap-2 border-t-[1.5px] border-ink px-4 py-2 text-[12px] text-ink-3 sm:px-6">
             <span><b style={{ color: C.mountain }}>━ ·</b> {tr('산접기', 'Mountain')} &nbsp; <b style={{ color: C.valley }}>‒ ‒</b> {tr('골접기', 'Valley')} &nbsp; <b className="text-ink">━</b> {tr('경계', 'Edge')}</span>
-            <span>{tr('Esc로 닫기', 'Esc to close')}</span>
+            <span className="max-md:hidden">{tr('Esc로 닫기', 'Esc to close')}</span>
           </footer>
         </div>
       </div>

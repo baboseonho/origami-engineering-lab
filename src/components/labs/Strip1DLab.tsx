@@ -220,7 +220,7 @@ export function Strip1DLab() {
           {/* ── the pattern, seen from above */}
           <div className="flex items-baseline justify-between px-4 pt-3">
             <span className="lettering text-[12px] text-ink-3">{tr('전개도 · 위에서 본 띠', 'Crease pattern · the strip from above')}</span>
-            <span className="text-[13px] text-ink-3">{tr('크리스를 누르면 산 ↔ 골, 끌면 이동', 'Click a crease to swap M ↔ V, drag to move it')}</span>
+            <span className="text-[13px] text-ink-3">{tr('크리스를 누르면 산 ↔ 골, 끌면 이동', 'Tap a crease to swap M ↔ V, drag to move it')}</span>
           </div>
           <svg ref={svg} width={W} height={cpH} className="block touch-none select-none"
             onPointerMove={(e) => {

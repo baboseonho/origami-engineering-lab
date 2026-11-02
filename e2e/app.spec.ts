@@ -80,7 +80,8 @@ test('Kresling: energy experiment runs in the worker', async ({ page }) => {
   await page.getByRole('radio', { name: 'Energy', exact: true }).click();
   await page.getByRole('tab', { name: '에너지', exact: true }).click();
   await page.getByRole('button', { name: '축 압축 실험 (비틀림 자유)' }).click();
-  await expect(page.getByText(/실험 프레임 u = 0\.5\d\d/)).toBeVisible({ timeout: 60_000 });
+  // the sheet opens on three cells: the sweep ends at u = 1.25 (H − H′) · 3 ≈ 1.736
+  await expect(page.getByText(/실험 프레임 u = 1\.7\d\d/)).toBeVisible({ timeout: 60_000 });
 });
 
 test('English: the language switch translates the interface and the lessons, and is remembered', async ({ page }) => {

@@ -3,10 +3,10 @@ import { ArrowRight, Bot, Building2, Car, HeartPulse, Palette, Satellite, Search
 import { tr } from '../../i18n';
 import { lessonById, sheetNumber } from '../../curriculum/lessons';
 import { FIELDS, STRUCTURES, bi, structureForSheet, type Field, type Structure } from '../../curriculum/structures';
-import { loadLesson } from '../../state/actions';
+import { openSheet } from '../../app/navigation';
 import { FIELD_USES } from '../../curriculum/resources';
 import { getLang } from '../../i18n';
-import { PatternThumb } from '../layout/CoverSheet';
+import { PatternThumb } from '../landing/PatternThumb';
 
 const ICON: Record<string, LucideIcon> = { ShoppingBag, Satellite, HeartPulse, Building2, Bot, Car, Palette };
 
@@ -21,7 +21,7 @@ export function StructureCard({ s, field }: { s: Structure; field?: Field | null
   if (!lesson) return null;
   const fieldNames = s.fields.map((f) => FIELDS.find((x) => x.id === f)!).filter(Boolean);
   return (
-    <button type="button" onClick={() => loadLesson(s.sheet)}
+    <button type="button" onClick={() => openSheet(s.sheet)}
       className="group flex flex-col overflow-hidden rounded-[3px] border border-rule-2 bg-paper text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-ink hover:shadow-[0_6px_14px_-8px_rgb(23_32_42/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
       <div className="relative aspect-[16/9] shrink-0 border-b border-rule bg-paper-2/60">
         <div className="absolute inset-x-4 bottom-3 top-6"><PatternThumb lesson={lesson} delay={0} /></div>
@@ -61,7 +61,7 @@ export function StructurePicker({ search = false, limit }: { search?: boolean; l
       .sort((a, b) => (field ? a.fields.indexOf(field) - b.fields.indexOf(field) : 0) || a.level - b.level);
   }, [field, q]);
   const shown = limit && !field && !q ? list.slice(0, limit) : list;
-  const chip = (on: boolean) => `inline-flex items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-[14px] transition-colors ${on ? 'border-ink bg-paper font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'border-rule-2 bg-paper text-ink-2 hover:border-ink hover:text-ink'}`;
+  const chip = (on: boolean) => `inline-flex items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-[14px] transition-colors max-md:min-h-11 ${on ? 'border-ink bg-paper font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'border-rule-2 bg-paper text-ink-2 hover:border-ink hover:text-ink'}`;
   return (
     <div>
       <div role="radiogroup" aria-label={tr('관심 분야', 'Field of interest')} className="mt-3 flex flex-wrap gap-1.5">
@@ -86,7 +86,7 @@ export function StructurePicker({ search = false, limit }: { search?: boolean; l
         {shown.map((s) => <StructureCard key={s.id} s={s} field={field} />)}
       </div>
       {shown.length < list.length && (
-        <button type="button" onClick={() => loadLesson('l0-atlas')} className="mt-3 inline-flex items-center gap-1 text-[14px] text-info underline-offset-2 hover:underline">
+        <button type="button" onClick={() => openSheet('l0-atlas')} className="mt-3 inline-flex min-h-11 items-center gap-1 text-[14px] text-info underline-offset-2 hover:underline">
           {tr(`구조 ${list.length}개 모두 보기`, `See all ${list.length} structures`)}<ArrowRight size={14} />
         </button>
       )}
@@ -129,8 +129,8 @@ export function StructureIntro({ sheet, showHook = true }: { sheet: string; show
         <div className="lettering text-[12px] text-ink-3">{tr('함께 배우는 이론', 'Theory behind it')}</div>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {s.theory.filter((t) => lessonById(t.sheet)).map((t) => (
-            <button key={t.label.en} type="button" onClick={() => loadLesson(t.sheet)} disabled={t.sheet === sheet}
-              className="inline-flex items-center gap-1 rounded-[4px] border border-rule-2 px-2 py-1 text-left text-[13px] text-info hover:border-info disabled:cursor-default disabled:border-transparent disabled:text-ink-3">
+            <button key={t.label.en} type="button" onClick={() => openSheet(t.sheet)} disabled={t.sheet === sheet}
+              className="inline-flex items-center gap-1 rounded-[4px] border border-rule-2 px-2 py-1 text-left text-[13px] text-info max-md:min-h-11 hover:border-info disabled:cursor-default disabled:border-transparent disabled:text-ink-3">
               {bi(t.label)}{t.sheet !== sheet && <ArrowRight size={13} />}
             </button>
           ))}

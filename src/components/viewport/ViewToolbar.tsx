@@ -31,14 +31,15 @@ export function ViewToolbar() {
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', onKey); };
   }, [open]);
-  const btn = 'h-7 whitespace-nowrap rounded-[3px] px-2 text-[13px] text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink';
+  // a finger needs 44px on a phone; the desktop keeps the compact 28px row
+  const btn = 'h-7 whitespace-nowrap rounded-[3px] px-2 text-[13px] text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink max-md:h-11 max-md:min-w-11 max-md:px-2.5';
   return (
     <div ref={ref} className="pointer-events-none absolute left-[15px] right-[15px] top-[15px] z-10 flex flex-wrap items-start gap-1.5 [&>*]:pointer-events-auto">
-      <div className="flex h-8 items-center gap-0.5 rounded-[4px] border border-ink/40 bg-paper/95 px-0.5 shadow-sm" role="group" aria-label={tr('시점', 'View')}>
+      <div className="flex h-8 items-center gap-0.5 rounded-[4px] border border-ink/40 bg-paper/95 px-0.5 shadow-sm max-md:h-12" role="group" aria-label={tr('시점', 'View')}>
         <button type="button" className={btn} onClick={() => useUI.getState().requestView('fit')} title={tr('모델이 화면에 꽉 차게 (더블클릭: 지금 방향 그대로 맞춤)', 'Fit the model to the view (double-click: fit keeping the direction)')}><Scan size={14} className="mr-1 inline align-[-2px]" aria-hidden />{tr('맞춤', 'Fit')}</button>
         <span className="h-4 w-px bg-rule-2" />
         <select aria-label={tr('시점 선택', 'Choose view')} value="" onChange={(e) => { if (e.target.value) useUI.getState().requestView(e.target.value as ReturnType<typeof views>[number][0]); }}
-          className="h-7 cursor-pointer rounded-[3px] bg-transparent px-1 text-[13px] text-ink-2 hover:bg-paper-2 hover:text-ink">
+          className="h-7 cursor-pointer rounded-[3px] bg-transparent px-1 text-[13px] text-ink-2 hover:bg-paper-2 hover:text-ink max-md:h-11 max-md:px-2">
           <option value="">{tr('시점…', 'View…')}</option>
           {views().map(([p, l]) => <option key={p} value={p}>{l}</option>)}
         </select>
@@ -48,13 +49,13 @@ export function ViewToolbar() {
       </div>
       <div className="relative">
         <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}
-          className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[4px] border border-ink/40 bg-paper/95 px-2.5 text-[13px] text-ink-2 shadow-sm hover:text-ink">
+          className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[4px] border border-ink/40 bg-paper/95 px-2.5 text-[13px] text-ink-2 shadow-sm hover:text-ink max-md:h-12">
           <Layers size={14} />{tr('표시 항목', 'Overlays')}
         </button>
         {open && (
           <div className="sheet absolute left-0 mt-1 w-56 rounded-[3px] border border-rule-2 p-2">
             {overlayItems().map((o) => (
-              <label key={o.k} className="flex cursor-pointer items-center gap-2 rounded-[3px] px-1.5 py-1 text-[13px] text-ink hover:bg-paper-2">
+              <label key={o.k} className="flex cursor-pointer items-center gap-2 rounded-[3px] px-1.5 py-1 text-[13px] text-ink hover:bg-paper-2 max-md:min-h-11">
                 <input type="checkbox" checked={overlays[o.k]} onChange={() => useUI.getState().toggleOverlay(o.k)} />
                 {o.label}
               </label>

@@ -5,7 +5,7 @@ import { LECTURE_TITLES, PAGE_LABS, lessonById, sheetNumber, type LabId, type Le
 import { PatternThumb } from './CoverSheet';
 import { useModel } from '../../state/modelStore';
 import { useUI } from '../../state/uiStore';
-import { loadLesson } from '../../state/actions';
+import { openSheet } from '../../app/navigation';
 import { Rich } from '../controls/Rich';
 import { StructureHook, StructureIntro } from '../pages/StructurePicker';
 import { ExplainerButton } from '../explainers/ExplainerButton';
@@ -73,7 +73,7 @@ export function LessonBrief({ lesson }: { lesson: Lesson }) {
   const [ans, setAns] = useState(false);
   const toggle = (
     <button type="button" onClick={() => useUI.getState().setBriefOpen(!open)} aria-expanded={open}
-      className="flex shrink-0 items-center gap-1 rounded-[4px] px-2 py-1 text-[13px] text-ink-3 hover:bg-paper-2 hover:text-ink">
+      className="flex shrink-0 items-center gap-1 rounded-[4px] px-2 py-1 text-[13px] text-ink-3 hover:bg-paper-2 hover:text-ink max-md:min-h-11">
       {open ? <><ChevronUp size={15} />{tr('설명 접기', 'Hide')}</> : <><ChevronDown size={15} />{tr('설명 펼치기', 'Show explanation')}</>}
     </button>
   );
@@ -112,14 +112,14 @@ export function LessonBrief({ lesson }: { lesson: Lesson }) {
         <div className="mt-3 rounded-[3px] border border-rule-2 bg-paper-2 px-3.5 py-3 text-[15px] leading-relaxed">
           <div className="font-semibold text-ink">{tr('질문', 'Question')}</div>
           <div className="text-ink-2"><Rich text={lesson.content.question} /></div>
-          <button type="button" className="mt-1 text-[14px] text-info underline-offset-2 hover:underline" onClick={() => setAns((a) => !a)}>{ans ? tr('결론 숨기기', 'Hide the conclusion') : tr('기대되는 결론 보기', 'Show the expected conclusion')}</button>
+          <button type="button" className="mt-1 text-[14px] text-info underline-offset-2 hover:underline max-md:min-h-11" onClick={() => setAns((a) => !a)}>{ans ? tr('결론 숨기기', 'Hide the conclusion') : tr('기대되는 결론 보기', 'Show the expected conclusion')}</button>
           {ans && <div className="mt-1.5 rounded-[3px] bg-ok-soft px-2.5 py-1.5 text-ink"><Rich text={lesson.content.answer ?? ''} /></div>}
         </div>
       )}
       {lesson.links && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {lesson.links.map((l) => (
-            <button key={l.to} type="button" className="inline-flex items-center gap-1 rounded-[4px] border border-rule-2 px-2.5 py-1 text-[14px] text-info hover:border-info" onClick={() => loadLesson(l.to)}>
+            <button key={l.to} type="button" className="inline-flex items-center gap-1 rounded-[4px] border border-rule-2 px-2.5 py-1 text-[14px] text-info hover:border-info max-md:min-h-11" onClick={() => openSheet(l.to)}>
               {l.label}<ArrowRight size={14} />
             </button>
           ))}

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { C, SERIES } from '../../theme/tokens';
+import { SUB_MIN } from './num';
 import { tr } from '../../i18n';
 import { Rich } from '../controls/Rich';
 import { Sym, symPlain } from '../controls/sym';
@@ -10,7 +11,45 @@ export interface Series {
   x: number[];
   y: number[];
   dashed?: boolean;
+  /** an explicit dash pattern (a crease series uses its assignment's: M dash-dot, V dash) */
+  dash?: string;
   points?: boolean;
+}
+
+/** Series whose values agree everywhere (to rounding) are drawn as one line and named together ("ρ2 = ρ4"). */
+function coincidentGroups(series: Series[]): number[][] {
+  let lo = Infinity, hi = -Infinity;
+  for (const s of series) for (const y of s.y) if (Number.isFinite(y)) { lo = Math.min(lo, y); hi = Math.max(hi, y); }
+  const tol = 1e-6 * Math.max(1, hi - lo);
+  const same = (a: Series, b: Series) => {
+    if (a.x.length !== b.x.length || a.x.length < 2) return false;
+    let n = 0;
+    for (let i = 0; i < a.x.length; i++) {
+      if (a.x[i] !== b.x[i]) return false;
+      const fa = Number.isFinite(a.y[i]), fb = Number.isFinite(b.y[i]);
+      if (fa !== fb) return false;
+      if (!fa) continue;
+      if (Math.abs(a.y[i] - b.y[i]) > tol) return false;
+      n++;
+    }
+    return n > 1;
+  };
+  const groups: number[][] = [];
+  const taken = new Set<number>();
+  series.forEach((s, i) => {
+    if (taken.has(i)) return;
+    const g = [i];
+    for (let j = i + 1; j < series.length; j++) if (!taken.has(j) && same(s, series[j])) { g.push(j); taken.add(j); }
+    groups.push(g);
+  });
+  return groups;
+}
+
+const dashOf = (s: Series, legend = false) => s.dash ?? (s.dashed ? (legend ? '4 2' : '4 3') : undefined);
+
+/** A short stroke in the series' colour and dash, for legends and labels. */
+export function SeriesSwatch({ color, dash, w = 18 }: { color: string; dash?: string; w?: number }) {
+  return <svg width={w} height="6" aria-hidden className="shrink-0"><line x1="0" x2={w} y1="3" y2="3" stroke={color} strokeWidth="2.5" strokeDasharray={dash} /></svg>;
 }
 
 function niceTicks(lo: number, hi: number, n = 5): number[] {
@@ -72,8 +111,10 @@ function Pow10({ x, y, exp, anchor, prefix = '' }: { x: number; y: number; exp: 
  * (the width follows the container) so axis text is a true 12px, never a
  * scaled-down 9px; the title and legend are ordinary HTML above it.
  */
-export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 360, yZero = false, title, logY = false, emptyText = tr('아직 표시할 데이터가 없다', 'No data to show yet') }: {
+export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 360, yZero = false, title, logY = false, emptyText = tr('아직 표시할 데이터가 없다', 'No data to show yet'), endLabels = false }: {
   series: Series[]; xLabel: string; yLabel: string; markerX?: number; height?: number; width?: number; yZero?: boolean; title?: string; logY?: boolean; emptyText?: string;
+  /** name each line at its right end (used when several series share one colour, e.g. two mountain creases) */
+  endLabels?: boolean;
 }) {
   const box = useRef<HTMLElement>(null);
   const [measured, setMeasured] = useState(width);
@@ -108,12 +149,30 @@ export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 36
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, yZero, logY]);
   const empty = !series.some((s) => s.x.length > 0);
+  const groups = useMemo(() => coincidentGroups(series), [series]);
+  const groupName = (g: number[]) => g.map((i) => series[i].label).join(' = ');
+  // line names go at the end where the lines are furthest apart: in the right margin when that is the
+  // right end, otherwise just inside the plot at the left end (a sweep to negative angles ends on the left)
+  const ends = useMemo(() => groups.map((g) => {
+    const s = series[g[0]];
+    let iMin = -1, iMax = -1;
+    s.x.forEach((x, i) => {
+      if (!Number.isFinite(x) || !Number.isFinite(s.y[i])) return;
+      if (iMin < 0 || x < s.x[iMin]) iMin = i;
+      if (iMax < 0 || x > s.x[iMax]) iMax = i;
+    });
+    return { left: iMin >= 0 ? s.y[iMin] : NaN, right: iMax >= 0 ? s.y[iMax] : NaN };
+  }), [groups, series]);
+  const spread = (k: 'left' | 'right') => { const v = ends.map((e) => e[k]).filter(Number.isFinite); return v.length ? Math.max(...v) - Math.min(...v) : 0; };
+  const labelSide: 'left' | 'right' = groups.length > 1 && spread('left') > 2 * spread('right') ? 'left' : 'right';
+  // room on the right for the end labels (Sym text at 14px, about 8px a character)
+  const endW = endLabels && !empty && labelSide === 'right' ? Math.min(110, 14 + groups.reduce((m, g) => Math.max(m, symPlain(groupName(g).replace(/\$/g, '')).length), 0) * 8) : 0;
   const yt = empty ? [] : logY ? decadeTicks(ylo, yhi, 4) : niceTicks(ylo, yhi, 4);
   const yf = tickFormat(logY ? [] : yt);
   const yTickText = yt.map((t) => (logY ? `10${signed(String(t))}` : yf.label(t)));
   // the left margin follows the widest tick label, so the axis title never overlaps it
   const tickW = yTickText.reduce((m, s) => Math.max(m, s.length), 1) * 7.4 + (logY ? 4 : 0);
-  const pad = { l: Math.round(26 + tickW), r: 12, t: yf.exp ? 22 : 10, b: 38 };
+  const pad = { l: Math.round(26 + tickW), r: 12 + endW, t: yf.exp ? 22 : 10, b: 38 };
   const W = measured, H = Math.max(height, 190);
   const sx = (x: number) => pad.l + ((x - xlo) / (xhi - xlo)) * (W - pad.l - pad.r);
   const sy = (y: number) => H - pad.b - ((tY(y) - ylo) / (yhi - ylo)) * (H - pad.t - pad.b);
@@ -125,16 +184,26 @@ export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 36
   return (
     <figure ref={box} className="m-0 w-full min-w-0">
       {(title || (!empty && series.length > 0)) && (
-        <figcaption className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] leading-snug text-ink-2">
+        <figcaption className={`mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] leading-snug text-ink-2 ${SUB_MIN}`}>
           {title && <span className="font-medium text-ink">{title}</span>}
-          {!empty && series.map((s) => (
-            <span key={s.label} className="inline-flex items-center gap-1.5">
-              <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={s.color} strokeWidth="2.5" strokeDasharray={s.dashed ? '4 2' : undefined} /></svg>
-              {s.label.includes('$') ? <Rich text={s.label} /> : <Sym text={s.label} />}
-            </span>
-          ))}
+          {!empty && groups.map((g) => {
+            // one swatch per distinct line style in the group
+            const styles = g.filter((i, k) => g.findIndex((j) => series[j].color === series[i].color && dashOf(series[j], true) === dashOf(series[i], true)) === k);
+            return (
+              <span key={series[g[0]].label} className="inline-flex items-center gap-1.5" title={g.length > 1 ? tr('모든 점에서 값이 같아 선이 겹친다', 'Equal at every point, so the lines overlap') : undefined}>
+                {styles.map((i) => <SeriesSwatch key={i} color={series[i].color} dash={dashOf(series[i], true)} w={16} />)}
+                <span>
+                  {g.map((i, k) => (
+                    <span key={i}>{k > 0 && ' = '}{series[i].label.includes('$') ? <Rich text={series[i].label} /> : <Sym text={series[i].label} />}</span>
+                  ))}
+                </span>
+                {g.length > 1 && <span className="text-ink-3">{tr('(선이 겹침)', '(lines overlap)')}</span>}
+              </span>
+            );
+          })}
         </figcaption>
       )}
+      <div className="relative">
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="tnum block max-w-full select-none" role="img" aria-label={`${yLabel}${tr(' 대 ', ' vs ')}${xLabel}${title ? ` · ${title}` : ''}${!empty && series.length ? `: ${series.map((s) => symPlain(s.label.replace(/\$/g, ''))).join(', ')}` : ''}`}>
         <rect x={pad.l} y={pad.t} width={W - pad.l - pad.r} height={H - pad.t - pad.b} fill={C.paper} stroke={C.rule} />
         {xt.map((t) => (
@@ -161,7 +230,7 @@ export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 36
             .join(' L');
           return (
             <g key={s.label}>
-              {d && <path d={'M' + d} fill="none" stroke={s.color} strokeWidth={1.8} strokeDasharray={s.dashed ? '4 3' : undefined} />}
+              {d && <path d={'M' + d} fill="none" stroke={s.color} strokeWidth={s.dash ? 2 : 1.8} strokeDasharray={dashOf(s)} />}
               {s.points && s.x.map((x, i) => <circle key={i} cx={sx(x)} cy={sy(s.y[i])} r={2.4} fill={s.color} />)}
             </g>
           );
@@ -173,8 +242,36 @@ export function Plot({ series, xLabel, yLabel, markerX, height = 190, width = 36
         <text x={(W + pad.l) / 2} y={H - 5} fontSize={FS} fill={C.ink2} textAnchor="middle">{xLabel}</text>
         {yLabel && <text x={13} y={midY} fontSize={FS} fill={C.ink2} textAnchor="middle" transform={`rotate(-90 13 ${midY})`}>{yLabel}</text>}
       </svg>
+      {endLabels && !empty && <EndLabels left={labelSide === 'right' ? W - pad.r + 6 : pad.l + 6} chip={labelSide === 'left'} top={pad.t} bottom={H - pad.b}
+        items={groups.map((g, i) => {
+          const v = ends[i][labelSide];
+          if (!Number.isFinite(tY(v))) return { key: series[g[0]].label, text: groupName(g), y: NaN };
+          const y = sy(v);
+          // inside the plot the name sits beside its line, on the side towards the middle
+          return { key: series[g[0]].label, text: groupName(g), y: labelSide === 'left' ? y + (y < midY ? 13 : -13) : y };
+        })} />}
+      </div>
     </figure>
   );
 }
 
 export const PALETTE = SERIES;
+
+/** Names at the right end of each line, nudged apart so they never overlap (HTML, so subscripts stay real and at least 12px). */
+function EndLabels({ items, left, top, bottom, chip }: { items: { key: string; text: string; y: number }[]; left: number; top: number; bottom: number; chip: boolean }) {
+  const GAP = 17;
+  const placed = items.filter((it) => Number.isFinite(it.y)).sort((a, b) => a.y - b.y).map((it) => ({ ...it, at: it.y }));
+  for (let i = 1; i < placed.length; i++) placed[i].at = Math.max(placed[i].at, placed[i - 1].at + GAP);
+  const over = placed.length ? placed[placed.length - 1].at - bottom : 0;
+  if (over > 0) for (const p of placed) p.at -= over;
+  for (let i = 0; i < placed.length; i++) placed[i].at = Math.max(placed[i].at, top + 6 + i * GAP);
+  return (
+    <div className="pointer-events-none absolute inset-0" aria-hidden>
+      {placed.map((p) => (
+        <span key={p.key} className={`absolute -translate-y-1/2 whitespace-nowrap text-[14px] leading-none text-ink ${chip ? 'rounded-[2px] bg-paper/90 px-1 py-0.5' : ''} ${SUB_MIN}`} style={{ left, top: p.at }}>
+          {p.text.includes('$') ? <Rich text={p.text} /> : <Sym text={p.text} />}
+        </span>
+      ))}
+    </div>
+  );
+}

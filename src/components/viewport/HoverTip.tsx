@@ -73,7 +73,7 @@ export function PointerTip({ host, show, children }: { host: RefObject<HTMLEleme
 /** The paper note itself: name (with its line style), then key–value rows in tabular figures. */
 export function HoverCard({ title, assignment, rows, note }: TipContent) {
   return (
-    <div className="min-w-[150px] max-w-[300px] rounded-[2px] border border-ink/50 bg-paper/95 px-2 py-1.5 text-[13px] leading-snug text-ink shadow-sm">
+    <div className="min-w-[150px] max-w-[300px] rounded-[2px] border border-ink/50 bg-paper/95 px-2 py-1.5 text-[13px] leading-snug text-ink shadow-sm [&_sub]:text-[length:max(12px,0.75em)]">
       <div className="flex items-baseline gap-2">
         <span className="lbl-greek text-[14px] font-semibold">{title}</span>
         {assignment && (

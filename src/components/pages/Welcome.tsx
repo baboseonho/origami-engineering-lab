@@ -3,6 +3,7 @@ import { lessonById } from '../../curriculum/lessons';
 import { C } from '../../theme/tokens';
 import { Article, Callout, H2, H3, Lead, P, SheetLink, T, VideoGrid } from './Article';
 import { StructurePicker } from './StructurePicker';
+import { isPhone, isTouch } from '../landing/device';
 
 function LineSample({ kind }: { kind: 'M' | 'V' | 'B' }) {
   const dash = kind === 'M' ? '7 2.5 1.5 2.5' : kind === 'V' ? '6 3.5' : undefined;
@@ -33,7 +34,15 @@ const PATHS = () => [
 ];
 
 export function WelcomePage() {
+  const phone = isPhone();
+  const touch = isTouch();
+  // where things are, in the words of this screen
+  const verdicts = phone ? tr('모델 탭의 판정표는', 'The verdict table on the Model tab') : tr('오른쪽 패널은', 'The right-hand panel');
+  const slider = phone ? tr('모델 탭', 'on the Model tab') : tr('오른쪽 패널', 'in the right panel');
+  const lessonCol = phone ? tr('설명 탭', 'the Learn tab') : tr('레슨 칸', 'the lesson column');
   return (
+    // room at the end so the last card clears the drawing frame's title block
+    <div className="pb-14">
     <Article>
       <Lead>
         {tr(
@@ -88,15 +97,19 @@ export function WelcomePage() {
       </ul>
       <P>
         {tr(
-          <>접힌 정도는 <T>접힘각 ρ</T>로 잰다. 펼쳐진 상태가 0°, 완전히 접힌 상태가 ±180°이고, 골접기는 +, 산접기는 −다. 오른쪽 패널은 지금 상태를 검사해서 "평탄하게 접히는 조건이 성립하는지", "종이를 휘지 않고 이 모양이 가능한지", "종이가 서로 뚫고 지나가지 않는지"를 따로따로 알려 준다.</>,
-          <>How far a crease is folded is its <T>fold angle ρ</T>: 0° when flat, ±180° when folded all the way; valley folds are positive and mountain folds negative. The right-hand panel checks the current state and answers separately: do the flat-folding conditions hold, is this shape possible without bending the paper, and does the paper pass through itself?</>,
+          <>접힌 정도는 <T>접힘각 ρ</T>로 잰다. 펼쳐진 상태가 0°, 완전히 접힌 상태가 ±180°이고, 골접기는 +, 산접기는 −다. {verdicts} 지금 상태를 검사해서 "평탄하게 접히는 조건이 성립하는지", "종이를 휘지 않고 이 모양이 가능한지", "종이가 서로 뚫고 지나가지 않는지"를 따로따로 알려 준다.</>,
+          <>How far a crease is folded is its <T>fold angle ρ</T>: 0° when flat, ±180° when folded all the way; valley folds are positive and mountain folds negative. {verdicts} checks the current state and answers separately: do the flat-folding conditions hold, is this shape possible without bending the paper, and does the paper pass through itself?</>,
         )}
       </P>
       <H3>{tr('접고, 멈추고, 살펴보기', 'Fold, pause, inspect')}</H3>
       <P>
         {tr(
-          <>오른쪽 패널의 <T>전체 접기</T> 슬라이더를 움직이면 구조 전체가 함께 접힌다. 어느 지점에서든 멈추면 그 순간의 모양을 그대로 분석할 수 있다. 3D 화면은 끌어서 돌리고 휠로 확대하며, 선이나 꼭짓점에 마우스를 올리면 길이와 각도가 나온다. <T>투영</T> 보기는 지금 모양을 xy·yz·zx 평면에 비춘 3면도를 치수와 함께 보여 준다.</>,
-          <>Move the <T>fold the whole structure</T> slider in the right panel and everything folds together. Stop anywhere and analyse that exact shape. Drag the 3D view to rotate and scroll to zoom; hover a line or vertex to read its length and angles. The <T>Projections</T> view shows the current shape projected onto the xy, yz and zx planes, with dimensions.</>,
+          <>{slider}의 <T>전체 접기</T> 슬라이더를 움직이면 구조 전체가 함께 접힌다. 어느 지점에서든 멈추면 그 순간의 모양을 그대로 분석할 수 있다. {touch
+            ? '3D 화면은 한 손가락으로 끌어서 돌리고 두 손가락으로 벌려 확대하며, 선이나 꼭짓점을 누르면 길이와 각도가 나온다.'
+            : '3D 화면은 끌어서 돌리고 휠로 확대하며, 선이나 꼭짓점에 마우스를 올리면 길이와 각도가 나온다.'} <T>투영</T> 보기는 지금 모양을 xy·yz·zx 평면에 비춘 3면도를 치수와 함께 보여 준다.</>,
+          <>Move the <T>fold the whole structure</T> slider {slider} and everything folds together. Stop anywhere and analyse that exact shape. {touch
+            ? 'Drag the 3D view with one finger to rotate and pinch to zoom; tap a line or vertex to read its length and angles.'
+            : 'Drag the 3D view to rotate and scroll to zoom; hover a line or vertex to read its length and angles.'} The <T>Projections</T> view shows the current shape projected onto the xy, yz and zx planes, with dimensions.</>,
         )}
       </P>
       <H3>{tr('두 가지 계산 방법', 'Two ways of computing')}</H3>
@@ -109,13 +122,13 @@ export function WelcomePage() {
 
       <Callout title={tr('직접 접어 보기', 'Fold it for real')} tone="tip">
         {tr(
-          '모델이 있는 도면에서는 왼쪽 레슨 칸의 "직접 접어 보기"에서 전개도를 A4로 인쇄할 수 있다. 화면에서 움직여 본 패턴을 손으로 접어 보면 훨씬 빨리 익숙해진다.',
-          'On any sheet with a model, "Fold it yourself" in the lesson column prints its crease pattern on A4. Folding by hand a pattern you have just moved on screen is the fastest way to get a feel for it.',
+          `모델이 있는 도면에서는 ${lessonCol}의 "직접 접어 보기"에서 전개도를 A4로 인쇄할 수 있다. 화면에서 움직여 본 패턴을 손으로 접어 보면 훨씬 빨리 익숙해진다.`,
+          `On any sheet with a model, "Fold it yourself" in ${lessonCol} prints its crease pattern on A4. Folding by hand a pattern you have just moved on screen is the fastest way to get a feel for it.`,
         )}
       </Callout>
       <Callout title={tr('표기와 언어', 'Notation and language')}>
         {tr(
-          '위쪽 제목줄의 EN/한 버튼으로 언어를 바꿀 수 있다. 정리 이름과 기호(Kawasaki, Maekawa, ρ, θ, DoF)는 두 언어 모두 원래 표기를 쓴다. 처음 보는 말은 "용어 사전" 도면에 모아 두었다.',
+          '맨 위 제목줄의 EN/한 버튼으로 언어를 바꿀 수 있다. 정리 이름과 기호(Kawasaki, Maekawa, ρ, θ, DoF)는 두 언어 모두 원래 표기를 쓴다. 처음 보는 말은 "용어 사전" 도면에 모아 두었다.',
           'Switch language with the EN/한 button in the title bar. Theorem names and symbols (Kawasaki, Maekawa, ρ, θ, DoF) keep their usual form in both languages. Unfamiliar words are collected on the Glossary sheet.',
         )}
         <div className="mt-2"><SheetLink to="l0-glossary" /></div>
@@ -126,6 +139,7 @@ export function WelcomePage() {
         <VideoGrid ids={lessonById('l0-welcome')?.videos ?? []} />
       </>)}
     </Article>
+    </div>
   );
 }
 

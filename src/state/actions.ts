@@ -642,6 +642,8 @@ export function setPatternFold(p: number) {
 }
 
 let foldStateRaf = 0;
+/** True while a whole-pattern fold animation runs: large models skip the DoF analysis per frame (see runDiagnostics). */
+let patternFoldAnimating = false;
 /** Animate the whole-pattern fold to `to` at the shared fold speed (every frame is a solution). */
 export function animatePatternFold(to: number, ms = 2600) {
   cancelAnimationFrame(foldStateRaf);
@@ -649,13 +651,17 @@ export function animatePatternFold(to: number, ms = 2600) {
   if (!mode) return;
   const from = patternFoldProgress();
   if (reducedMotion()) { setPatternFold(to); return; }
+  patternFoldAnimating = true;
   runTimeline(ms * Math.max(0.25, Math.abs(to - from)), (k) => {
     setPatternFold(from + (to - from) * k);
     if (mode === 'rigid') { const r = useSim.getState().result; return !r || r.success; }
     return true;
-  }, (id) => (foldStateRaf = id), () => useUI.getState().requestView('fit'));
+  }, (id) => (foldStateRaf = id), () => { patternFoldAnimating = false; scheduleDiagnostics(); useUI.getState().requestView('fit'); });
 }
-export function cancelPatternFold() { cancelAnimationFrame(foldStateRaf); }
+export function cancelPatternFold() {
+  cancelAnimationFrame(foldStateRaf);
+  if (patternFoldAnimating) { patternFoldAnimating = false; scheduleDiagnostics(); }
+}
 
 export function stopPlaying() {
   if (raf) cancelAnimationFrame(raf);
@@ -720,7 +726,9 @@ function runDiagnostics() {
   if (!model) return;
   const s = useSim.getState();
   const patch: Partial<ReturnType<typeof useSim.getState>> = {};
-  if (engine.rigid && engine.rigid.sys.vars.edgeOfVar.length <= 400) {
+  // the DoF rank (SVD) of a large model takes ~1 s; during a fold animation it is computed once, on the final state
+  const nVars = engine.rigid ? engine.rigid.sys.vars.edgeOfVar.length : 0;
+  if (engine.rigid && nVars <= 400 && !(patternFoldAnimating && nVars > 150)) {
     try {
       const rho = s.solverMode === 'energy' && engine.energy ? engine.energy.foldAngles() : s.shownState ? s.rho : engine.rigid.rho;
       patch.dof = engine.rigid.analyze(rho);
@@ -818,6 +826,24 @@ export function clearExperiment() {
   worker = null;
   useSim.setState({ experiment: null });
   if (engine.energy) engine.setPositions(engine.energy.x);
+}
+
+/**
+ * Run an experiment and, once every sample is in, play the recorded samples
+ * back as one motion in the 3D view (the ExperimentCard's one button).
+ * Every frame of the playback is one of the energy-minimised samples.
+ */
+export function runAndPlayExperiment(kind: 'kreslingAxial' | 'yoshimuraCompression' | 'bagCollapse') {
+  runExperiment(kind);
+  // runExperiment plays the bag sweep itself when it is done
+  if (kind === 'bagCollapse') return;
+  const unsub = useSim.subscribe((s) => {
+    const ex = s.experiment;
+    if (!ex || ex.kind !== kind) { unsub(); return; }
+    if (ex.running) return;
+    unsub();
+    if (!ex.error && ex.samples.length > 1) playExperiment();
+  });
 }
 
 // ───────────────────────────────────────────── FOLD I/O

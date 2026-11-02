@@ -105,7 +105,7 @@ export function Explainer({ title, scenes, autoPlay = true }: { title: string; s
   const startOf = (i: number) => spans.slice(0, i).reduce((s, x) => s + x, 0);
   const go = (i: number) => { const j = Math.max(0, Math.min(scenes.length - 1, i)); setTime(j === 0 ? 0 : startOf(j) + FADE); setJumps((n) => n + 1); };
   const done = time >= total;
-  const btn = 'flex h-9 w-9 items-center justify-center rounded-[4px] text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink disabled:opacity-30';
+  const btn = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink disabled:opacity-30 max-md:h-11 max-md:w-11';
   const caption = (s: Scene) => { const c = s.caption(); return typeof c === 'string' ? htmlMath(c) : c; };
   const counter = (i: number) => <span className="tnum mr-2 text-[13px] text-ink-3">{i + 1}/{scenes.length}</span>;
 
@@ -139,14 +139,16 @@ export function Explainer({ title, scenes, autoPlay = true }: { title: string; s
           </button>
         )}
         <button type="button" className={btn} onClick={() => go(idx + 1)} disabled={idx === scenes.length - 1} aria-label={tr('다음 장면', 'Next scene')}><ChevronRight size={17} /></button>
-        {/* one segment per scene; click to jump */}
-        <div className="ml-2 flex flex-1 gap-1">
+        {/* one segment per scene; click to jump. The bar is thin, the hit area is the full 44px row. */}
+        <div className="ml-1.5 flex min-w-0 flex-1">
           {scenes.map((_, i) => {
             const f = i < idx ? 1 : i > idx ? 0 : into / spans[idx];
             return (
-              <button key={i} type="button" onClick={() => go(i)} aria-label={tr(`${i + 1}번 장면`, `Scene ${i + 1}`)}
-                className="relative h-2 overflow-hidden rounded-full bg-rule-2/60" style={{ flex: spans[i] }}>
-                <span className="absolute inset-y-0 left-0 bg-ink" style={{ width: `${Math.min(1, f) * 100}%` }} />
+              <button key={i} type="button" onClick={() => go(i)} aria-label={tr(`${i + 1}번 장면`, `Scene ${i + 1}`)} aria-current={i === idx ? 'step' : undefined}
+                className="group flex h-9 min-w-0 items-center px-0.5 max-md:h-11" style={{ flex: spans[i] }}>
+                <span className="relative block h-2 w-full overflow-hidden rounded-full bg-rule-2/60 transition-[height] group-hover:h-2.5">
+                  <span className="absolute inset-y-0 left-0 bg-ink" style={{ width: `${Math.min(1, f) * 100}%` }} />
+                </span>
               </button>
             );
           })}

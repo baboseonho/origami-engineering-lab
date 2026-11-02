@@ -79,7 +79,7 @@ export function Sci({ x, d = 2, zero = 0, className }: { x: number | null | unde
   if (a >= 1e-3 && a < 1e4) return <span className={className}>{num(x, d + 1)}</span>;
   const [m, e] = x.toExponential(d).split('e');
   const exp = parseInt(e, 10);
-  return <span className={`whitespace-nowrap ${className ?? ''}`}>{num(+m, d)} × 10<sup className="text-[0.72em]">{exp < 0 ? `−${-exp}` : exp}</sup></span>;
+  return <span className={`whitespace-nowrap ${className ?? ''}`}>{num(+m, d)} × 10<sup className="text-[0.82em]">{exp < 0 ? `−${-exp}` : exp}</sup></span>;
 }
 
 /** Mountain ∧ / valley ∨ glyph. */

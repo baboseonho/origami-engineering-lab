@@ -13,3 +13,13 @@ describe('design tokens', () => {
     });
   }
 });
+
+describe('chart series', () => {
+  it('never use mountain red or valley blue for a generic series', async () => {
+    const { SERIES } = await import('../theme/tokens');
+    const used = SERIES.map((s) => s.toLowerCase());
+    expect(used).not.toContain(C.mountain);
+    expect(used).not.toContain(C.valley);
+    expect(new Set(used).size).toBe(used.length);
+  });
+});

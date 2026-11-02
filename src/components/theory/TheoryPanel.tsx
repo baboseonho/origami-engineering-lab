@@ -15,13 +15,13 @@ const t = (i: number) => `\\htmlData{sym=theta${i}}{\\theta_{${i}}}`;
 export const EQUATIONS: Record<TheoryKey, { title: string; tex: string[]; note?: string }> = {
   convention: {
     get title() { return tr('접힘각 부호 규약', 'Fold-angle sign convention'); },
-    tex: [`\\rho = 0\\ \\text{flat},\\quad \\rho>0\\ \\text{valley},\\quad \\rho<0\\ \\text{mountain},\\quad |\\rho|\\to\\pi\\ \\text{fully folded}`, `\\rho = \\pi - \\varphi_{\\text{dihedral, front}} ,\\qquad \\rho = \\operatorname{atan2}\\big((\\mathbf n_R\\times\\mathbf n_L)\\cdot\\hat{\\mathbf e},\\ \\mathbf n_R\\cdot\\mathbf n_L\\big)`],
-    get note() { return tr('θi는 펼친 패턴의 섹터각이고, ρ는 크리스에 대한 접힘각이다. 둘은 서로 다른 양이다.', 'θi is the sector angle of the unfolded pattern; ρ is the fold angle at a crease. They are different quantities.'); },
+    tex: [`\\rho = 0\\ \\text{flat},\\quad \\rho>0\\ \\text{valley},\\quad \\rho<0\\ \\text{mountain},\\quad |\\rho|\\to\\pi\\ \\text{fully folded}`, `\\rho = \\pi - \\varphi ,\\qquad \\rho = \\operatorname{atan2}\\big((\\mathbf n_R\\times\\mathbf n_L)\\cdot\\hat{\\mathbf e},\\ \\mathbf n_R\\cdot\\mathbf n_L\\big)`],
+    get note() { return tr('$\\varphi$는 앞면 쪽에서 잰 두 면 사이의 각(이면각)이다. $\\theta_i$는 펼친 패턴의 섹터각이고, $\\rho$는 크리스의 접힘각이다. 둘은 서로 다른 양이다.', '$\\varphi$ is the angle between the two facets measured on the front (the dihedral angle). $\\theta_i$ is a sector angle of the unfolded pattern; $\\rho$ is the fold angle at a crease. They are different quantities.'); },
   },
   kawasaki: {
     title: 'Kawasaki–Justin',
     tex: [`${t(1)} - ${t(2)} + ${t(3)} - ${t(4)} + \\dots = 0 \\iff \\sum_{\\text{odd}}\\theta_i = \\sum_{\\text{even}}\\theta_i = \\pi`],
-    get note() { return tr('평탄한(Σθ = 2π) 짝수 차수 꼭짓점에 대한 조건이다. 기하에만 관한 조건이다.', 'A condition for a flat (Σθ = 2π) vertex of even degree. It depends on geometry only.'); },
+    get note() { return tr('평평한($\\sum\\theta_i = 2\\pi$) 짝수 차수 꼭짓점에 대한 조건이다. 각도에만 관한 조건이다.', 'A condition for a flat ($\\sum\\theta_i = 2\\pi$) vertex of even degree. It depends on the angles only.'); },
   },
   maekawa: { title: 'Maekawa–Justin', tex: ['|M - V| = 2'], get note() { return tr('필요조건이지만 충분조건은 아니다.', 'Necessary, but not sufficient.'); } },
   generalized: {
@@ -32,7 +32,7 @@ export const EQUATIONS: Record<TheoryKey, { title: string; tex: string[]; note?:
   winding: {
     get title() { return tr('곡률과 감김은 다른 양', 'Curvature and winding are different quantities'); },
     tex: ['T = \\sum_i \\theta_i, \\qquad \\delta = 360^\\circ - T', '\\varphi_0 = 0,\\quad \\varphi_k = \\varphi_{k-1} + (-1)^{k+1}\\theta_k,\\quad \\varphi_n = S', 'S = O - E \\in \\{0,\\ \\pm 360^\\circ\\} \\iff \\text{winding } S/360^\\circ \\in \\{0, \\pm 1\\}'],
-    get note() { return tr('δ > 0 원뿔, δ = 0 평평, δ < 0 안장. 평탄 접힘에서 광선 k는 방향 φ_(k−1)에 놓인다.', 'δ > 0 cone, δ = 0 flat, δ < 0 saddle. In the flat fold, ray k lies at direction φ_(k−1).'); },
+    get note() { return tr('$\\delta > 0$ 원뿔, $\\delta = 0$ 평평, $\\delta < 0$ 안장. 평탄 접힘에서 광선 $k$는 방향 $\\varphi_{k-1}$에 놓인다.', '$\\delta > 0$ cone, $\\delta = 0$ flat, $\\delta < 0$ saddle. In the flat fold, ray $k$ lies at direction $\\varphi_{k-1}$.'); },
   },
   vertexClosure: {
     get title() { return tr('강체 패널의 3D 닫힘 조건', '3D closure condition for rigid panels'); },
@@ -72,13 +72,13 @@ export const EQUATIONS: Record<TheoryKey, { title: string; tex: string[]; note?:
   miuraPoisson: {
     get title() { return tr('오세틱 응답', 'Auxetic response'); },
     tex: ['\\nu_{LW} = -\\frac{d\\ln L}{d\\ln W} = -\\frac{1}{\\cos^2\\theta\\,\\tan^2\\alpha},\\qquad \\nu_{WL} = -\\cos^2\\theta\\,\\tan^2\\alpha'],
-    get note() { return tr('W는 직선 크리스 방향, L은 지그재그 방향, θ = |ρ_zigzag|/2 (면-평면 각); Schenk & Guest, PNAS 2013. a, b와 무관하다. 테스트 스위트에서 측정한 꼭짓점 위치와 대조하여 검증했다.', 'W is the straight-crease direction, L the zigzag direction, θ = |ρ_zigzag|/2 (facet-to-plane angle); Schenk & Guest, PNAS 2013. Independent of a and b. Checked against measured vertex positions in the test suite.'); },
+    get note() { return tr('W는 직선 크리스 방향, L은 지그재그 방향, $\\theta = |\\rho_{\\text{zigzag}}|/2$ (면과 평면 사이의 각); Schenk & Guest, PNAS 2013. a, b와 무관하다. 테스트 스위트에서 측정한 꼭짓점 위치와 대조하여 검증했다.', 'W is the straight-crease direction, L the zigzag direction, $\\theta = |\\rho_{\\text{zigzag}}|/2$ (facet-to-plane angle); Schenk & Guest, PNAS 2013. Independent of a and b. Checked against measured vertex positions in the test suite.'); },
   },
   stepwise: {
     get title() { return tr('단계별 유도 (대칭 꼭짓점)', 'Step-by-step derivation (symmetric vertex)'); },
     tex: [`\\cos\\delta = \\cos^2\\alpha - \\sin^2\\alpha\\cos ${r(1)}`, '\\cos\\theta_1 = \\cos\\alpha / \\cos(\\delta/2),\\qquad \\gamma = \\pi - 2\\theta_1', `\\cos ${r(2)} = -\\frac{\\cos\\gamma + \\cos^2\\alpha}{\\sin^2\\alpha}`],
   },
-  gaussian: { get title() { return tr('이산 가우스 곡률', 'Discrete Gaussian curvature'); }, tex: ['K_v \\approx 2\\pi - \\sum_{f \\ni v} \\alpha_{f,v}'], get note() { return tr('각 결손이다. 종이 자체는 K_v = 0이다 (전개 가능). 조대화한 곡면에서 평가한다.', 'This is the angle defect. The paper itself has K_v = 0 (developable). Evaluated on the coarsened surface.'); } },
+  gaussian: { get title() { return tr('이산 가우스 곡률', 'Discrete Gaussian curvature'); }, tex: ['K_v \\approx 2\\pi - \\sum_{f \\ni v} \\alpha_{f,v}'], get note() { return tr('각 결손이다. 종이 자체는 $K_v = 0$이다(전개 가능). 조대화한 곡면에서 평가한다.', 'This is the angle defect. The paper itself has $K_v = 0$ (developable). Evaluated on the coarsened surface.'); } },
   kresling: {
     get title() { return tr('Kresling 기하', 'Kresling geometry'); },
     tex: ['b^2 = H^2 + 2R^2(1-\\cos\\varphi),\\quad c^2 = H^2 + 2R^2\\big(1-\\cos(\\varphi + \\tfrac{2\\pi}{n})\\big)', '\\varphi_1 = \\pi - \\tfrac{2\\pi}{n} - \\varphi_0,\\qquad H_1^2 = H_0^2 + 2R^2(\\cos\\varphi_1 - \\cos\\varphi_0)'],
@@ -105,15 +105,16 @@ export function TheoryPanel({ keys }: { keys?: TheoryKey[] }) {
       }}
       onMouseLeave={() => useUI.getState().setTheoryHover(null)}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] text-ink-3">{tr('기호(ρi, θi)에 마우스를 올리면 뷰에서 강조된다.', 'Hover over a symbol (ρi, θi) to highlight it in the view.')}</span>
+      <div className="flex items-center justify-between gap-3">
+        {/* only where a pointer can hover; on a touch screen the view is on another tab anyway */}
+        <span className="text-[13px] text-ink-3 [@media(hover:none)]:invisible"><Rich text={tr('기호($\\rho_i$, $\\theta_i$)에 마우스를 올리면 뷰에서 강조된다.', 'Hover over a symbol ($\\rho_i$, $\\theta_i$) to highlight it in the view.')} /></span>
         <Toggle checked={showDerivation} onChange={(b) => useUI.getState().setShowDerivation(b)} label={tr('유도', 'Derivation')} />
       </div>
       {[...list, ...extra].map((k) => {
         const eq = EQUATIONS[k];
         return (
           <div key={k} className="rounded border border-rule bg-paper-2 px-3 py-1.5">
-            <div className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">{eq.title}</div>
+            <div className="text-[13px] font-semibold text-ink-2">{eq.title}</div>
             {eq.tex.map((x, i) => <FitTex key={i} tex={x} />)}
             {eq.note && <div className="text-[13px] leading-relaxed text-ink-3"><Rich text={eq.note} /></div>}
           </div>

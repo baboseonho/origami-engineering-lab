@@ -290,4 +290,38 @@ export const kawasakiScenes = (): Scene[] => [
       );
     },
   },
+  {
+    duration: 5600, view: 'diagram', viewNote: () => tr('정리', 'the rule'),
+    caption: () => tr('정리하면: 섹터각을 하나 건너 하나씩 더한 두 합이 둘 다 180°이면 꼭짓점은 평탄하게 접힌다. 하나라도 어긋나면(방금 본 40°처럼) 접히지 않는다. 평평한 종이 위에서 크리스가 짝수 개인 꼭짓점의 규칙이고, 각도만 보면 되므로 산과 골 배정과는 상관없다.',
+      'In short: if the sector angles taken every other one add up to 180° in both sets, the vertex folds flat. If either misses (like the 40° just now), it does not. This is the rule for a vertex with an even number of creases on a flat sheet; it depends on the angles only, not on the mountain and valley assignment.'),
+    draw: (t) => <Rule t={t} />,
+  },
 ];
+
+/** The closing picture: the good vertex with odd and even sectors tinted, and the rule beside it. */
+function Rule({ t }: { t: number }) {
+  const cx = 128, cy = 150, r = 92;
+  const s = starts(TH);
+  const shade = seg(t, 0.05, 0.3);
+  return (
+    <g>
+      {TH.map((x, i) => {
+        const [lx, ly] = pt(cx, cy, r * 0.6, s[i] + x / 2);
+        return (
+          <g key={i}>
+            <path d={wedge(cx, cy, r, s[i], s[i] + x)} fill={FRONT} stroke={INK3} strokeWidth={0.9} />
+            <path d={wedge(cx, cy, r, s[i], s[i] + x)} fill={col(i)} fillOpacity={0.22 * shade} />
+            <path d={arc(cx, cy, r, s[i], s[i] + x)} fill="none" stroke={col(i)} strokeWidth={3.5} strokeLinecap="round" opacity={0.4 + 0.6 * shade} />
+            <Label x={lx} y={ly + 5} color={col(i)} weight={700} size={14}>{`θ_${i + 1}`}</Label>
+          </g>
+        );
+      })}
+      {s.map((a, i) => { const [ex, ey] = pt(cx, cy, r, a); return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke={INK} strokeWidth={2} strokeLinecap="round" />; })}
+      <circle cx={cx} cy={cy} r={3.5} fill={INK} />
+      <Label x={252} y={106} anchor="start" size={16} weight={700} color={ODD} opacity={seg(t, 0.25, 0.4)}>θ_1 + θ_3 = 70 + 110 = 180°</Label>
+      <Label x={252} y={138} anchor="start" size={16} weight={700} color={EVEN} opacity={seg(t, 0.4, 0.55)}>θ_2 + θ_4 = 100 + 80 = 180°</Label>
+      <Label x={252} y={184} anchor="start" size={17} weight={700} color={OK} opacity={seg(t, 0.6, 0.75)}>{tr('⇒ 평탄하게 접힌다  ✓', '⇒ it folds flat  ✓')}</Label>
+      <Label x={252} y={214} anchor="start" size={14} weight={500} color={INK3} opacity={seg(t, 0.75, 0.9)}>{tr('어긋나면 접히지 않는다  ✗', 'miss either, and it will not  ✗')}</Label>
+    </g>
+  );
+}

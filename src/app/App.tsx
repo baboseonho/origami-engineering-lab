@@ -6,7 +6,6 @@ import { ExplainerButton } from '../components/explainers/ExplainerButton';
 import { LessonBrief, useBriefInMain } from '../components/layout/LessonBrief';
 import { useModel } from '../state/modelStore';
 import { useUI } from '../state/uiStore';
-import { loadLesson } from '../state/actions';
 import { TopBar } from '../components/layout/TopBar';
 import { Navigator, Sidebar } from '../components/layout/Sidebar';
 import { BookOpen, Box, ChartLine, FlaskConical, List, Sigma } from 'lucide-react';
@@ -20,7 +19,7 @@ import { Inspector } from '../components/inspector/Inspector';
 import { BottomPanel } from '../components/analysis/BottomPanel';
 import { CreasePattern2D } from '../components/viewport/CreasePattern2D';
 import { DrawingFrame } from '../components/viewport/DrawingFrame';
-import { DEFAULT_LESSON } from './routes';
+import { initRouting } from './navigation';
 
 // Heavy sheets load on demand: Three.js (3D view), KaTeX (theory) and the labs.
 const named = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) =>
@@ -188,8 +187,9 @@ function PhoneShell() {
         )}
         {tab === 'view' && isModel && (
           <div className="flex h-full flex-col">
-            <div className="h-[52%] min-h-[220px] shrink-0 border-b border-rule-2"><ModelWorkspace mobile /></div>
-            <div className="min-h-0 flex-1"><SheetBoundary label={tr('검사 패널', 'Inspector')} resetKey={lessonId}><Inspector /></SheetBoundary></div>
+            {/* the model gets most of the screen; its fold card sits right under it */}
+            <div className="h-[60%] min-h-[240px] shrink-0 border-b border-rule-2"><ModelWorkspace mobile /></div>
+            <div className="min-h-0 flex-1"><SheetBoundary label={tr('검사 패널', 'Inspector')} resetKey={lessonId}><Inspector phone /></SheetBoundary></div>
           </div>
         )}
         {tab === 'view' && Lab && (
@@ -202,7 +202,7 @@ function PhoneShell() {
             <Suspense fallback={<SheetLoading label={tr('이론을 불러오는 중', 'Loading the theory')} />}><TheoryPanel /></Suspense>
           </div>
         )}
-        {tab === 'analysis' && <div className="h-full"><SheetBoundary label={tr('분석 패널', 'Analysis panel')}><BottomPanel /></SheetBoundary></div>}
+        {tab === 'analysis' && <div className="h-full"><SheetBoundary label={tr('분석 패널', 'Analysis panel')}><BottomPanel phone /></SheetBoundary></div>}
         {tab === 'index' && (
           <div className="h-full overflow-y-auto">
             <Navigator />
@@ -229,23 +229,9 @@ export default function App() {
   const lessonId = useModel((s) => s.lessonId);
   const drawer = useUI((s) => s.drawer);
   const phone = useIsPhone();
-  useEffect(() => {
-    const fromHash = window.location.hash.replace('#', '');
-    loadLesson(lessonById(fromHash) ? fromHash : DEFAULT_LESSON);
-    // a first visit (no sheet in the address) opens on the cover: the drawing index
-    if (!fromHash) useUI.getState().setCoverOpen(true);
-    // a lesson link edited or pasted while the app is open (#l4-miura …) opens that sheet
-    const onHash = () => {
-      const id = window.location.hash.replace('#', '');
-      if (lessonById(id) && id !== useModel.getState().lessonId) loadLesson(id);
-    };
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
-  useEffect(() => {
-    if (lessonId && lessonId !== 'imported') history.replaceState(null, '', `#${lessonId}`);
-    useUI.getState().setDrawer(null);
-  }, [lessonId]);
+  // first load, Back/Forward and edited links: every sheet is a history entry (navigation.ts)
+  useEffect(() => initRouting(), []);
+  useEffect(() => { useUI.getState().setDrawer(null); }, [lessonId]);
   const lesson = lessonById(lessonId);
   const briefInMain = useBriefInMain();
   const Lab = lesson?.kind === 'lab' && lesson.lab ? LABS[lesson.lab] : null;

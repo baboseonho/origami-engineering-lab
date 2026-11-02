@@ -37,15 +37,26 @@ typography:
     fontWeight: 600
     lineHeight: 1.25
     fontFeature: "\"tnum\" 1"
+  display:
+    fontFamily: "Pretendard Variable, Pretendard, -apple-system, Segoe UI, Malgun Gothic, sans-serif"
+    fontSize: "26px"
+    fontWeight: 600
+    lineHeight: 1.1
+    letterSpacing: "-0.025em"
   headline:
     fontFamily: "Pretendard Variable, Pretendard, -apple-system, Segoe UI, Malgun Gothic, sans-serif"
-    fontSize: "17px"
+    fontSize: "18px"
     fontWeight: 700
     lineHeight: 1.375
     letterSpacing: "-0.025em"
+  reading:
+    fontFamily: "Pretendard Variable, Pretendard, -apple-system, Segoe UI, Malgun Gothic, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.75
   title:
     fontFamily: "Pretendard Variable, Pretendard, -apple-system, Segoe UI, Malgun Gothic, sans-serif"
-    fontSize: "13.5px"
+    fontSize: "15px"
     fontWeight: 600
     lineHeight: 1.4
   body:
@@ -62,13 +73,13 @@ typography:
     fontFeature: "\"tnum\" 1"
   label:
     fontFamily: "Barlow Semi Condensed, Pretendard Variable, sans-serif"
-    fontSize: "11px"
+    fontSize: "12px"
     fontWeight: 600
     lineHeight: 1
     letterSpacing: "0.06em"
   data:
     fontFamily: "Pretendard Variable, Pretendard, -apple-system, Segoe UI, Malgun Gothic, sans-serif"
-    fontSize: "12.5px"
+    fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.5
     fontFeature: "\"tnum\" 1"
@@ -206,7 +217,7 @@ An ink-on-paper neutral world on a sage board, with a small, fixed vocabulary of
 
 ### Secondary
 - **Red Pencil** (mountain): Mountain folds (M) in every view, legend and table; also the text caret in inputs and the selected-vertex dot in 3D.
-- **Ink Blue** (valley): Valley folds (V) in every view, legend and table; first series in charts.
+- **Ink Blue** (valley): Valley folds (V) in every view, legend, table and chart; the 3D loader's dashed diagonal.
 
 ### Tertiary
 - **Checker's Highlighter** (mark): Current selection only: the underlay beneath the selected crease (2D and 3D), the active drawing-index row, the dimension-line callout text background, the driving-ρ readout tint (at 40%), and `::selection`. The 3D view uses a more saturated lit pair (strong #ffd21f for selected, soft #ffe680 for hover) to survive scene lighting; the 2D selected face fill is a pale wash (#fff6c4).
@@ -226,7 +237,11 @@ An ink-on-paper neutral world on a sage board, with a small, fixed vocabulary of
 - **ok / ok-soft, warn / warn-soft, bad / bad-soft, info / info-soft**: Stamp outlines and text use the strong value; result boxes and solver status cells use the soft value with a strong-value border at 30 to 40%. **collide** marks detected self-intersections.
 
 ### Data series
-Charts draw series in this fixed order: valley blue, mountain red, ok green, warn amber, then #6d28d9, #b5307a, #0e7490, #a3541c, #4d7c0f, #86198f. Plot fields are paper with a light grid; the current driving value is a dashed ink marker line.
+- **Generic series** (energy terms, reaction force, sheet sizes, residuals) take `SERIES` in this order: ochre #9a5a00, green #1d7448, violet #6d28d9, teal #0e7490, plum #86198f, olive #4d7c0f, graphite #58626e. A total is India ink. Mountain red and valley blue are never in this list (`src/tests/tokens.test.ts` checks it).
+- **A series that is a crease** (the rigid sweep of fold angles) is drawn in its assignment's colour and dash: mountain red dash-dot, valley blue dash, unassigned ochre solid. Two creases of the same assignment share a style, so each line is named at its end (the end where the lines are furthest apart: in the right margin, or just inside the plot on a paper chip).
+- **Coincident series** (equal at every point, such as ρ4 = ρ2 on a Miura vertex) are drawn as one line and named together in the legend and at the line end: "ρ4 = ρ2 (선이 겹침)".
+- **Signed maps that are not creases** (vertex curvature: dome vs saddle) use the diverging pair ochre (+) and teal (−), never red and blue.
+- Plot fields are paper with a light grid; the current driving value is a dashed ink marker line. Legends and line names are HTML, so their subscripts stay real and at least 12px.
 
 ### Named Rules
 **The Red Pencil, Blue Ink Rule.** Mountain is always mountain red and valley is always valley blue, with their folding-diagram dash patterns: mountain dash-dot (6 2.5 1.5 2.5), valley dash (5 3), scaled to line weight in the pattern view. No theme, state or chart may reassign either colour.
@@ -244,15 +259,20 @@ Charts draw series in this fixed order: valley blue, mountain red, ok green, war
 **Character:** A neutral Korean grotesque does all reading and data work with tabular figures on by default; a condensed technical face appears only as title-block lettering; Greek symbols are set in a math serif so ρ and θ read as the slides print them.
 
 ### Hierarchy
-Six sizes, nothing below 12px on screen (including chart axes, SVG labels and the drawing frame): **12 / 13 / 14 / 15 / 18 / 22 px**. The cover title alone is 26/34px.
-- **Readout** (600, 22px, tabular): The numbers a student drives or reads first: current ρ, fold progress, S and T in the GK lab, the selected element's name (ρ1, v4).
-- **Headline** (700, 18px): Lesson sheet title at the top of the lesson column.
-- **Title** (600, 15px): Current sheet name in the title block, the fold card's heading, the app name.
-- **Body** (400, 14px, 1.7): Lesson text, the fold card's explanation, verdict labels.
-- **Body UI** (400, 13px, 1.5): Controls, list rows, key-value rows, secondary hints.
+Nothing below 12px on screen (including chart axes, SVG labels and the drawing frame). The scale the product uses is **12 / 13 / 14 / 15 / 16 / 18 / 20 / 22 / 26 / 34 px**; 12 to 15 carry almost all of the interface, the larger sizes each have one job:
+- **Display** (600, 26px on phones, 34px from 640px; tight tracking): The cover title "Origami BaBolaB" only. 26px semibold tabular is also the big result number of a lab (Kawasaki residual, M and V counts, the angular walk's current angle).
+- **Readout** (600, 22px, tabular): The numbers a student drives or reads first: current ρ, fold progress, S and T in the GK lab, the selected element's name (ρ1, v4), the analysis readouts.
+- **Lesson title** (700, 20px, snug): The sheet title in the lesson brief at the top of the reading column. A lab's secondary readout (Σθ) uses 20px semibold.
+- **Headline** (700, 18px): Lesson sheet title in the lesson column, the explainer's title, an article's lead paragraph (400). 18px semibold tabular is also a stat value (cover counts, lab key-values, total energy V).
+- **Reading** (400, 16px, 1.75): The concept paragraph of the lesson brief, glossary term names and structure names (600) and structure hooks (500) on the reference pages: text read rather than scanned.
+- **Title** (600, 15px): Current sheet name in the title block, the fold card's heading, the app name, the heading of each analysis tab.
+- **Body** (400, 14px, 1.7): Lesson text, the fold card's explanation, verdict labels, analysis text, crease cards.
+- **Body UI** (400, 13px, 1.5): Controls, list rows, key-value rows, secondary hints, chart legends.
 - **Label** (600, 12px, 0.06em, uppercase): Title-block captions, section heads, drawing-frame zone letters (at 55% ink-3).
-- **Data** (400, 12 to 13px, tabular): Tables, units, chart ticks and legends.
+- **Data** (400, 12 to 13px, tabular): Tables, units, chart ticks.
 - **Symbol** (Cambria Math, inherits size): Every ρ, θ and crease label, inline and in callouts.
+
+**The Real Subscript Rule.** An indexed symbol is set with a real subscript (ρ₁, never "ρ_1" or "ρ1"), at 0.75em. Where that would fall below 12px (13 to 15px text: crease cards, chart legends and line names, 3D labels, hover notes) the subscript is held at 12px (`[&_sub]:text-[length:max(12px,0.75em)]`). Mesh ids (e12, v4, f3) are names of parts and stay as written.
 
 **The Real Pixels Rule.** Text inside an SVG is sized in screen pixels, not viewBox units: charts are drawn at their measured width, and the crease pattern, sector diagram and angular walk convert 12–15px into drawing units from the element's measured size, so zooming never shrinks a label below 12px. Less important numbers (solver iterations, κ, sector tables) sit behind a disclosure rather than in smaller type.
 
@@ -269,7 +289,9 @@ The window is the board: an 8px gutter (`p-2`, `gap-2`) separates every sheet. A
 
 Inside sheets, sections are 12px by 16px with dashed rule creases between them (10px vertical when dense). Drawing views sit on the non-photo-blue grid (8px minor, 40px major) inside a drawing frame inset 7px from the sheet edge, with zone letters A to F across and 1 to 4 down. Floating overlays (legend, view toolbar, hints) sit 15px inside the view. The 2D pattern and 3D model share the centre column either singly or split 50/50 with a rule between.
 
-Desktop-first: tuned for 1280 to 1600px. Breakpoints at 1400px (view-switch labels appear) and 1500px (wider columns, title-block captions on icon actions). There is no mobile layout.
+Desktop-first: tuned for 1280 to 1600px. Breakpoints at 1400px (view-switch labels appear) and 1500px (wider columns, title-block captions on icon actions).
+
+Below 768px the app is a phone shell: one sheet at a time with tabs along the bottom (model sheets: 설명, 모델, 분석, 목록; labs: 설명, 실습, 이론, 목록). The model tab gives the 3D view 60% of the height with the fold card right under it; the analysis tab is the analysis sheet at full height. On phones every touch target is at least 44px (buttons, tabs, speed chips, section heads) and no text is below 12px.
 
 ## Elevation & Depth
 
@@ -291,7 +313,7 @@ Drafting geometry: nearly square corners and fine lines. Sheets and callouts are
 
 ### Buttons
 Quiet, ink-on-paper, square-cornered. **Solid ink means "do this"; an inked outline means "this is chosen".** The two are never the same mark.
-- **Shape:** gently squared (4px), 32px tall (28px small).
+- **Shape:** gently squared (4px), 32px tall (28px small); 44px on phones.
 - **Default:** paper fill, rule-2 border, ink text, 14px medium; hover darkens the border to ink-3 and fills paper-2; pressed/chosen is paper with an ink border and a 1px inset ink ring, semibold.
 - **Primary:** solid ink, paper text; hover graphite (ink-2).
 - **Ghost:** no fill, graphite text; hover paper-2 with ink text; active paper-3.
@@ -312,6 +334,14 @@ The top of the inspector, sticky while the panel scrolls: five rows (label left,
 
 ### Inspector Order
 1. Verdict strip. 2. One fold card: the single primary way to fold this sheet (progress slider, one ink action, the only speed control, and plain-language readouts such as "닫힘 오차 ≈ 0 (정확한 강체 해)" with the raw ‖C‖ in a tooltip, or "면 늘어남 지금 / 경로 중 최대"). 3. The selection: name (one name per crease everywhere, `creaseName`: ρ1 when the lesson labels it, otherwise e12), assignment chip, current ρ; a rigid failure explains itself right there. Single-crease angle controls, M/V reassignment, linked creases and solver numbers are disclosures. 4. Model info and solver options, folded.
+
+### Analysis Sheet
+- **Crease cards** (접힘각 tab): one card per fold line in a grid of `repeat(auto-fill, minmax(104px, 1fr))`, so the columns always fill the width. The name is ink (14px) after a short stroke in the crease's assignment colour and dash, so every assignment reads at full contrast (unassigned ochre as text would be 3.2:1). A bar shows the signed angle (red left for mountain, blue right for valley) above the value. The driving crease comes first and says "구동"; then the lecture-labelled creases (ρ1 …, the names the 3D view shows), then the creases that move most with the drive (sweep range, or sharing a vertex when there is no sweep).
+- **On a phone** the cards stop after the driving crease and three more, with "모두 보기 (N)" (44px) to show the rest.
+- **Empty states** never leave a blank chart: one sentence says why the panel is empty for this sheet and a button does the useful thing instead. A model without fold lines (the smooth Yoshimura cylinder) offers its creased preset and the experiment; a sheet whose folding is an experiment (Kresling, Yoshimura, shopping bag) offers to run it and opens the energy tab, where its plots are.
+
+### 3D Loader
+Until the first frame that shows the model has been drawn, the 3D view shows the sheet loader ("3D 모델을 펼치는 중 / Unfolding the 3D model": a ruled square with a dashed valley diagonal, pulsing) over a drafting grid, with the frame, toolbar and legend on top. On a later model change it waits 250 ms before appearing, so a quick switch does not flash it.
 
 ### Notice
 When the app changes something on its own (switching the solver for a pattern fold or an experiment) a paper note with an info icon rises at the bottom centre for five seconds (`aria-live="polite"`, closable), saying what changed and why.
@@ -357,12 +387,13 @@ The set's cover: a ruled title block (name, course, sheet count) above one band 
 - Reduced motion removes all of them.
 
 ### Selection Callout
-The selected crease in 3D carries a drafting leader note: ink dot on the crease, ink leader, 14px shoulder, and a highlighter chip reading "ρ1 −70.0°" (crease name, one decimal) in 14px semibold. In 2D the driving crease gets a dimension line with the same text on a highlighter chip.
+The selected crease in 3D carries a drafting leader note: ink dot on the crease, ink leader, 14px shoulder, and a highlighter chip reading "ρ1 −70.0°" (crease name, one decimal) in 14px semibold. The other 3D labels are 14px: fold labels (ρ1 to ρ4 with their angle) on a paper chip, id overlays as plain graphite text; their subscripts stay at 12px. In 2D the driving crease gets a dimension line with the same text on a highlighter chip.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** draw mountain folds in mountain red with the dash-dot pattern and valley folds in valley blue with the dash pattern in every view, legend, table and chart.
+- **Do** draw mountain folds in mountain red with the dash-dot pattern and valley folds in valley blue with the dash pattern in every view, legend, table and chart; a chart series that is a crease takes its crease's style, and any other series takes the non-M/V `SERIES` colours.
+- **Do** give every empty panel one sentence of why and the button that does the useful thing.
 - **Do** mark selection with the highlighter underlay (mark) beneath the element, keeping the element's own colour on top.
 - **Do** put every panel on a paper sheet with the sheet-on-board shadow and 3px corners, separated from its neighbours by the 8px board gutter.
 - **Do** mark a chosen option with an inked outline, and keep solid ink for the one primary action of a panel.
@@ -382,4 +413,5 @@ The selected crease in 3D carries a drafting leader note: ink dot on the crease,
 - **Don't** use unicode glyphs as icons or arrows; icons come from one line-icon library (lucide).
 - **Don't** use the condensed lettering as an eyebrow above prose headlines.
 - **Don't** set any text below 12px, and don't scale SVG text with the viewBox.
+- **Don't** colour a generic chart series, or a signed quantity that is not a crease, in mountain red or valley blue.
 - **Don't** change a mode silently; announce it with a notice.

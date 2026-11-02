@@ -29,10 +29,11 @@ export function DrawingFrame({ title, subtitle, children, grid = true, status, s
         {ZONES_Y.slice(1).map((_, i) => (
           <span key={'ty' + i} className="absolute left-0 h-px w-[5px] bg-ink/60" style={{ top: `${((i + 1) / ZONES_Y.length) * 100}%` }} />
         ))}
-        <div className="absolute bottom-0 right-0 flex border-l border-t border-ink/70 bg-paper/95 text-ink">
+        {/* the title block would cover the model on a phone; the solver and view are named in the header menu there */}
+        <div className="absolute bottom-0 right-0 flex border-l border-t border-ink/70 bg-paper/95 text-ink max-md:hidden">
           {status && (
             <div className={`border-r border-ink/40 px-2 py-1 ${statusTone === 'ok' ? 'bg-ok-soft text-ok' : 'bg-info-soft text-info'}`}>
-              <div className="lettering text-[12px] leading-none opacity-80">{tr('솔버', 'Solver')}</div>
+              <div className="lettering text-[12px] leading-none">{tr('솔버', 'Solver')}</div>
               <div className="whitespace-nowrap text-[13px] font-semibold leading-tight">{status}</div>
             </div>
           )}

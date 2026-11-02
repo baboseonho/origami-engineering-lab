@@ -21,24 +21,24 @@ export const LESSONS_EN: Record<string, LessonText> = {
   'l2-terms': {
     title: 'Terminology & flat ≠ rigid',
     content: {
-      concept: 'Facet = a rigid panel. Crease = a hinge (a fold line). A mountain fold (M, $\\rho<0$, red) folds away from the viewer; a valley fold (V, $\\rho>0$, blue) folds toward the viewer. An M/V assignment is a labeling of the creases. Flat-foldable: there is a folded state in which every $\\rho = \\pm 180^\\circ$ and the paper does not pass through itself. Rigid-foldable: there is a CONTINUOUS motion from the flat sheet during which every facet stays rigid. A tessellation is a periodic crease pattern; kirigami also allows cuts.',
-      observe: 'The square twist folds flat: the "Flat-folded state" closes with a residual of about 1e-15, and every vertex passes the Kawasaki–Justin theorem and the crimp test. Yet with the given M/V assignment, driving any crease from the flat sheet is infeasible.',
-      experiment: 'Select a crease and set $\\rho = +20^\\circ$. Read why it is infeasible. Then use "Show flat-folded state" to compare. Switch to Energy mode and drive it again: now the facets have no choice but to bend.',
-      meaning: 'Flat-foldability is a statement about the two end states. Rigid-foldability is a statement about the PATH between them. The two properties are logically independent.',
+      concept: 'Facet = a rigid panel. Crease = a hinge (a fold line). A mountain fold (M, $\\rho<0$, red) folds away from the viewer; a valley fold (V, $\\rho>0$, blue) folds toward the viewer. An M/V assignment is a labeling of the creases. Flat-foldable: there is a folded state in which every $\\rho = \\pm 180^\\circ$ and the paper does not pass through itself. Rigid-foldable: there is a continuous motion from the flat sheet during which every facet stays rigid. A tessellation is a periodic crease pattern; kirigami also allows cuts.',
+      observe: 'The square twist folds flat: the flat state closes with a residual of about 1e-15, and every vertex passes the Kawasaki–Justin theorem and the crimp test. Yet with the given M/V assignment, driving any crease from the flat sheet is infeasible.',
+      experiment: 'Select a crease and set $\\rho = +20^\\circ$. Read why it is infeasible. Then compare with "Flat state" in the analysis panel. Switch to Energy mode and drive it again: now the facets have no choice but to bend.',
+      meaning: 'Flat-foldability is a statement about the two end states. Rigid-foldability is a statement about the path between them. The two properties are logically independent.',
       question: 'When you drive a crease, which property does the solver actually check?',
       answer: 'Not flat-foldability. It checks whether a rigid motion exists along a continuous path (continuation).',
     },
     challenges: {
-      c1: { text: 'Turn off "Respect M/V" and drive again. What changes, and why?', answer: 'With a different M/V assignment, a rigid motion exists. The given assignment is what blocks it.' },
+      c1: { text: 'Turn off "Respect M/V assignment" and drive again. What changes, and why?', answer: 'With a different M/V assignment, a rigid motion exists. The given assignment is what blocks it.' },
     },
     links: ['1D simple folding', 'Kawasaki explorer'],
   },
   'l2-strip': {
     title: '1D simple folding lab',
     content: {
-      concept: 'A 1D crease pattern (a strip with M/V points) is flat-foldable if and only if (iff) it can be folded by a sequence of END FOLDs and CRIMPs (Arkin et al. 2004). An end fold folds the last segment over at its crease. A crimp folds two neighboring creases of opposite direction together, like a Z.',
-      observe: 'The operations you can apply are highlighted. Two adjacent creases on either side of a strictly shorter segment that fold in the same direction are marked as a COLLISION. Such a pattern can never fold flat.',
-      experiment: 'Click a crease to toggle M/V, drag creases along the strip to move them, then press "Auto-solve" to step through the folding order.',
+      concept: 'A 1D crease pattern (a strip with M/V points) is flat-foldable if and only if (iff) it can be folded by a sequence of end folds and crimps (Arkin et al. 2004). An end fold folds the last segment over at its crease. A crimp folds two neighboring creases of opposite direction together, like a Z.',
+      observe: 'The operations you can apply are highlighted. Two adjacent creases on either side of a strictly shorter segment that fold in the same direction are marked as a collision. Such a pattern can never fold flat.',
+      experiment: 'Tap a crease to swap M/V, drag creases along the strip to move them, then press "Fold all the way" (or "One step") to follow the folding order.',
       meaning: 'Each local operation keeps the strip foldable while shrinking the problem by one or two creases. That is why a greedy algorithm (apply any available move, never look back) is enough in 1D.',
     },
     challenges: {
@@ -52,7 +52,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
       concept: 'A flat single vertex of even degree (an even number of creases) folds flat if and only if $\\sum_{\\text{odd}} \\theta_i = \\sum_{\\text{even}} \\theta_i = 180^\\circ$ (Kawasaki–Justin theorem). The $\\theta_i$ are the sector angles: the angles between neighboring creases.',
       observe: 'Drag a crease ray and the residual $\\sum_{\\text{odd}} - \\sum_{\\text{even}}$ updates. Green means $\\approx 0$.',
       experiment: 'Drag the rays. Press "Make flat-foldable" to move one ray by the smallest amount, and load "Break the theorem" to perturb the vertex.',
-      meaning: 'The Kawasaki condition is about the SECTOR ANGLES $\\theta$ alone (geometry). It does not depend on M/V.',
+      meaning: 'The Kawasaki condition is about the sector angles $\\theta$ alone (geometry). It does not depend on M/V.',
     },
     challenges: {
       c1: { text: 'Change one sector angle until flat-foldability breaks, then restore it by moving only one ray.' },
@@ -64,8 +64,8 @@ export const LESSONS_EN: Record<string, LessonText> = {
     title: 'Maekawa–Justin explorer',
     content: {
       concept: 'At a flat-folded vertex, $|M - V| = 2$ (Maekawa–Justin theorem): the numbers of mountain and valley creases differ by exactly two. The condition is necessary, but not sufficient.',
-      observe: 'Click a crease to toggle M/V. The count condition and the full validity check (the crimp / big–little–big lemma: if a sector is strictly smaller than both its neighbors, its two creases must have opposite M/V) are shown separately.',
-      experiment: 'Find an assignment that has $|M - V| = 2$ but is still INVALID.',
+      observe: 'Tap a crease to toggle M/V. The count condition and the full validity check (the crimp / big–little–big lemma: if a sector is strictly smaller than both its neighbors, its two creases must have opposite M/V) are shown separately.',
+      experiment: 'Find an assignment that has $|M - V| = 2$ but is still invalid.',
       meaning: 'Counting cannot tell which creases border a small sector. The crimp test can.',
     },
     challenges: {
@@ -78,7 +78,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
     content: {
       concept: 'For a vertex that satisfies the Kawasaki condition: pick a (non-strict) local minimum sector. If it is a strict minimum, its two creases must differ (one M, one V). Remove that pair with a crimp, and repeat until two collinear creases are left.',
       observe: 'Each step removes two creases and merges three sectors into one: $\\theta_{i-1} - \\theta_i + \\theta_{i+1}$.',
-      experiment: 'Open "Show the recursive proof" and step through it. Then change one assignment and see at which step the proof fails.',
+      experiment: 'Step through the crimps with "One step" (or "Crimp to the end"). Then change one assignment and see at which step the proof fails.',
       meaning: 'A constructive way to decide a single vertex: reduce, then check the base case.',
     },
     challenges: {
@@ -134,12 +134,12 @@ export const LESSONS_EN: Record<string, LessonText> = {
   },
   'l3-bag': {
     title: 'The shopping bag theorem',
-    verdictNote: 'Theorem: an open shopping bag cannot be folded rigidly. The first-order mobility above is only a tiny wobble; it does not extend to a motion that folds all the way. The bag goes flat only when the paper bends (Energy).',
+    verdictNote: 'Theorem: an open shopping bag cannot be folded rigidly. The rigid solution in this verdict answers for this one open shape only, and the first-order mobility is a tiny wobble that does not extend to a motion that folds all the way. The bag goes flat only when the paper bends (Energy).',
     content: {
-      concept: 'Balkcom–Demaine–Demaine: a TALL paper shopping bag ($H > D/2$) with the traditional creases cannot be folded rigidly. The open state and the flat state are isolated points of the rigid configuration space (the set of all shapes reachable with rigid facets).',
-      observe: 'Flat-foldable: YES (every vertex is locally flat-foldable, and the flat state closes exactly). Rigid folding path: NO. Even with M/V ignored, driving any crease from the open state fails.',
-      experiment: '1) Drive any gusset crease (the creases on the side panels that tuck in). 2) Show both states. 3) On the right, use the fold-progress slider of "Fold the shopping bag" (or "Fold flat") to fold every crease together: as the bag goes flat, the numbers show that the facets must strain and bend. "Fold flat" in the Energy tab records the same path as a graph.',
-      meaning: 'The first-order (linearized) DoF can be nonzero, yet no finite motion exists: the open shopping bag allows an infinitesimal motion but is rigid. A real paper bag folds only because the paper bends.',
+      concept: 'With the faces as rigid plates, there is no way from the open bag to the flat bag. We can fold shopping bags every day only because the paper bends a little. This is the shopping-bag theorem of Balkcom, Demaine, Demaine et al.: a tall paper bag ($H > D/2$) with the traditional creases cannot be folded rigidly. In technical terms, the open state and the flat state are isolated points of the rigid configuration space (every shape reachable without bending the faces).',
+      observe: 'Flat-foldable: yes (every vertex is locally flat-foldable, and the flat state closes exactly). Rigid folding path: none. Even with M/V ignored, driving any crease from the open state fails.',
+      experiment: '1) Use the slider on the "Fold the shopping bag" card (or "Fold flat") to fold every crease together: as the bag goes flat, the numbers show that the facets must stretch and bend. 2) Drive a single gusset crease (the side panels that tuck in). 3) In Analysis → Geometry, look at "Open state" and "Flat state" in turn. "Fold flat" in Analysis → Energy records the same path as a graph.',
+      meaning: 'The first-order (linearized) DoF can be nonzero, yet no finite motion exists: the open shopping bag can wobble a tiny amount but does not move rigidly. A real paper bag folds only because the paper bends.',
     },
     challenges: {
       c1: { text: 'Set $H < D/2$ (a short bag). Does the theorem still apply?', answer: 'No. A short bag can be folded flat rigidly (Theorem 2 of the paper). In that case the model needs the diagonals not to meet (when $H \\le D/2$, $S$ coincides with the top face), so the generator is valid only for tall bags.' },
@@ -166,7 +166,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
     },
   },
   'l3-stepwise': {
-    title: 'Stepwise kinematics (Miura vertex)',
+    title: 'Stepwise kinematics: attaching one facet at a time',
     content: {
       concept: 'A geometry-specific analysis: fix a reference facet, attach the neighboring facets one by one, and derive the dependent fold angles from projection, symmetry, orthogonality and the spherical law of cosines.',
       observe: 'The live derivation agrees with the general numerical solver to within ~1e-10.',
@@ -211,7 +211,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
       { label: '6×6' },
     ],
     content: {
-      concept: 'The Miura-ori behaves as a 1-DoF auxetic mechanism: one fold angle sets the whole shape, and the sheet contracts in BOTH in-plane directions at once (a negative Poisson ratio).',
+      concept: 'Pull a big map by two opposite corners and it opens in one motion; push and it folds. The Miura-ori is a 1-DoF auxetic mechanism: one fold angle sets the whole shape, and the sheet contracts in both in-plane directions at once (a negative Poisson ratio).',
       observe: 'On the zigzag creases $\\rho_2 = \\rho_4$; on the straight creases $\\rho_3 = -\\rho_1$. As $\\rho_1$ grows, $W$ and $L$ both decrease.',
       experiment: 'Move $\\rho_1$ from $0^\\circ$ to $100^\\circ$. Then lock $\\rho_1$, select $\\rho_2$ and try to change it.',
       meaning: 'One generalized coordinate parameterizes the rigid folding motion. The auxetic behavior is a geometric consequence, and here it is measured from the actual vertex positions.',
@@ -226,10 +226,10 @@ export const LESSONS_EN: Record<string, LessonText> = {
   'l4-waterbomb': {
     title: 'Waterbomb tessellation',
     content: {
-      concept: 'The waterbomb tessellation is auxetic and can form domes and spheres. The paper itself stays developable (it could be unfolded flat without stretching), but the EFFECTIVE surface gains positive Gaussian curvature.',
-      observe: 'On the paper, the angle defect stays $\\approx 0$ (developable). On the coarse surface through the centers of the bases, $K = 2\\pi - \\sum \\text{angles}$ depends on HOW you fold the pattern. Fold it uniformly and it rolls into nearly a cylinder ($K \\approx 0$). Fold the outer bases more than the center (radial grading $g > 0$) and it becomes a dome ($K > 0$). With $g < 0$ it becomes a saddle ($K < 0$).',
-      experiment: 'Energy tab → run "Fold all" with radial grading $g$. Start at $g = 1.2$ (dome), then set $g = 0$ and $g = -1$. After each relaxation, read the coarse $K$ in the Geometry tab.',
-      meaning: 'Positive angle defect ⇒ locally dome-shaped (synclastic). This is a DISCRETE curvature estimate of the coarse-grained surface, not of the paper.',
+      concept: 'The waterbomb tessellation is auxetic and can form domes and spheres. The paper itself stays developable (it could be unfolded flat without stretching), but the effective surface gains positive Gaussian curvature.',
+      observe: 'On the paper, the angle defect stays $\\approx 0$ (developable). On the coarse surface through the centers of the bases, $K = 2\\pi - \\sum \\text{angles}$ depends on how you fold the pattern. Fold it uniformly and it rolls into nearly a cylinder ($K \\approx 0$). Fold the outer bases more than the center (radial grading $g > 0$) and it becomes a dome ($K > 0$). With $g < 0$ it becomes a saddle ($K < 0$).',
+      experiment: 'In Analysis → Energy, change "Radial grading g". Start at $g = 1.2$ (dome), then set $g = 0$ and $g = -1$. After each relaxation, read the coarse $K$ in the Geometry tab.',
+      meaning: 'Positive angle defect ⇒ locally dome-shaped (synclastic). This is a discrete curvature estimate of the coarse-grained surface, not of the paper.',
     },
     challenges: {
       c1: { text: 'Compare the coarse angle defect at the center with the values near the boundary.' },
@@ -252,7 +252,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
     title: 'Ron Resch pattern',
     content: {
       concept: 'The Resch tessellation is made of downward-facing surface triangles and three-armed, star-shaped tucks (pockets of paper folded under the surface). It is auxetic, and it folds into a sandwich surface that looks smooth.',
-      observe: 'Click a tuck center or a grid vertex: at both, the Kawasaki condition holds but the Maekawa condition fails (3M/3V and 5M/1V) ⇒ not flat-foldable, yet rigid-foldable with many DoF.',
+      observe: 'Tap a tuck center or a grid vertex: at both, the Kawasaki condition holds but the Maekawa condition fails (3M/3V and 5M/1V) ⇒ not flat-foldable, yet rigid-foldable with many DoF.',
       experiment: 'Compare the valid variant with the "perturbed" variant (tuck centers displaced): the perturbed variant does not satisfy the Kawasaki condition.',
       meaning: 'Checking flat-foldability is a local, vertex-by-vertex test. A pattern can be fully rigid-foldable and still not be flat-foldable.',
     },
@@ -268,9 +268,9 @@ export const LESSONS_EN: Record<string, LessonText> = {
       { label: 'Bare framework' },
     ],
     content: {
-      concept: 'A fixed grid of $0^\\circ/45^\\circ/90^\\circ$ lines is the FRAMEWORK. A design is a subset of those lines plus an M/V assignment. One framework can realize a wide family of target shapes.',
+      concept: 'A fixed grid of $0^\\circ/45^\\circ/90^\\circ$ lines is the framework. A design is a subset of those lines plus an M/V assignment. One framework can realize a wide family of target shapes.',
       observe: 'Switching presets changes only which lines fold. The grid stays the same.',
-      experiment: 'Fold the tray (Play in Energy mode), then switch to Pleat. In the Inspector, toggle individual grid lines between F (flat, unfolded), M and V.',
+      experiment: 'Fold the tray with "Fold all", then switch to the Pleat preset. Tap a grid line and use "Change M/V assignment" to switch it between F (flat, unfolded), M and V.',
       meaning: 'Box pleating is a design methodology (Lang). Optimizing for arbitrary shapes is not covered here.',
     },
     challenges: {
@@ -279,27 +279,29 @@ export const LESSONS_EN: Record<string, LessonText> = {
   },
   'l5-kresling': {
     title: 'Kresling cylinder',
+    verdictNote: 'The ✕ on the flat-fold conditions is expected. With rigid plates (end polygons) on both ends, this tube is not a pattern that folds flat. Instead, pressing it twists it between two shapes.',
     content: {
-      concept: 'A Kresling cylinder is a stack of twisted polygonal rings joined by triangles. Under axial load it shortens AND twists (twist buckling). If the rings are taken as flat and rigid, it is not a rigid mechanism: moving between states requires the panels to deform.',
-      observe: 'Rigid mode: with end polygons, $\\text{DoF}_{\\text{local}} = 0$, so every drive is infeasible. The analytic compatibility plot shows the strain needed to keep every triangle edge at its length. Energy mode: energy minimization reveals a path that twists as it compresses, and a second energy well sits where the second stable state is predicted.',
-      experiment: '1) Drive a crease in Rigid mode. 2) Run the axial compression test (twist free). 3) Compare $\\operatorname{twist}(u)$ with the predicted $\\varphi_1 - \\varphi_0$.',
+      concept: 'Press a paper tube from the top and it twists as it shortens. A Kresling cylinder is a stack of twisted polygonal rings joined by triangles: under axial load it shortens and twists at the same time (twist buckling). If the rings are taken as flat, rigid plates, it is not a rigid mechanism: moving from one shape to the other requires the panels to deform.',
+      observe: 'Switch to Rigid: with end polygons, $\\text{DoF}_{\\text{local}} = 0$, so every drive is infeasible. The analytic compatibility plot shows the strain needed to keep every triangle edge at its length. Energy (as the sheet opens): energy minimization reveals a path that twists as it compresses, and a second energy well sits where the second stable state is predicted.',
+      experiment: '1) Press it with "Press from the top" and watch how far the top plate turns (axial compression, twist free). 2) Switch to Rigid and drive a crease. 3) In Analysis → Energy, compare $\\operatorname{twist}(u)$ with the predicted $\\varphi_1 - \\varphi_0$.',
       meaning: 'An ideal Kresling is a bistable structure (it has two stable states), not a free rigid mechanism. A physically plausible motion = a low-strain path through the energy landscape.',
     },
     challenges: {
-      c1: { text: 'Turn off "Rigid end polygons". How does $\\text{DoF}_{\\text{local}}$ change, and why?', answer: 'The tube becomes a floppy triangulated band: what locked it was the coplanarity / rigid-ring constraint.' },
+      c1: { text: 'Under Dimensions, turn off "Rigid end polygons (caps)". How does $\\text{DoF}_{\\text{local}}$ change, and why?', answer: 'The tube becomes a floppy triangulated band: what locked it was the coplanarity / rigid-ring constraint.' },
     },
   },
   'l5-yoshimura': {
     title: 'Yoshimura buckling',
+    verdictNote: 'The ✕ on the flat-fold conditions is expected for this model. It is not a folded flat sheet but a cylinder with diamond lines drawn on it, so the angles around each vertex do not add up to exactly 360°. The question here is how it crumples when pressed.',
     presets: [
-      { label: 'Smooth cylinder (uniform bending)' },
-      { label: 'Pre-creased Yoshimura' },
+      { label: 'Cylinder with diamond lines (Yoshimura creases)' },
+      { label: 'Smooth cylinder (no lines, uniform bending)' },
     ],
     content: {
-      concept: 'A thin cylinder under axial compression buckles into a diamond (Yoshimura) pattern: once uniform compression costs more energy than bending, the system follows a lower-energy mode of deformation.',
+      concept: 'Step on an empty can and its wall crumples into diamonds. A thin cylinder under axial compression buckles into this diamond (Yoshimura) pattern: once shrinking evenly costs more energy than bending, the cylinder follows a lower-energy, buckled shape.',
       observe: 'Before buckling, the axial energy grows as $\\sim u^2$. At the onset of buckling, the axial energy drops, the bending energy shoots up, and the reaction force drops (a snap).',
-      experiment: 'Run the compression test and sweep along $u$. Find the onset in the reaction-force plot.',
-      meaning: 'The shape you see is the energetically favorable mode. Caution: the mesh is aligned with the Yoshimura grid, so the mode shape is influenced by the discretization. The physical point is the competition between energies.',
+      experiment: 'Press "Press from the top", then sweep back and forth with the "Pressed depth u" slider. Find how the reaction force changes at the moment it gives way in the plots of Analysis → Energy.',
+      meaning: 'The shape you see is the energetically favorable mode. The sheet opens on a cylinder with the diamond lines already drawn (mountain red, valley blue). With this lesson\'s material the creases and the faces are equally stiff in bending, so the "Smooth cylinder" preset, with no lines, gives way at the same point in the same way. Caution: the mesh is aligned with the Yoshimura grid, so the mode shape is influenced by the discretization. The physical point is the competition between energies.',
     },
     challenges: {
       c1: { text: 'Increase the compression and find the buckling onset ($u$ and the reaction force).' },
@@ -324,7 +326,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
     title: 'Reading a crease pattern: the accordion pleat',
     content: {
       concept: 'The simplest crease pattern. Parallel lines alternately assigned mountain (M, red dash-dot) and valley (V, blue dashed) fold like a fan or an accordion. How far a crease is folded is its fold angle $\\rho$: $0^\\circ$ flat, $\\pm 180^\\circ$ fully folded, valley positive, mountain negative.',
-      observe: 'Move the "fold the whole structure" slider on the right: every crease folds by the same amount, mountains and valleys with opposite signs. Compare the colours in the pattern with the fold directions in 3D.',
+      observe: 'Move the slider on the "Fold the whole structure" card: every crease folds by the same amount, mountains and valleys with opposite signs. Compare the colours in the pattern with the fold directions in 3D.',
       experiment: 'Turn off "Symmetry links" and drag a single crease. This pattern has no vertex where creases meet, so each crease moves on its own (DoF = number of creases). Turn the links back on and one slider folds everything.',
       meaning: 'Creases tie each other\'s motion together only where they meet at a vertex. Patterns like Miura-ori, where folding one place moves everything, owe that to their vertex conditions.',
     },
@@ -361,7 +363,7 @@ export const LESSONS_EN: Record<string, LessonText> = {
   'l6-wbtube': {
     title: 'Waterbomb tube: repeat count and radius',
     content: {
-      concept: 'Waterbomb bases repeated $n$ times around and $m$ times along, rolled into a tube. As first rolled, the radius is $R_0 = d / (4\\sin(\\pi/2n))$ and the length $L_0 = m\\,d$ ($d$: unit size). It is not $d/(2\\sin(\\pi/n))$, because one unit spans two sides of the polygon.',
+      concept: 'Like the folded "magic ball", how many times one motif repeats decides how thick and how long the tube is. Waterbomb bases repeated $n$ times around and $m$ times along, rolled into a tube. As first rolled, the radius is $R_0 = d / (4\\sin(\\pi/2n))$ and the length $L_0 = m\\,d$ ($d$: unit size). It is not $d/(2\\sin(\\pi/n))$, because one unit spans two sides of the polygon.',
       observe: 'Folding the whole structure shrinks both radius and length (about 30% for 6×4). "Tube dimensions" in the lesson column shows the formula values next to the current measurements. Folded values are measured; no closed form is claimed for them.',
       experiment: 'Change $n$ and $m$ under Dimensions and compare $R_0$, $L_0$ with the folded $R$, $L$. Fold too far and the base centres collide on the axis.',
       meaning: 'The repeat counts set the overall size: the design variables of tubes whose diameter must change a lot, such as stents.',

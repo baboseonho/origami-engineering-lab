@@ -59,3 +59,9 @@ export function Num({ value, d = 3, zero, className = '' }: { value: number | nu
 export function CreaseLabel({ name, className = '' }: { name: string; className?: string }) {
   return <Sym text={name} className={`tnum ${className}`} />;
 }
+
+/**
+ * Keeps a real subscript at 12px or more inside small text (the app-wide
+ * subscript is 0.75em, which is 9.75px in 13px text). Put it on the parent.
+ */
+export const SUB_MIN = '[&_sub]:text-[length:max(12px,0.75em)]';

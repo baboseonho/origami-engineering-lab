@@ -196,3 +196,53 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--color-ink); }
   .plot-reveal, .plot-carriage, .stamp-in { animation: none; }
   .plot-carriage { display: none; }
 }
+
+/* a row that scrolls sideways fades out on the side that has more behind it */
+.scroll-fade[data-more-right] { mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+.scroll-fade[data-more-left] { mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
+.scroll-fade[data-more-left][data-more-right] { mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+
+/*
+ * Sliders a finger has to hit (phone): the whole 44px
+ * row is the hit area, with a visible track and a large ink-ringed thumb.
+ * The filled part of the track follows --p (set inline) when it is given.
+ */
+@media (max-width: 767px) {
+  input[type="range"].range-touch {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 44px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"].range-touch::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--color-ink) 0 var(--p, 0%), var(--color-rule-2) var(--p, 0%));
+  }
+  input[type="range"].range-touch::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--color-ink) 0 var(--p, 0%), var(--color-rule-2) var(--p, 0%));
+  }
+  input[type="range"].range-touch::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 28px;
+    height: 28px;
+    margin-top: -11px;
+    border-radius: 50%;
+    background: var(--color-paper);
+    border: 2px solid var(--color-ink);
+    box-shadow: 0 1px 3px rgb(23 32 42 / 0.25);
+  }
+  input[type="range"].range-touch::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-paper);
+    border: 2px solid var(--color-ink);
+    box-shadow: 0 1px 3px rgb(23 32 42 / 0.25);
+  }
+  input[type="range"].range-touch:focus-visible { outline-offset: 0; }
+}
