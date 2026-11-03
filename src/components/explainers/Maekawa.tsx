@@ -161,7 +161,7 @@ const KO = {
   s1: ['평탄하게 접히는 꼭짓점.', `산(M) ${nM}개, 골(V) ${nV}개.`],
   s2: ['Kawasaki 때처럼 크리스 1을 잘라 두고 접는다.', '테두리 원은 여러 겹으로 포개진다.'],
   s3: ['겹을 떼어 놓고 테두리를 따라 한 바퀴 걷는다.', `U턴은 골(V)에서 ${side(TURN_OF.V)[0]}, 산(M)에서 ${side(TURN_OF.M)[0]}이다.`],
-  s4: ['호는 서로 지워지고 U턴만 남는다.', `제자리로 돌아온 고리는 꼭 한 바퀴 돌았으니, V − M = ${nV - nM}다.`],
+  s4: ['호는 서로 지워지고 U턴만 남는다.', `종이는 서로를 뚫지 못하니 고리는 꼬이지 않고 꼭 한 바퀴, V − M = ${nV - nM}다.`],
   s5: [`산 ${bM}, 골 ${bV}면 U턴이 서로 지워져 ${fmt(sum(uTurns(BAD_MV)))}다.`, '한 바퀴가 안 되니 평탄하게 접힐 수 없다.'],
   s6: ['개수가 맞아도 안 될 수 있다.', '가장 작은 섹터 양쪽이 둘 다 V면, 이웃한 두 섹터가 부딪친다.'],
 };
@@ -169,7 +169,7 @@ const EN = {
   s1: ['A vertex that folds flat.', `${nM} mountain (M), ${nV} valleys (V).`],
   s2: ['As in Kawasaki, cut crease 1 for a moment and fold.', 'The rim circle piles up in layers.'],
   s3: ['Pull the layers apart and walk once round the rim.', `A U-turn goes ${side(TURN_OF.V)[1]} at a valley (V), ${side(TURN_OF.M)[1]} at a mountain (M).`],
-  s4: ['The arcs cancel; only the U-turns remain.', `A loop that comes back to where it started has turned exactly once, so V − M = ${nV - nM}.`],
+  s4: ['The arcs cancel; only the U-turns remain.', `Paper cannot pass through itself, so the loop never crosses and turns exactly once: V − M = ${nV - nM}.`],
   s5: [`With ${bM} mountains and ${bV} valleys the U-turns cancel to ${fmt(sum(uTurns(BAD_MV)))}.`, 'No full turn, so it cannot fold flat.'],
   s6: ['The right count is not enough.', 'If both creases beside the smallest sector are V, the two neighbouring sectors run into each other.'],
 };
