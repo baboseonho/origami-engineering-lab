@@ -175,7 +175,7 @@ export function Explainer({ title, scenes, autoPlay = true }: { title: string; s
           </svg>
         </LabelFloor.Provider>
       </div>
-      <figcaption className="min-h-[3.6em] border-t border-rule-2 px-4 py-2.5 text-[15px] leading-relaxed text-ink">
+      <figcaption className="min-h-[3.6em] break-keep border-t border-rule-2 px-4 py-2.5 text-[15px] leading-relaxed text-ink [overflow-wrap:break-word]">
         <div ref={capRef} className="grid">
           {/* every caption sits invisibly in the same cell, so the box is as tall as the longest one and the controls never jump */}
           {scenes.map((s, i) => <div key={'h' + i} style={{ gridArea: '1 / 1', visibility: 'hidden' }} aria-hidden>{counter(i)}{caption(s, 1e9, true)}</div>)}

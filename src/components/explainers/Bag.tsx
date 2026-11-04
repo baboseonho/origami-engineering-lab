@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { tr } from '../../i18n';
 import data from './data/bagFold.json';
-import { arc, BAD, E, INK, INK2, INK3, Label, lerp, MARK, MOUNTAIN, OK, popScale, seg, TAIL, VALLEY, type Beat, type Scene } from './Explainer';
+import { arc, BAD, E, INK, INK2, INK3, Label, lerp, MARK, MOUNTAIN, OK, popScale, seg, TAIL, VALLEY, VIEW, type Beat, type Scene } from './Explainer';
 import { cross, dot, Mesh, norm, project, Shadow, sub, type Cam, type Face, type V3 } from './paper3d';
 
 /*
@@ -369,11 +369,33 @@ interface StripState {
   /** title change: configuration space → strain graph */
   swap?: number;
   axis?: number;
+  /** the "no path" beat once more: the ✗ re-stamped (0..1) and the fence flashed in BAD (0..1) */
+  noXAgain?: number; fenceFlash?: number;
+}
+
+/**
+ * The player's label floor (the smallest label size that still reads at the drawing's width),
+ * measured here the same way the player does, so a footnote can pick a shorter text on a phone.
+ */
+function useLabelFloor() {
+  const [el, setEl] = useState<SVGGElement | null>(null);
+  const [floor, setFloor] = useState(0);
+  useLayoutEffect(() => {
+    const svg = el?.ownerSVGElement;
+    if (!svg || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => { const w = svg.getBoundingClientRect().width; setFloor(w > 0 ? (12.5 * VIEW.w) / w : 0); });
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, [el]);
+  return [setEl, floor] as const;
 }
 
 function Strip({ st }: { st: StripState }) {
-  const { show, oFill = true, popO = 0, popF = 0, noPath = 0, noX = 0, noOut = 0, pushes = [], gap = 0, drawn = 0, red = 0, dot = null, readout = 0, ticks = 0, tickOp = 1, tickNote = 0, heightNote = 0, oPulse = 0, fDone = 0, peak = 0, swap = 0, axis = 0 } = st;
+  const { show, oFill = true, popO = 0, popF = 0, noPath = 0, noX = 0, noOut = 0, pushes = [], gap = 0, drawn = 0, red = 0, dot = null, readout = 0, ticks = 0, tickOp = 1, tickNote = 0, heightNote = 0, oPulse = 0, fDone = 0, peak = 0, swap = 0, axis = 0, noXAgain = 0, fenceFlash = 0 } = st;
+  const [floorRef, floor] = useLabelFloor();
   if (show <= 0) return null;
+  // the re-stamp: up to 1.15 quickly, then back.out(1.6) down to 1
+  const again = noXAgain <= 0 || noXAgain >= 1 ? 1 : noXAgain < 0.3 ? 1 + 0.15 * E.out(noXAgain / 0.3) : 1.15 - 0.15 * E.back(1.6)((noXAgain - 0.3) / 0.7);
   const g = 60 * gap;
   const dp: P2 | null = dot === null ? null : [xAt(dot), strainY(maxAt(dot))];
   const pathCol = red > 0 ? `rgb(${[0, 1, 2].map((i) => Math.round(lerp(OK_RGB[i], HOT[i], red))).join(' ')})` : OK;
@@ -392,10 +414,11 @@ function Strip({ st }: { st: StripState }) {
   });
   const titleOld = 1 - seg(swap, 0, 0.4, E.in);
   return (
-    <g transform={`translate(0 ${(1 - E.out(show)) * 40})`} opacity={Math.min(1, show * 2)}>
+    <g ref={floorRef} transform={`translate(0 ${(1 - E.out(show)) * 40})`} opacity={Math.min(1, show * 2)}>
       <rect x={12} y={205} width={456} height={89} rx={6} fill="var(--color-paper-2)" stroke={INK3} strokeWidth={1} strokeDasharray="4 4" />
       {titleOld > 0 && <Label x={24} y={224} anchor="start" size={14} color={INK3} weight={600} opacity={titleOld}>{tr('형상 공간', 'configuration space')}</Label>}
-      {heightNote > 0 && <Label x={120} y={224} anchor="start" size={13} color={INK2} rise={heightNote}>{tr('높이 = 최대 변형률', 'height = largest strain')}</Label>}
+      {/* top right of the strip: free in scene 4, and gone before the readout climbs there */}
+      {heightNote > 0 && <Label x={456} y={224} anchor="end" size={13} color={INK2} rise={heightNote}>{tr('높이 = 최대 변형률', 'height = largest strain')}</Label>}
       {swap > 0.5 && (
         <g>
           <Label x={24} y={224} anchor="start" size={14} color={INK2} weight={700} rise={seg(swap, 0.5, 0.8, E.out)}>{tr('최대 변형률', 'largest strain')}</Label>
@@ -406,7 +429,8 @@ function Strip({ st }: { st: StripState }) {
       {noPath > 0 && noOut < 1 && (
         <g opacity={1 - noOut}>
           <line x1={SX0 + FENCE + 4} y1={SY} x2={lerp(SX0 + FENCE + 4, SX1 - 10, noPath)} y2={SY} stroke={INK3} strokeWidth={2} strokeDasharray="6 6" />
-          {noX > 0 && <g transform={`translate(240 ${SY + 1}) scale(${popScale(noX)})`}><Label x={0} y={8} size={24} weight={700} color={BAD}>✗</Label></g>}
+          {fenceFlash > 0 && fenceFlash < 1 && <line x1={SX0 + FENCE + 4} y1={SY} x2={SX1 - 10} y2={SY} stroke={BAD} strokeWidth={2.5} strokeDasharray="6 6" opacity={0.6 * Math.sin(Math.PI * fenceFlash)} />}
+          {noX > 0 && <g transform={`translate(240 ${SY + 1}) scale(${popScale(noX) * again})`}><Label x={0} y={8} size={24} weight={700} color={BAD}>✗</Label></g>}
         </g>
       )}
       {/* strain ticks left where the dot has passed: height = that moment's largest strain (computed) */}
@@ -421,9 +445,16 @@ function Strip({ st }: { st: StripState }) {
       )}
       {/* the path, drawn at the computed heights: green while it is a way through, strain red once it is read as a graph */}
       {drawn > 0 && <path d={curveD(drawn)} fill="none" stroke={pathCol} strokeWidth={3.6} strokeLinecap="round" strokeLinejoin="round" />}
-      {tickNote > 0 && <Label x={240} y={286} size={13} color={INK2} rise={tickNote}>{tr('막대 = 그 순간 최대 변형률 · 사이트 계산', 'bar = largest strain at that moment · site computation')}</Label>}
+      {/* starts right of the open bag's fence; on a phone (larger labels) the shorter text, "site computation" being in the view tag */}
+      {tickNote > 0 && <Label x={SX0 + FENCE + 12} y={286} anchor="start" size={13} color={INK2} rise={tickNote}>{floor > 13 ? tr('막대 = 순간 최대 변형률', 'bar = largest strain now') : tr('막대 = 그 순간 최대 변형률 · 사이트 계산', 'bar = largest strain at that moment · site computation')}</Label>}
       {/* the fence around the open bag, which opens a gap towards the path */}
       {popO > 0 && <path d={g > 0.5 ? arc(SX0, SY, FENCE, GAP_DIR + g / 2, GAP_DIR + 360 - g / 2) : `M${SX0 + FENCE},${SY} a${FENCE},${FENCE} 0 1 0 ${-2 * FENCE},0 a${FENCE},${FENCE} 0 1 0 ${2 * FENCE},0`} fill="none" stroke={INK3} strokeWidth={1.6} strokeDasharray="3 3" opacity={popO} />}
+      {/* the fence's dots flash once in BAD (with the dashed line above): the same "no way out", said again */}
+      {fenceFlash > 0 && fenceFlash < 1 && (
+        <g fill="none" stroke={BAD} opacity={0.6 * Math.sin(Math.PI * fenceFlash)}>
+          <circle cx={SX0} cy={SY} r={FENCE} strokeWidth={3.5} strokeDasharray="3 3" />
+        </g>
+      )}
       {flashes.map((fl, i) => (
         <g key={i} opacity={1 - fl.k}>
           <path d={arc(SX0, SY, FENCE, fl.dir - 28, fl.dir + 28)} fill="none" stroke={BAD} strokeWidth={4} strokeLinecap="round" />
@@ -641,6 +672,9 @@ export const bagScenes = (): Scene[] => {
               noPath: seg(t, 0.36, 0.46, E.out),
               pushes: ks,
               noX: seg(t, 0.86, 0.94, E.linear),
+              // one more beat of "no path" in the hold that ends the scene: nothing new, the ✗ and the fence once more
+              noXAgain: seg(t * d3, d3 - 350, d3, E.linear),
+              fenceFlash: seg(t * d3, d3 - 400, d3, E.linear),
             }} />
           </g>
         );

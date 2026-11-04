@@ -28,4 +28,13 @@ describe('Maekawa explainer walk', () => {
   it('two of each turns by 0°', () => {
     expect(c.badUSum).toBe(0);
   });
+  it('the separated rim loop never crosses itself (so it turns exactly once)', () => {
+    expect(c.simple).toBe(true);
+  });
+  it('built the same way from the stack that two of each gives, the loop cuts through itself', () => {
+    // folding by BAD_MV puts every flap under: sector 1 ends on top, sector 4 at the bottom,
+    // so the closing U-turn at crease 1 has to pass through layers 2 and 3
+    expect(c.bad.levels).toEqual([3, 2, 1, 0]);
+    expect(c.bad.simple).toBe(false);
+  });
 });

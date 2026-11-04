@@ -209,18 +209,19 @@ function Seam({ cx, k, op = 1 }: { cx: number; k: number; op?: number }) {
   return <line x1={cx} y1={CY} x2={cx + (R + 8) * k} y2={CY} stroke={OK} strokeWidth={4.5} strokeLinecap="round" opacity={op} />;
 }
 
-/** the red gap from the far edge back to crease 1; the number counts up with the arc */
-function Gap({ cx, far, k, op = 1 }: { cx: number; far: number; k: number; op?: number }) {
+/** the red gap from the far edge back to crease 1; the arc sweeps it, then its (final) size fades in */
+function Gap({ cx, far, k, op = 1, lr = 24 }: { cx: number; far: number; k: number; op?: number; lr?: number }) {
   if (k <= 0 || op <= 0.01) return null;
   const rg = 109;
-  const [nx, ny] = pt(cx, CY, rg + 18, far / 2);
+  // bearing pulled toward crease 2, clear of badge 3 (which sits just above crease 1)
+  const [nx, ny] = pt(cx, CY, rg + lr, far * 0.82);
   return (
     <g opacity={op}>
       <path d={wedge(cx, CY, rg, 0, far)} fill={BAD} fillOpacity={0.13 * Math.min(1, 2 * k)} />
       <line x1={cx} y1={CY} x2={pt(cx, CY, rg + 4, far)[0]} y2={pt(cx, CY, rg + 4, far)[1]} stroke={BAD} strokeWidth={3} strokeLinecap="round" opacity={Math.min(1, 3 * k)} />
       <path d={arc(cx, CY, rg, far, far * (1 - k))} fill="none" stroke={BAD} strokeWidth={3.5} strokeLinecap="round" />
-      {/* the number only shows once the gap has opened, so a closed-looking "0°" never appears */}
-      <Label x={nx + 4} y={ny + 6} anchor="start" size={17} weight={700} color={BAD} opacity={cl((k - 0.1) / 0.1)}>{deg(far * k)}</Label>
+      {/* the arc does the counting; the size is only written, at its true value, as the arc nearly closes */}
+      <Label x={nx + 4} y={ny + 6} anchor="start" size={17} weight={700} color={BAD} opacity={cl((k - 0.75) / 0.25)}>{deg(far)}</Label>
     </g>
   );
 }
@@ -751,7 +752,8 @@ function BadFoldScene({ ms }: { ms: number }) {
         )}
         <SectorLabels th={th} cx={240} k={() => arrive(ms, S5.ret[0] + S5.ret[1] + 50, 280) * gone(ms, S5.folds[0] - 350, 220)} />
         <Badges th={th} P={P} cx={cx} op={(j) => arrive(ms, S5.badges + 60 * j, 300)} pop={(j) => bump(ms, S5.badges + 60 * j, 320)} />
-        <Gap cx={CXF} far={far} k={gk} />
+        {/* scene 5 only: the size sits close to the end of its arc */}
+        <Gap cx={CXF} far={far} k={gk} lr={14} />
       </g>
       {/* one small accent in the middle of the end hold */}
       <g transform={`translate(240 266) scale(${(1 + 0.07 * accent(ms, S5.D - 650)).toFixed(4)}) translate(-240 -266)`}>
@@ -776,7 +778,7 @@ function BadWalkScene({ ms, extras = false }: { ms: number; extras?: boolean }) 
       <WalkScene ms={ms} th={TH_BAD} T={T} landAt={S6_END} zoom={Z5} extras={extras} after={
         <g>
           {/* the folded paper's red gap leaves; the walk earns it again */}
-          <Gap cx={CXF} far={far} k={1} op={gone(ms, 0, 300)} />
+          <Gap cx={CXF} far={far} k={1} op={gone(ms, 0, 300)} lr={14} />
           {ms > S6_END && <Gap cx={CXF} far={far} k={gk} />}
         </g>
       } />
@@ -872,8 +874,9 @@ function RuleScene({ ms }: { ms: number }) {
         return (
           <g key={k}>
             <Label x={sd.cx} y={26} size={14} weight={600} color={INK2} rise={arrive(ms, k === 0 ? S7.copy[0] + S7.copy[1] : S7.move[0] + S7.move[1])}>{sd.title}</Label>
-            <Label x={sd.cx} y={212} size={16} weight={700} color={ODD} rise={arrive(ms, S7.odd[0])}>{`θ_1 + θ_3 = ${deg(oddK * oddSum(sd.th))}`}</Label>
-            <Label x={sd.cx} y={238} size={16} weight={700} color={EVEN} rise={arrive(ms, S7.even[0])}>{`θ_2 + θ_4 = ${deg(evenK * evenSum(sd.th))}`}</Label>
+            {/* the painted sectors do the counting; each sum is written once, at its true value, as its sweep ends */}
+            <Label x={sd.cx} y={212} size={16} weight={700} color={ODD} rise={arrive(ms, S7.odd[0] + S7.odd[1] - 150)}>{`θ_1 + θ_3 = ${deg(oddSum(sd.th))}`}</Label>
+            <Label x={sd.cx} y={238} size={16} weight={700} color={EVEN} rise={arrive(ms, S7.even[0] + S7.even[1] - 150)}>{`θ_2 + θ_4 = ${deg(evenSum(sd.th))}`}</Label>
             {v > 0 && (
               <g transform={`translate(${sd.cx} 266) scale(${((0.6 + 0.4 * v) * (1 + 0.07 * accent(ms, S7.D - 500))).toFixed(4)})`} opacity={cl(v * 1.5)}>
                 <Label x={0} y={0} size={16} weight={700} color={sd.ok ? OK : BAD}>{sd.ok ? tr('평탄하게 접힌다  ✓', 'folds flat  ✓') : tr('접히지 않는다  ✗', 'will not fold flat  ✗')}</Label>
@@ -882,7 +885,7 @@ function RuleScene({ ms }: { ms: number }) {
           </g>
         );
       })}
-      <Label x={240} y={293} size={14} weight={600} color={INK2} rise={arrive(ms, S7.mv + 300)}>{tr('어느 크리스를 산·골로 접을지는 → Maekawa 정리', 'which creases are mountains or valleys → Maekawa\'s theorem')}</Label>
+      <Label x={240} y={293} size={16} weight={600} color={INK2} rise={arrive(ms, S7.mv + 300)}>{tr('산·골은 → Maekawa 정리', 'mountains & valleys → Maekawa')}</Label>
     </g>
   );
 }

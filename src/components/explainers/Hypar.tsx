@@ -62,6 +62,18 @@ const CENTRE_Z = FINAL[0][2];
 const MAX_STRAIN = Math.max(...FRAMES.map((f) => f.maxStrain));
 const VS = FRAMES[NF].vs;
 const FACE_STRAIN = FACES.map((f) => f.reduce((a, v) => a + VS[v], 0) / f.length);
+/** the faces' own range (1.08 … 1.71 %): the tint spans it, so the least-changed face stays paper */
+const F_MIN = Math.min(...FACE_STRAIN), F_MAX = Math.max(...FACE_STRAIN);
+const STRAIN_TOP = 0.75, STRAIN_GAMMA = 2.5;
+/** tint weight of a face strain fs: 0.75·((fs − F_MIN)/(F_MAX − F_MIN))^2.5 (the key shows the same curve) */
+const strainW = (fs: number) => STRAIN_TOP * Math.min(1, Math.max(0, (fs - F_MIN) / (F_MAX - F_MIN || 1))) ** STRAIN_GAMMA;
+/**
+ * every face at the maximum, ties included. `vs` is stored rounded to 4 decimals (0.01 % per
+ * vertex), so faces closer to the maximum than that cannot be told apart: rings 4 and 5
+ * (1.7125 % and 1.7075 %) tie, ring 6 (1.6125 %) does not.
+ */
+const STRAIN_RES = 1e-4;
+const HOT_FACES = FACE_STRAIN.flatMap((s, i) => (s >= F_MAX - STRAIN_RES ? [i] : []));
 
 
 // ───────────────────────────── the crease pattern and its drawing order
@@ -288,10 +300,63 @@ const POSE4_END: Pose = { ...POSE3_END, R: R_HINGE_END };
 // ───────────────────────────── drawing pieces
 
 const PAPER_TOP = shadeFor([0, 0, 1], PAPER_FRONT);
-/** strain colour over the Lambert shade, weight 0.7·clamp(face strain / maxStrain)^1.8: the lower half stays nearly paper */
+/** strain colour over the Lambert shade, weight strainW(face strain) */
 const HOT_RGB: [number, number, number] = [240, 110, 40];
-/** the face with the largest strain (it gets one pulse ring in scene 5) */
-const HOT_FACE = FACE_STRAIN.indexOf(Math.max(...FACE_STRAIN));
+/** the outline of the most-changed faces: the same hue, darker, so it reads on the darkest tint */
+const HOT_DEEP = 'rgb(168 58 8)';
+
+/**
+ * The outline of HOT_FACES: the edges only one of them owns, chained into loops. Each loop is
+ * drawn a little inside the faces (along the edge two hot faces share, else towards the face's
+ * centre) so the M/V creases on the boundary stay visible.
+ */
+const HOT_LOOPS = (() => {
+  const own = new Map<string, number[]>(), count = new Map<string, number>();
+  for (const fi of HOT_FACES) {
+    const f = FACES[fi];
+    for (let i = 0; i < f.length; i++) {
+      const k = ekey(f[i], f[(i + 1) % f.length]);
+      own.set(k, [f[i], f[(i + 1) % f.length], fi]);
+      count.set(k, (count.get(k) ?? 0) + 1);
+    }
+  }
+  const inner = [...count].filter(([, n]) => n === 2).map(([k]) => own.get(k)!);
+  const rim = [...count].filter(([, n]) => n === 1).map(([k]) => own.get(k)!);
+  const next = new Map<number, number[]>();
+  for (const [a, b] of rim) { next.set(a, [...(next.get(a) ?? []), b]); next.set(b, [...(next.get(b) ?? []), a]); }
+  const seen = new Set<number>(), loops: number[][] = [];
+  for (const [s] of rim) {
+    if (seen.has(s)) continue;
+    const loop = [s]; seen.add(s);
+    for (let v = s; ;) {
+      const w = (next.get(v) ?? []).find((x) => !seen.has(x));
+      if (w === undefined) break;
+      loop.push(w); seen.add(w); v = w;
+    }
+    loops.push(loop);
+  }
+  /** where each loop vertex is pulled to: the other end of a shared edge, else the centre of a hot face it sits on */
+  const pull = new Map<number, number[]>();
+  for (const loop of loops) for (const v of loop) {
+    const e = inner.find(([a, b]) => a === v || b === v);
+    pull.set(v, e ? [e[0] === v ? e[1] : e[0]] : FACES[rim.find(([a, b]) => a === v || b === v)![2]]);
+  }
+  return { loops, pull };
+})();
+const HOT_INSET = 0.22;
+const hotPt = (P: V3[], v: number): V3 => {
+  const to = HOT_LOOPS.pull.get(v)!;
+  return mix3(P[v], mul(to.reduce((s, u) => add(s, P[u]), [0, 0, 0] as V3), 1 / to.length), HOT_INSET);
+};
+/**
+ * Is the hot set whole, adjacent rings of trapezoids? Then the label may call it a ring (one) or
+ * a band of rings (several); the number of rings it covers, else 0.
+ */
+const HOT_RINGS = (() => {
+  if (HOT_FACES.length % 4 !== 0 || HOT_FACES[0] < 4) return 0;
+  const j0 = Math.floor((HOT_FACES[0] - 4) / 4) + 1, n = HOT_FACES.length / 4;
+  return HOT_FACES.every((fi, i) => fi === faceOf(j0 + Math.floor(i / 4), i % 4)) ? n : 0;
+})();
 type PerFace = number | ((fi: number) => number);
 const perFace = (v: PerFace, fi: number) => (typeof v === 'number' ? v : v(fi));
 
@@ -300,7 +365,7 @@ function Sheet({ P, cam, lines = 1, extra = 0, glow = 0, tri = 0, strain = 0, hi
   P: V3[]; cam: Cam; lines?: number; extra?: PerFace; glow?: PerFace; tri?: number; strain?: number; hide?: number; slot?: number; op?: number; shadow?: number; seam?: number;
 }) {
   const faces: Face[] = FACES.map((f, i) => {
-    const s = strain > 0 ? 0.7 * Math.min(1, Math.max(0, FACE_STRAIN[i] / MAX_STRAIN)) ** 1.8 * strain : 0;
+    const s = strain > 0 ? strainW(FACE_STRAIN[i]) * strain : 0;
     return {
       key: 'f' + i,
       pts: f.map((v) => P[v]),
@@ -314,6 +379,70 @@ function Sheet({ P, cam, lines = 1, extra = 0, glow = 0, tri = 0, strain = 0, hi
     <g opacity={op}>
       {shadow > 0 && <Shadow faces={faces} cam={cam} opacity={shadow} id="hy-shadow" />}
       <Mesh faces={faces} cam={cam} edge={edge} edgeWidth={0.6} />
+    </g>
+  );
+}
+
+const pct1 = (s: number) => `${(s * 100).toFixed(1)}%`;
+
+/** the strain key (the bag's legend style): the same mapping as the faces, end values from the data */
+function StrainKey({ op }: { op: number }) {
+  if (op <= 0) return null;
+  const x0 = 22, w = 104, y0 = 174;
+  const stops = [0, 0.25, 0.5, 0.75, 1];
+  return (
+    <g opacity={op}>
+      <defs>
+        <linearGradient id="hy-strain-key" x1="0" x2="1" y1="0" y2="0">
+          {stops.map((u) => <stop key={u} offset={u} stopColor={shadeFor([0, 0, 1], [0, 1, 2].map((i) => lerp(PAPER_FRONT[i], HOT_RGB[i], strainW(lerp(F_MIN, F_MAX, u)))) as V3)} />)}
+        </linearGradient>
+      </defs>
+      <Label x={x0} y={y0 - 26} anchor="start" size={14} weight={600} color={INK2}>{tr('면 평균 변형률', 'mean face strain')}</Label>
+      <Label x={x0} y={y0 - 8} anchor="start" size={13} color={INK3}>{tr('(사이트 계산)', '(site solver)')}</Label>
+      <rect x={x0} y={y0} width={w} height={10} rx={2} fill="url(#hy-strain-key)" stroke={INK3} strokeWidth={0.8} />
+      <Label x={x0} y={y0 + 28} anchor="start" size={13} color={INK3}>{pct1(F_MIN)}</Label>
+      <Label x={x0 + w} y={y0 + 28} anchor="end" size={13} color={INK3}>{pct1(F_MAX)}</Label>
+    </g>
+  );
+}
+
+/** the most-changed faces outlined (stroke-draw `k`), and a leader to their name (`kLab`) */
+const HOT_LAB = { x: 468, y: 222 };
+function HotOutline({ P, cam, k, kLab, op = 1 }: { P: V3[]; cam: Cam; k: number; kLab: number; op?: number }) {
+  if (k <= 0 || op <= 0) return null;
+  const loops = HOT_LOOPS.loops.map((loop) => loop.map((v) => project(hotPt(P, v), cam)));
+  // the leader runs from the label to the nearest point of the outline
+  const B = [HOT_LAB.x - 44, HOT_LAB.y - 18];
+  let A = [0, 0], best = 1e9;
+  for (const q of loops) for (let i = 0; i < q.length; i++) {
+    const a = q[i], b = q[(i + 1) % q.length];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const s = Math.min(1, Math.max(0, ((B[0] - a[0]) * dx + (B[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+    const m = [a[0] + dx * s, a[1] + dy * s], d = Math.hypot(m[0] - B[0], m[1] - B[1]);
+    if (d < best) { best = d; A = m; }
+  }
+  const kl = E.out(kLab);
+  return (
+    <g opacity={op}>
+      {/* a soft halo inside the band, then the band's own creases again on top, so no M/V dash is covered */}
+      {loops.map((q, i) => (
+        <path key={i} d={q.map((p, j) => `${j ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') + 'Z'} pathLength={1}
+          fill="none" stroke={HOT_DEEP} strokeWidth={6.5} strokeOpacity={0.32} strokeLinejoin="round" strokeLinecap="round" strokeDasharray={k < 1 ? `${k} 1` : undefined} />
+      ))}
+      {HOT_FACES.flatMap((fi) => linesFor(fi, P, 1.8, 1).map((ln, j) => {
+        const a = project(ln.a, cam), b = project(ln.b, cam);
+        return <line key={`${fi}-${j}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={ln.stroke} strokeWidth={ln.width} strokeDasharray={ln.dash} opacity={ln.opacity ?? 1} />;
+      }))}
+      {kLab > 0 && <g>
+        <circle cx={A[0]} cy={A[1]} r={2.6 * popScale(kLab)} fill={HOT_DEEP} />
+        <line x1={A[0]} y1={A[1]} x2={lerp(A[0], B[0], kl)} y2={lerp(A[1], B[1], kl)} stroke={HOT_DEEP} strokeWidth={1.4} />
+      </g>}
+      <Label x={HOT_LAB.x} y={HOT_LAB.y} anchor="end" size={14} weight={700} color={HOT_DEEP} rise={seg(kLab, 0.3, 1, E.out)}>
+        {HOT_RINGS > 1 ? tr('가장 많이 변한 띠', 'most-changed band') : HOT_RINGS === 1 ? tr('가장 많이 변한 고리', 'most-changed ring') : tr('가장 많이 변한 면', 'most-changed faces')}
+      </Label>
+      {HOT_RINGS > 1 && <Label x={HOT_LAB.x} y={HOT_LAB.y + 19} anchor="end" size={13} weight={600} color={HOT_DEEP} rise={seg(kLab, 0.45, 1, E.out)}>
+        {tr(`(고리 ${HOT_RINGS}개, 거의 같음)`, `(${HOT_RINGS} rings, nearly equal)`)}
+      </Label>}
     </g>
   );
 }
@@ -672,6 +801,8 @@ export const hyparScenes = (): Scene[] => {
   const D6 = durOf(C.s6, 4600, JOIN_LEAD);
   const zoom = () => tr(`사이트 계산, 조각만 돌려 ${(PS / SCALE).toFixed(1)}배 확대`, `site model; the piece alone turned, ×${(PS / SCALE).toFixed(1)}`);
   const S5_DIAG = 0.36 * D5;
+  /** the strain tint rises once the hidden diagonals are in */
+  const S5_STRAIN = S5_DIAG + 1200;
   const s5Yaw = yaw5(D5), s5Cam = mainCam(s5Yaw, 1, 0, P5);
   /** scene 5's text, also faded out at the start of scene 6 */
   const S5Text = ({ t }: { t: number }) => (
@@ -679,7 +810,7 @@ export const hyparScenes = (): Scene[] => {
       <Label x={22} y={30} anchor="start" size={15} weight={700} rise={seg(t, 0.12, 0.2, E.out)}>{tr('Demaine 외 (2011) 증명', 'Demaine et al. (2011), proved')}</Label>
       <Label x={22} y={52} anchor="start" size={15} weight={700} color={BAD} rise={seg(t, 0.18, 0.26, E.out)}>{tr('그려진 선만으로는 접히지 않는다 ✗', 'no fold on the drawn creases alone ✗')}</Label>
       <Label x={240} y={268} size={14} weight={600} color={INK2} rise={seg(t, 0.32, 0.4, E.out)}>{tr(`사이트 계산: 숨은 대각선 ${ADDED}개에서 꺾이고`, `site model: bends at ${ADDED} hidden diagonals`)}</Label>
-      <Label x={240} y={290} size={14} weight={600} color={INK} rise={seg(t, 0.58, 0.66, E.out)}>{tr(`이 모델에선 길이도 최대 ${(MAX_STRAIN * 100).toFixed(1)}% 변한다 (최대 변형률)`, `in this model lengths also change by up to ${(MAX_STRAIN * 100).toFixed(1)}% (max strain)`)}</Label>
+      <Label x={240} y={290} size={14} weight={600} color={INK} rise={seg(t, 0.46, 0.54, E.out)}>{tr(`가장 많이 변한 선 하나는 ${(MAX_STRAIN * 100).toFixed(1)}% (최대 변형률)`, `the most-changed single line: ${(MAX_STRAIN * 100).toFixed(1)}% (max strain)`)}</Label>
     </g>
   );
   return [
@@ -759,7 +890,7 @@ export const hyparScenes = (): Scene[] => {
       },
     },
     {
-      duration: D5, join: 'none', lead: JOIN_LEAD, view: 'oblique', viewNote: () => tr('사이트 계산, 주황 = 길이 변화 큼', 'site model; orange = lengths changed'),
+      duration: D5, join: 'none', lead: JOIN_LEAD, view: 'oblique', viewNote: () => tr('사이트 계산, 주황 = 면 평균 변형률', 'site model; orange = mean face strain'),
       caption: capOf(C.s5), beats: beatsOf(C.s5, [0, 0.5]),
       draw: (t) => {
         const ms = t * D5;
@@ -773,14 +904,9 @@ export const hyparScenes = (): Scene[] => {
         const out = 1 - seg(t, 0, 0.07, E.in);
         return (
           <g>
-            <Sheet P={FINAL} cam={cam} hide={PIECE} slot={done ? 0 : 1 - back} op={lerp(0.25, 1, back)} shadow={0.15 * back} extra={diagK(ms, S5_DIAG)} strain={seg(ms, S5_DIAG + 1200, S5_DIAG + 2400, E.inOut)} />
-            {(() => {
-              const k = seg(ms, S5_DIAG + 2400, S5_DIAG + 3000, E.linear);
-              if (k <= 0 || k >= 1) return null;
-              const f = FACES[HOT_FACE];
-              const c = project(mul(f.reduce((a, v) => add(a, FINAL[v]), [0, 0, 0] as V3), 1 / f.length), cam);
-              return <circle cx={c[0]} cy={c[1]} r={4 + 6 * E.out(k)} fill="none" stroke={`rgb(${HOT_RGB.join(' ')})`} strokeWidth={2.4} opacity={1 - E.out(k)} />;
-            })()}
+            <Sheet P={FINAL} cam={cam} hide={PIECE} slot={done ? 0 : 1 - back} op={lerp(0.25, 1, back)} shadow={0.15 * back} extra={diagK(ms, S5_DIAG)} strain={seg(ms, S5_STRAIN, S5_STRAIN + 1200, E.inOut)} />
+            <HotOutline P={FINAL} cam={cam} k={seg(ms, S5_STRAIN + 1150, S5_STRAIN + 1650, E.out)} kLab={seg(ms, S5_STRAIN + 1500, S5_STRAIN + 1900, E.linear)} />
+            <StrainKey op={seg(ms, S5_STRAIN + 750, S5_STRAIN + 1150, E.out)} />
             {!done && <Piece pose={p} split={1} lift={1 - back} emph={[g, g]} />}
             {out > 0 && <g opacity={out}>
               <Tick pose={POSE4_END} tri={TA} k={1} label={tr('① 한 줄 ✓', '① one line ✓')} below dx={-60} />
@@ -825,7 +951,11 @@ export const hyparScenes = (): Scene[] => {
                 {pulse > 0 && <rect x={lx - box} y={CY - box} width={2 * box} height={2 * box} fill="none" stroke="var(--color-mark-deep)" strokeWidth={3} rx={3} opacity={pulse} />}
               </g>
             )}
-            {t5 > 0 && <g opacity={t5}><S5Text t={1} /></g>}
+            {t5 > 0 && <g opacity={t5}>
+              <S5Text t={1} />
+              <HotOutline P={P} cam={cam} k={1} kLab={1} />
+              <StrainKey op={1} />
+            </g>}
             <Label x={125} y={224} size={15} weight={700} rise={seg(ms, 1250, 1550, E.out)}>{tr('원래 하이파', 'classic hypar')}</Label>
             <Label x={125} y={247} size={14} color={INK2} rise={seg(ms, 1380, 1680, E.out)}>{tr('\'전체 접기\' 버튼', '"Fold all" button')}</Label>
             <Label x={355} y={224} size={15} weight={700} rise={seg(ms, 1560, 1860, E.out)}>{tr('삼각 분할 하이파', 'triangulated hypar')}</Label>
@@ -839,4 +969,4 @@ export const hyparScenes = (): Scene[] => {
 };
 
 /** the numbers on screen, for tests and the report */
-export const hyparFacts = { RINGS, ADDED, DELTA, DELTA_MM, BEND, MAX_STRAIN, piece: PIECE, diagonal: [DG_U, DG_V], triA: TA, triB: TB, off: D_OFF };
+export const hyparFacts = { RINGS, ADDED, DELTA, DELTA_MM, BEND, MAX_STRAIN, F_MIN, F_MAX, hotFaces: HOT_FACES, hotRings: HOT_RINGS, piece: PIECE, diagonal: [DG_U, DG_V], triA: TA, triB: TB, off: D_OFF };

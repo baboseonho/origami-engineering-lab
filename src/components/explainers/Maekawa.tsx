@@ -50,7 +50,8 @@ const PHI = TH.map((x, i) => {
 });
 /** pulled-apart radius of each layer: the stack's order, top layer innermost (as in the folded drawing) */
 const R0 = 30, RS = 20;
-const rL = (i: number) => R0 + RS * (TOP - LEVELS[i]);
+const rOf = (lv: readonly number[]) => (i: number) => R0 + RS * (Math.max(...lv) - lv[i]);
+const rL = rOf(LEVELS);
 
 interface Piece {
   kind: 'arc' | 'u';
@@ -69,8 +70,9 @@ interface Piece {
  * The closed walk: an arc on each layer, then a semicircular U-turn on the
  * crease to the next layer. The U-turn's turn is read off its own geometry:
  * it sweeps from where it starts towards the direction of travel.
+ * `rL` is each layer's pulled-apart radius (from a stack order).
  */
-function buildWalk(): Piece[] {
+function buildWalk(rL: (i: number) => number): Piece[] {
   const out: Piece[] = [];
   for (let i = 0; i < N; i++) {
     const [a0, a1] = PHI[i];
@@ -97,7 +99,33 @@ function buildWalk(): Piece[] {
   }
   return out;
 }
-const WALK = buildWalk();
+const WALK = buildWalk(rL);
+
+/** the closed loop as a polygon: `n` points per piece, read off each piece's own `pos` */
+const loopPolygon = (walk: Piece[], n: number) => walk.flatMap((p) => Array.from({ length: n }, (_, k) => p.pos(k / n)));
+type P2 = [number, number];
+const orient = (a: P2, b: P2, c: P2) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+const onSeg = (a: P2, b: P2, c: P2) => Math.min(a[0], b[0]) - 1e-9 <= c[0] && c[0] <= Math.max(a[0], b[0]) + 1e-9 && Math.min(a[1], b[1]) - 1e-9 <= c[1] && c[1] <= Math.max(a[1], b[1]) + 1e-9;
+/** do segments ab and cd meet (crossing or touching)? */
+function segsMeet(a: P2, b: P2, c: P2, d: P2) {
+  const eps = 1e-9;
+  const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b);
+  if (((o1 > eps && o2 < -eps) || (o1 < -eps && o2 > eps)) && ((o3 > eps && o4 < -eps) || (o3 < -eps && o4 > eps))) return true;
+  return (Math.abs(o1) <= eps && onSeg(a, b, c)) || (Math.abs(o2) <= eps && onSeg(a, b, d)) || (Math.abs(o3) <= eps && onSeg(c, d, a)) || (Math.abs(o4) <= eps && onSeg(c, d, b));
+}
+/** a simple closed curve: no two non-adjacent segments of the sampled loop meet */
+function isSimple(walk: Piece[], n = 24) {
+  const q = loopPolygon(walk, n), M = q.length;
+  for (let i = 0; i < M; i++)
+    for (let j = i + 2; j < M; j++) {
+      if (i === 0 && j === M - 1) continue;
+      if (segsMeet(q[i], q[(i + 1) % M], q[j], q[(j + 1) % M])) return false;
+    }
+  return true;
+}
+/** the walk the paper would need if crease 4 were a mountain: the same build, from the stack that folding by BAD_MV gives */
+const BAD_LEVELS = levels(foldPlan(TH, BAD_MV), N - 1);
+const BAD_WALK = buildWalk(rOf(BAD_LEVELS));
 /** heading turned before piece j; CUM[2N] is the whole loop */
 const CUM = WALK.reduce<number[]>((a, p) => [...a, a[a.length - 1] + p.turn], [0]);
 const H0 = WALK[0].head(0);
@@ -133,14 +161,20 @@ export function maekawaCheck() {
     headGap: Math.max(...WALK.map((p, j) => Math.abs(wrap(p.head(1) - WALK[(j + 1) % WALK.length].head(0))))),
     dialGap: Math.max(...WALK.map((p, j) => Math.abs(wrap(p.head(1) - (H0 + CUM[j + 1]))))),
     badUSum: sum(uTurns(BAD_MV)),
+    /** the separated rim loop never crosses itself (sampled 24 points per piece) */
+    simple: isSimple(WALK),
+    /** the same build from BAD_MV's stack: its stack levels, total turn, and whether it is simple */
+    bad: { levels: BAD_LEVELS, total: sum(BAD_WALK.map((p) => p.turn)), simple: isSimple(BAD_WALK) },
   };
 }
 if (import.meta.env?.DEV) {
   const c = maekawaCheck();
-  const ok = c.consistent && c.arcSum === 0 && Math.abs(c.total) === 360 && c.uSum === c.total && c.gap < 1e-6 && c.headGap < 1e-6 && c.dialGap < 1e-6
+  const ok = c.simple && c.consistent && c.arcSum === 0 && Math.abs(c.total) === 360 && c.uSum === c.total && c.gap < 1e-6 && c.headGap < 1e-6 && c.dialGap < 1e-6
     && c.uTurns.every((u) => u.turn === (u.a === 'V' ? TURN_OF.V : TURN_OF.M)) && TURN_OF.V === -TURN_OF.M;
   if (!ok) console.error('Maekawa explainer: the drawn walk does not match its ledger', c);
 }
+/** scene 4 says "a loop that never crosses itself" only if the drawn loop is checked to be one */
+const LOOP_SIMPLE = maekawaCheck().simple;
 
 // ───────────────────────────── scene timing: reading time first, then motion
 
@@ -161,16 +195,16 @@ const KO = {
   s1: ['평탄하게 접히는 꼭짓점.', `산(M) ${nM}개, 골(V) ${nV}개.`],
   s2: ['Kawasaki 때처럼 크리스 1을 잘라 두고 접는다.', '테두리 원은 여러 겹으로 포개진다.'],
   s3: ['겹을 떼어 놓고 테두리를 따라 한 바퀴 걷는다.', `U턴은 골(V)에서 ${side(TURN_OF.V)[0]}, 산(M)에서 ${side(TURN_OF.M)[0]}이다.`],
-  s4: ['호는 서로 지워지고 U턴만 남는다.', `종이는 서로를 뚫지 못하니 고리는 꼬이지 않고 꼭 한 바퀴, V − M = ${nV - nM}다.`],
-  s5: [`산 ${bM}, 골 ${bV}면 U턴이 서로 지워져 ${fmt(sum(uTurns(BAD_MV)))}다.`, '한 바퀴가 안 되니 평탄하게 접힐 수 없다.'],
+  s4: ['호는 서로 지워지고 U턴만 남는다.', '겹은 서로를 뚫지 못해 고리가 8자로 꼬이지 않으니, 꼭 한 바퀴다.'],
+  s5: [`산 ${bM}, 골 ${bV}면 U턴이 서로 지워져 ${fmt(sum(uTurns(BAD_MV)))}다.`, '0바퀴면 고리가 꼬여야 하니, 평탄하게 접힐 수 없다.'],
   s6: ['개수가 맞아도 안 될 수 있다.', '가장 작은 섹터 양쪽이 둘 다 V면, 이웃한 두 섹터가 부딪친다.'],
 };
 const EN = {
   s1: ['A vertex that folds flat.', `${nM} mountain (M), ${nV} valleys (V).`],
   s2: ['As in Kawasaki, cut crease 1 for a moment and fold.', 'The rim circle piles up in layers.'],
   s3: ['Pull the layers apart and walk once round the rim.', `A U-turn goes ${side(TURN_OF.V)[1]} at a valley (V), ${side(TURN_OF.M)[1]} at a mountain (M).`],
-  s4: ['The arcs cancel; only the U-turns remain.', `Paper cannot pass through itself, so the loop never crosses and turns exactly once: V − M = ${nV - nM}.`],
-  s5: [`With ${bM} mountains and ${bV} valleys the U-turns cancel to ${fmt(sum(uTurns(BAD_MV)))}.`, 'No full turn, so it cannot fold flat.'],
+  s4: ['The arcs cancel; only the U-turns remain.', 'Layers cannot pass through each other, so the loop never twists into a figure 8: exactly one turn.'],
+  s5: [`With ${bM} mountains and ${bV} valleys the U-turns cancel to ${fmt(sum(uTurns(BAD_MV)))}.`, 'Zero turns means the loop must cross itself, so it cannot fold flat.'],
   s6: ['The right count is not enough.', 'If both creases beside the smallest sector are V, the two neighbouring sectors run into each other.'],
 };
 type Key = keyof typeof KO;
@@ -203,13 +237,20 @@ const RP_STEP = 560, RP_GAP = 140;
 const R4A = 450, R4U = 3450;
 const rpEnd = (a: number, n: number) => a + n * (RP_STEP + RP_GAP) - RP_GAP;
 const B4 = 3000;
-const ACC4 = rpEnd(R4U, N) + 1800;
-const D4 = dur(KO.s4, LEADJ, B4, ACC4 + 500);
+/** after the U-turn replay: the verdict, then a comet runs once round the loop (the dial's needle reads its heading), the start ring answers, the label rises */
+const VD4 = rpEnd(R4U, N) + 550;
+const CM4 = rpEnd(R4U, N) + 850, CM4D = 1600, CM4E = CM4 + CM4D;
+const LB4 = CM4E + 140;
+/** the verdict's closing accent comes last; only the TAIL is held after it */
+const D4 = dur(KO.s4, LEADJ, B4, CM4E + 1050);
+const ACC4 = D4 - 450;
 // scene 5: two of each
 const R5U = 2300;
-const B5 = rpEnd(R5U, N) - 600;
-const ACC5 = rpEnd(R5U, N) + 1900;
-const D5 = dur(KO.s5, LEADJ, B5, ACC5 + 450);
+const B5 = rpEnd(R5U, N) - 800;
+/** the red trace pulses (its ends never join), the theorem line rises, then the verdict's accent last */
+const TH5 = rpEnd(R5U, N) + 1700;
+const D5 = dur(KO.s5, LEADJ, B5, TH5 + 1600);
+const ACC5 = D5 - 500;
 // scene 6: the crimp
 const B6 = 2900;
 /** the dashed rim unrolls into the section */
@@ -320,12 +361,69 @@ function Walker({ x, y, h, s = 1 }: { x: number; y: number; h: number; s?: numbe
 
 const START = WALK[0].pos(0);
 /** where the walk starts and must end; flashes green when the loop closes */
-function StartRing({ op, close = 0, bad = false }: { op: number; close?: number; bad?: boolean }) {
+function StartRing({ op, close = 0, bad = false, pop = 1, ripple = 0 }: { op: number; close?: number; bad?: boolean; pop?: number; ripple?: number }) {
   if (op <= 0.001) return null;
   return (
     <g opacity={op}>
-      <circle cx={START[0]} cy={START[1]} r={8} fill="none" stroke={close > 0 ? (bad ? BAD : OK) : INK2} strokeWidth={2} />
+      <circle cx={START[0]} cy={START[1]} r={8 * pop} fill="none" stroke={close > 0 ? (bad ? BAD : OK) : INK2} strokeWidth={2 + 2.5 * (pop - 1)} />
       {close > 0 && close < 1 && <circle cx={START[0]} cy={START[1]} r={8 + 12 * close} fill="none" stroke={OK} strokeWidth={3} opacity={1 - close} />}
+      {ripple > 0 && ripple < 1 && <circle cx={START[0]} cy={START[1]} r={8 + 16 * ripple} fill="none" stroke={OK} strokeWidth={3} opacity={1 - ripple} />}
+    </g>
+  );
+}
+
+/** the loop by arc length, for the comet: points, length so far, and heading turned so far (read off the same pieces) */
+const LOOP = (() => {
+  const K = 48;
+  const pts: P2[] = [], turn: number[] = [];
+  WALK.forEach((p, j) => { for (let k = 0; k < K; k++) { pts.push(p.pos(k / K)); turn.push(CUM[j] + p.turn * (k / K)); } });
+  pts.push(WALK[WALK.length - 1].pos(1));
+  turn.push(CUM[WALK.length]);
+  const len = pts.reduce<number[]>((a, q, i) => [...a, i ? a[i - 1] + Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0], []);
+  return { pts, turn, len, total: len[len.length - 1] };
+})();
+/** the segment index and fraction at length L along the loop */
+function loopAt(L: number) {
+  const { len } = LOOP;
+  const l = Math.min(Math.max(L, 0), LOOP.total);
+  let i = 0;
+  while (i < len.length - 2 && len[i + 1] < l) i++;
+  const f = len[i + 1] > len[i] ? (l - len[i]) / (len[i + 1] - len[i]) : 0;
+  return { i, f, l };
+}
+const loopPt = (L: number): P2 => { const { i, f } = loopAt(L); const a = LOOP.pts[i], b = LOOP.pts[i + 1]; return [lerp(a[0], b[0], f), lerp(a[1], b[1], f)]; };
+/** heading turned when the comet is at length L: the dial's needle reads it */
+const loopTurn = (L: number) => { const { i, f } = loopAt(L); return lerp(LOOP.turn[i], LOOP.turn[i + 1], f); };
+function loopSub(a: number, b: number) {
+  const a0 = Math.max(0, a), b0 = Math.min(LOOP.total, b);
+  if (b0 - a0 < 0.05) return '';
+  const q: P2[] = [loopPt(a0)];
+  LOOP.len.forEach((l, i) => { if (l > a0 && l < b0) q.push(LOOP.pts[i]); });
+  q.push(loopPt(b0));
+  return q.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+}
+
+/**
+ * A green comet runs once round the loop from the start ring (g = 0..1 of its
+ * length); its tail stretches with its speed. Behind it the loop it has run
+ * stays lit (`trail`), so the whole of it reads as one curve.
+ */
+function Comet({ g, speed, op, trail }: { g: number; speed: number; op: number; trail: number }) {
+  const L = g * LOOP.total;
+  const TL = 0.2 * LOOP.total * speed, CH = 8;
+  const [hx, hy] = loopPt(L);
+  return (
+    <g fill="none">
+      {trail > 0.001 && L > 0.05 && <path d={loopSub(0, L)} stroke={OK} strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" opacity={0.22 * trail} />}
+      {op > 0.001 && (
+        <g opacity={op}>
+          {TL > 0.5 && Array.from({ length: CH }, (_, c) => (
+            <path key={c} d={loopSub(L - (TL * (c + 1)) / CH, L - (TL * c) / CH)} stroke={OK} strokeWidth={2 + 4 * (1 - c / CH)} strokeLinejoin="round" opacity={0.85 * (1 - c / CH)} />
+          ))}
+          <circle cx={hx} cy={hy} r={9} fill={OK} opacity={0.35} filter="url(#xp-soft)" />
+          <circle cx={hx} cy={hy} r={4.6} fill={OK} stroke="var(--color-paper)" strokeWidth={1.5} />
+        </g>
+      )}
     </g>
   );
 }
@@ -630,6 +728,17 @@ function Zoom({ k, children }: { k: number; children: ReactNode }) {
   return <g transform={`translate(${qx.toFixed(2)} ${qy.toFixed(2)}) scale(${s.toFixed(4)}) translate(${-ZC[0]} ${-ZC[1]})`}>{children}</g>;
 }
 
+/** scene 4: the loop never crosses itself; said only if the drawn loop is checked to be simple */
+function SimpleNote({ k, k2 = k, op = 1 }: { k: number; k2?: number; op?: number }) {
+  if (!LOOP_SIMPLE || op <= 0.001) return null;
+  return (
+    <g opacity={op}>
+      <Label x={14} y={236} anchor="start" size={14} weight={700} color={OK} rise={k}>{tr('스스로 엇갈리지', 'the loop never')}</Label>
+      <Label x={14} y={256} anchor="start" size={14} weight={700} color={OK} rise={k2}>{tr('않는 고리 ✓', 'crosses itself ✓')}</Label>
+    </g>
+  );
+}
+
 const flatNote = () => tr('펼친 종이', 'flat sheet');
 const circleNote = () => tr('층을 떼어 놓은 접힌 원', 'the folded circle, layers pulled apart');
 /** where the flat paper sits in scene 5 and 6 */
@@ -809,19 +918,31 @@ export const maekawaScenes = (): Scene[] => [
       const trace = first ? WALK_TRACE : inU ? sampleTrace(repCum(R4U, uTurns(MV)), R4U, uEnd, ms) : sampleTrace(repCum(R4A, ARC_TURNS), R4A, rpEnd(R4A, N), ms);
       const traceOp = first ? 1 - win(ms, 0, 300, E.in) : !inU ? 1 - win(ms, R4U - 450, 200, E.in) : 1;
       const valOp = first ? 1 - win(ms, 0, 260, E.in) : win(ms, R4A - 120, 200, E.out);
+      // the comet: once round the loop; the needle reads its heading, the trace and the readout stay
+      const cm = win(ms, CM4, CM4D, E.sine);
+      const speed = ms > CM4 && ms < CM4E ? Math.sin(Math.PI * cl((ms - CM4) / CM4D)) : 0;
+      const needle = ms >= CM4 ? loopTurn(cm * LOOP.total) : cumShown;
+      // (the readout's total steps back while the needle reads the comet's heading, and returns as it lands)
+      // the creases step back while it runs, so they do not read as crossings
+      const creaseOp = 1 - 0.7 * win(ms, CM4 - 320, 320, E.inOut);
+      const pop = 1 + 0.6 * E.back(2.4)(win(ms, CM4E, 260, E.linear)) * (1 - win(ms, CM4E + 260, 380, E.inOut));
       return (
         <g>
           <Zoom k={1}>
-            <Paper P={N - 1} fill={0.12} />
+            <g opacity={creaseOp}><Paper P={N - 1} fill={0.12} /></g>
             <Layers k={() => 1} />
             <WalkPath prog={() => 1} arcOp={1 - 0.6 * win(ms, rpEnd(R4A, N) + 100, 400)}
               glow={(j) => (WALK[j].kind === 'arc' ? ra.hi[j / 2] : ru.hi[(j - 1) / 2])} />
-            <StartRing op={1} close={1} />
+            {ms >= CM4 - 150 && (
+              <Comet g={cm} speed={speed} op={win(ms, CM4 - 150, 150, E.linear) * (1 - win(ms, CM4E + 60, 260, E.inOut))} trail={1 - win(ms, CM4E + 300, 600, E.inOut)} />
+            )}
+            <StartRing op={1} close={1} pop={pop} ripple={win(ms, CM4E, 700, E.out)} />
             <Walker x={START[0]} y={START[1]} h={H0} />
           </Zoom>
-          <Dial cum={cumShown} trace={trace} traceOp={traceOp} traceCol={uDone || first ? OK : INK2}
+          <SimpleNote k={win(ms, LB4, 320, E.out)} k2={win(ms, LB4 + 60, 320, E.out)} />
+          <Dial cum={needle} trace={trace} traceOp={traceOp} traceCol={uDone || first ? OK : INK2}
             closed={first ? 1 : win(ms, uEnd, 300, E.out)} flash={win(ms, uEnd + 150, 700, E.out)} />
-          <Readout cum={cumShown} valOp={valOp} color={uDone || first ? OK : INK} sub={tr('1바퀴 감김 ✓', 'wound once ✓')}
+          <Readout cum={cumShown} valOp={valOp * (1 - 0.6 * bump((ms - CM4) / CM4D))} color={uDone || first ? OK : INK} sub={tr('1바퀴 감김 ✓', 'wound once ✓')}
             subK={first ? 1 - win(ms, 0, 220, E.in) : win(ms, uEnd + 120, 320, E.out)} />
           <Head col={COL1} text={tr('호 (arc)', 'arcs')} op={1} hi={inOut(ms, R4A - 200, 200, rpEnd(R4A, N), 300)} />
           <Head col={COL2} text={tr('U턴', 'U-turns')} op={1} hi={inOut(ms, R4U - 200, 200, uEnd, 300)} />
@@ -829,7 +950,7 @@ export const maekawaScenes = (): Scene[] => [
           {TH.map((_, i) => <URow key={'u' + i} i={i} mv={MV} enter={1} hi={ru.hi[i]} />)}
           <Total col={COL1} value={fmt(sum(ARC_TURNS))} color={INK3} k={win(ms, rpEnd(R4A, N) + 120, 320, E.out)} />
           <Total col={COL2} value={fmt(sum(uTurns(MV)))} color={OK} k={win(ms, uEnd + 150, 320, E.out)} />
-          <Verdict mv={MV} k={win(ms, uEnd + 700, 360, E.out)} pulse={win(ms, ACC4, 350, E.linear)} />
+          <Verdict mv={MV} k={win(ms, VD4, 360, E.out)} pulse={win(ms, ACC4, 350, E.linear)} />
         </g>
       );
     },
@@ -853,17 +974,22 @@ export const maekawaScenes = (): Scene[] => [
       return (
         <g>
           <Zoom k={1 - m}>
-            <Paper P={N - 1 - unfold} cx={cx} cy={cy} r={r} fill={lerp(0.12, 1, win(ms, 150, 700))}
-              show={BAD_MV} prev={MV} flip={(j) => (j === changed ? flipK : 0)}
-              pulse={(j) => { const i = U_CREASES.indexOf(j); return i < 0 ? 0 : bump(stepK(i)); }} />
+            {/* the creases come back from where scene 4 left them (stepped back) as the paper unfolds */}
+            <g opacity={lerp(0.3, 1, win(ms, 0, 500, E.out))}>
+              <Paper P={N - 1 - unfold} cx={cx} cy={cy} r={r} fill={lerp(0.12, 1, win(ms, 150, 700))}
+                show={BAD_MV} prev={MV} flip={(j) => (j === changed ? flipK : 0)}
+                pulse={(j) => { const i = U_CREASES.indexOf(j); return i < 0 ? 0 : bump(stepK(i)); }} />
+            </g>
             <Layers k={() => 1} opacity={out} />
             <WalkPath prog={() => 1} arcOp={0.4} opacity={out} />
             <StartRing op={out} close={1} />
             {out > 0 && <Walker x={START[0]} y={START[1]} h={H0} s={out} />}
           </Zoom>
+          <SimpleNote k={1} op={out} />
           {U_CREASES.map((c, i) => <UGlyph key={c} cx={cx} cy={cy} r={r} c={c} a={BAD_MV[c]} k={stepK(i)} />)}
           <Dial cum={ms < R5U ? 360 : ru.cum} trace={ms < R5U ? U_TRACE : sampleTrace(repCum(R5U, uTurns(BAD_MV)), R5U, end, ms)}
-            traceOp={ms < R5U ? out : 1} traceCol={ms < R5U ? OK : ms >= end ? BAD : INK2} closed={ms < R5U ? 1 : 0} />
+            traceOp={ms < R5U ? out : 1} traceCol={ms < R5U ? OK : ms >= end ? BAD : INK2} closed={ms < R5U ? 1 : 0}
+            pulse={win(ms, end + 700, 450, E.linear)} />
           <Readout cum={ms < R5U ? 360 : ru.cum} valOp={ms < R5U ? out : win(ms, R5U - 120, 200, E.out)} color={ms >= end ? BAD : ms < R5U ? OK : INK}
             sub={ms < R5U ? tr('1바퀴 감김 ✓', 'wound once ✓') : tr('0바퀴 감김 ✗', 'wound 0 times ✗')} subColor={ms < R5U ? OK : BAD}
             subK={ms < R5U ? out : win(ms, end + 150, 320, E.out)} />
@@ -877,7 +1003,7 @@ export const maekawaScenes = (): Scene[] => [
           <Total col={COL2} value={fmt(sum(uTurns(MV)))} color={OK} k={1 - win(ms, 1550, 220, E.in)} />
           <Total col={COL2} value={`${fmt(sum(uTurns(BAD_MV)))} ✗`} color={BAD} k={win(ms, end + 120, 320, E.out)} />
           <Verdict mv={BAD_MV} prev={MV} flip={flipK} k={1} pulse={win(ms, ACC5, 350, E.linear)} />
-          <Theorem k={win(ms, end + 800, 400, E.out)} />
+          <Theorem k={win(ms, TH5, 400, E.out)} />
         </g>
       );
     },
@@ -909,7 +1035,7 @@ export const maekawaScenes = (): Scene[] => [
       if (!phase2) tau = 180 * win(ms, M6E + 650, 1200, E.inOut) * (1 - win(ms, M6E + 2350, 450, E.out));
       else {
         tau = TAU_C * cl((ms - F2) / 1000) ** 2;
-        // after the hit the flaps bounce back twice (3°, then 1.5°, 140 ms each) and settle: only away from contact, never through it
+        // after the hit the flaps bounce back twice (BOUNCE: 4°, then 1.5°, BOUNCE_MS = 160 ms each) and settle: only away from contact, never through it
         if (ms > HIT6) { const u = (ms - HIT6) / BOUNCE_MS, n = Math.floor(u); tau = n < BOUNCE.length ? TAU_C - BOUNCE[n] * Math.sin(Math.PI * (u - n)) : TAU_C; }
       }
       const swing = phase2 ? win(ms, F2 - 450, 380, E.out) * (1 - win(ms, F2 - 50, 200, E.in)) : win(ms, M6E + 200, 380, E.out) * (1 - win(ms, M6E + 600, 200, E.in));

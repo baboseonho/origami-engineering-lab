@@ -63,7 +63,7 @@ export function ExplainerButton({ lessonId, variant = 'card' }: { lessonId: stri
         <div className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-ink/45 p-3" onClick={() => setOpen(false)}>
           <div role="dialog" aria-modal="true" aria-label={entry.title()} className="sheet w-full max-w-[860px] rounded-[3px] p-3 sm:p-4" onClick={(e) => e.stopPropagation()}>
             <div className="mb-2.5 flex items-start justify-between gap-3">
-              <h2 className="text-[18px] font-semibold leading-snug text-ink">{entry.title()}</h2>
+              <h2 className="break-keep text-[18px] font-semibold leading-snug text-ink [overflow-wrap:break-word] [text-wrap:balance]">{entry.title()}</h2>
               <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label={tr('닫기', 'Close')} className="-mr-1.5 -mt-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[4px] text-ink-3 hover:bg-paper-2 hover:text-ink"><X size={20} /></button>
             </div>
             <Explainer title={entry.title()} scenes={entry.scenes()} />
